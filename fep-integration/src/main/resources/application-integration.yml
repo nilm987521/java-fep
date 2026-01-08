@@ -1,0 +1,59 @@
+# FEP Integration Module Configuration
+
+fep:
+  mq:
+    # IBM MQ Connection Settings
+    queue-manager: QM1
+    host: localhost
+    port: 1414
+    channel: DEV.APP.SVRCONN
+    
+    # Authentication (optional)
+    username: 
+    password: 
+    
+    # Queue Names
+    request-queue: CBS.REQUEST.QUEUE
+    reply-queue: CBS.REPLY.QUEUE
+    
+    # Timeouts
+    connection-timeout: 30000  # 30 seconds
+    request-timeout: 10000     # 10 seconds
+    
+    # Connection Pool
+    max-connections: 10
+    min-connections: 2
+    
+    # SSL Configuration
+    ssl-enabled: false
+    ssl-cipher-suite: 
+    
+    # Message Format
+    encoding: Big5              # Taiwan mainframe encoding
+    message-format: MQSTR
+    transactional: true
+
+  open-system:
+    # Open System API Settings
+    base-url: http://localhost:8080/api/v1/cbs
+    timeout: 10000              # 10 seconds
+    
+    # Connection Pool
+    max-connections: 50
+    connection-timeout: 5000
+    
+    # Retry Configuration
+    max-retries: 3
+    retry-delay: 1000
+
+# Spring WebClient Configuration
+spring:
+  webflux:
+    base-path: /api
+  
+# Logging
+logging:
+  level:
+    com.fep.integration: DEBUG
+    com.ibm.mq: WARN
+    org.springframework.jms: DEBUG
