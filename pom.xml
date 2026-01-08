@@ -27,6 +27,8 @@
         <module>fep-security</module>
         <module>fep-settlement</module>
         <module>fep-integration</module>
+        <module>fep-application</module>
+        <module>fep-jmeter-plugin</module>
     </modules>
 
     <properties>
@@ -77,6 +79,11 @@
             <dependency>
                 <groupId>com.fep</groupId>
                 <artifactId>fep-settlement</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.fep</groupId>
+                <artifactId>fep-jmeter-plugin</artifactId>
                 <version>${project.version}</version>
             </dependency>
 

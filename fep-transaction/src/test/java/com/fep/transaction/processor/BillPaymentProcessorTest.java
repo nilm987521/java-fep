@@ -388,7 +388,7 @@ class BillPaymentProcessorTest {
         @Test
         @DisplayName("Should reject invalid individual tax ID (non-numeric)")
         void shouldRejectInvalidIndividualTaxId() {
-            // Arrange - Tax ID with letters is invalid
+            // Arrange - Tax ID with invalid format (wrong length/invalid characters)
             TransactionRequest request = TransactionRequest.builder()
                     .transactionId("TAX-VAL001")
                     .transactionType(TransactionType.BILL_PAYMENT)
@@ -396,13 +396,13 @@ class BillPaymentProcessorTest {
                     .billTypeCode("11")  // Vehicle Tax
                     .billPaymentNumber("12345678901234")
                     .amount(new BigDecimal("7200"))
-                    .taxId("A123456789")  // Invalid format - should be numeric
+                    .taxId("INVALID")  // Invalid format - too short, wrong format
                     .build();
 
             // Act
             TransactionResponse response = processor.process(request);
 
-            // Assert - Should fail because tax ID must be numeric
+            // Assert - Should fail because tax ID format is invalid
             assertFalse(response.isApproved());
             assertTrue(response.getErrorDetails().contains("Invalid tax ID format"));
         }

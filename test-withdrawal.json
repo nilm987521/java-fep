@@ -1,0 +1,9 @@
+{
+  "transactionType": "WITHDRAWAL",
+  "channelType": "ATM",
+  "sourceAccount": "1234567890123456",
+  "amount": 1000.00,
+  "currency": "TWD",
+  "terminalId": "ATM001",
+  "pinBlock": "1234567890ABCDEF"
+}

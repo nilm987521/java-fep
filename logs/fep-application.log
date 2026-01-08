@@ -1,0 +1,1160 @@
+2026-01-08 21:04:41.837 [main] INFO  com.fep.application.FepApplication - Starting FepApplication using Java 21.0.8 with PID 72503 (/Users/daniel/Documents/Personal/java-fep/fep-application/target/fep-application-1.0.0-SNAPSHOT.jar started by daniel in /Users/daniel/Documents/Personal/java-fep)
+2026-01-08 21:04:41.838 [main] DEBUG com.fep.application.FepApplication - Running with Spring Boot v3.2.1, Spring v6.1.2
+2026-01-08 21:04:41.838 [main] INFO  com.fep.application.FepApplication - The following 1 profile is active: "dev"
+2026-01-08 21:04:42.369 [main] INFO  o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port 8080 (http)
+2026-01-08 21:04:42.374 [main] INFO  o.a.catalina.core.StandardService - Starting service [Tomcat]
+2026-01-08 21:04:42.374 [main] INFO  o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.17]
+2026-01-08 21:04:42.386 [main] INFO  o.a.c.c.C.[.[localhost].[/api] - Initializing Spring embedded WebApplicationContext
+2026-01-08 21:04:42.386 [main] INFO  o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 522 ms
+2026-01-08 21:04:42.445 [main] DEBUG c.f.t.risk.alert.AlertService - Registered alert handler: Webhook Handler
+2026-01-08 21:04:42.446 [main] DEBUG c.f.t.risk.alert.AlertService - Registered alert handler: Email Handler
+2026-01-08 21:04:42.446 [main] DEBUG c.f.t.risk.alert.AlertService - Registered alert handler: SMS Handler
+2026-01-08 21:04:42.446 [main] DEBUG c.f.t.risk.alert.AlertService - Registered alert handler: Log Only Handler
+2026-01-08 21:04:42.446 [main] INFO  c.f.t.risk.alert.AlertService - AlertService initialized with 4 handlers
+2026-01-08 21:04:42.447 [main] DEBUG c.f.t.r.fraud.FraudDetectionService - Added fraud rule: VEL-001 - High Velocity - Hourly
+2026-01-08 21:04:42.448 [main] DEBUG c.f.t.r.fraud.FraudDetectionService - Added fraud rule: VEL-002 - High Velocity - Daily
+2026-01-08 21:04:42.448 [main] DEBUG c.f.t.r.fraud.FraudDetectionService - Added fraud rule: AMT-001 - Large Single Transaction
+2026-01-08 21:04:42.448 [main] DEBUG c.f.t.r.fraud.FraudDetectionService - Added fraud rule: AMT-002 - Unusual Amount Pattern
+2026-01-08 21:04:42.448 [main] DEBUG c.f.t.r.fraud.FraudDetectionService - Added fraud rule: AMT-003 - Daily Limit Approaching
+2026-01-08 21:04:42.448 [main] DEBUG c.f.t.r.fraud.FraudDetectionService - Added fraud rule: GEO-001 - Impossible Travel
+2026-01-08 21:04:42.448 [main] DEBUG c.f.t.r.fraud.FraudDetectionService - Added fraud rule: GEO-002 - Multiple Countries
+2026-01-08 21:04:42.448 [main] DEBUG c.f.t.r.fraud.FraudDetectionService - Added fraud rule: TIME-001 - Unusual Hour
+2026-01-08 21:04:42.448 [main] DEBUG c.f.t.r.fraud.FraudDetectionService - Added fraud rule: TIME-002 - Late Night Transaction
+2026-01-08 21:04:42.448 [main] DEBUG c.f.t.r.fraud.FraudDetectionService - Added fraud rule: DEV-001 - Unknown Device
+2026-01-08 21:04:42.448 [main] DEBUG c.f.t.r.fraud.FraudDetectionService - Added fraud rule: DEV-002 - Multiple Cards on Device
+2026-01-08 21:04:42.448 [main] DEBUG c.f.t.r.fraud.FraudDetectionService - Added fraud rule: BEH-001 - Dormant Account Activation
+2026-01-08 21:04:42.448 [main] DEBUG c.f.t.r.fraud.FraudDetectionService - Added fraud rule: BEH-002 - New Card High Value
+2026-01-08 21:04:42.448 [main] DEBUG c.f.t.r.fraud.FraudDetectionService - Added fraud rule: MERCH-001 - High Risk Merchant
+2026-01-08 21:04:42.448 [main] DEBUG c.f.t.r.fraud.FraudDetectionService - Added fraud rule: MERCH-002 - First Time Merchant Large Amount
+2026-01-08 21:04:42.449 [main] INFO  c.f.t.r.fraud.FraudDetectionService - Initialized 15 default fraud detection rules
+2026-01-08 21:04:42.471 [main] DEBUG c.f.t.service.TransactionServiceImpl - Registered processor WithdrawalProcessor for type WITHDRAWAL
+2026-01-08 21:04:42.472 [main] DEBUG c.f.t.service.TransactionServiceImpl - Registered processor TransferProcessor for type TRANSFER
+2026-01-08 21:04:42.472 [main] DEBUG c.f.t.service.TransactionServiceImpl - Registered processor BalanceInquiryProcessor for type BALANCE_INQUIRY
+2026-01-08 21:04:42.472 [main] DEBUG c.f.t.service.TransactionServiceImpl - Registered processor DepositProcessor for type DEPOSIT
+2026-01-08 21:04:42.472 [main] DEBUG c.f.t.service.TransactionServiceImpl - Registered processor BillPaymentProcessor for type BILL_PAYMENT
+2026-01-08 21:04:42.472 [main] DEBUG c.f.t.service.TransactionServiceImpl - Registered processor ReversalProcessor for type REVERSAL
+2026-01-08 21:04:42.472 [main] DEBUG c.f.t.service.TransactionServiceImpl - Registered processor QrPaymentProcessor for type QR_PAYMENT
+2026-01-08 21:04:42.472 [main] INFO  c.f.t.service.TransactionServiceImpl - TransactionService initialized with 7 processors
+2026-01-08 21:04:42.685 [main] INFO  o.s.b.a.e.web.EndpointLinksResolver - Exposing 3 endpoint(s) beneath base path '/actuator'
+2026-01-08 21:04:42.709 [main] WARN  o.s.b.w.s.c.AnnotationConfigServletWebServerApplicationContext - Exception encountered during context initialization - cancelling refresh attempt: org.springframework.context.ApplicationContextException: Failed to start bean 'webServerStartStop'
+2026-01-08 21:04:42.718 [main] INFO  o.s.b.a.l.ConditionEvaluationReportLogger - 
+
+Error starting ApplicationContext. To display the condition evaluation report re-run your application with 'debug' enabled.
+2026-01-08 21:04:42.727 [main] ERROR o.s.b.d.LoggingFailureAnalysisReporter - 
+
+***************************
+APPLICATION FAILED TO START
+***************************
+
+Description:
+
+Web server failed to start. Port 8080 was already in use.
+
+Action:
+
+Identify and stop the process that's listening on port 8080 or configure this application to listen on another port.
+
+2026-01-08 21:05:35.107 [main] INFO  com.fep.application.FepApplication - Starting FepApplication using Java 21.0.8 with PID 72727 (/Users/daniel/Documents/Personal/java-fep/fep-application/target/fep-application-1.0.0-SNAPSHOT.jar started by daniel in /Users/daniel/Documents/Personal/java-fep)
+2026-01-08 21:05:35.108 [main] DEBUG com.fep.application.FepApplication - Running with Spring Boot v3.2.1, Spring v6.1.2
+2026-01-08 21:05:35.108 [main] INFO  com.fep.application.FepApplication - The following 1 profile is active: "dev"
+2026-01-08 21:05:35.643 [main] INFO  o.s.b.w.e.tomcat.TomcatWebServer - Tomcat initialized with port 8080 (http)
+2026-01-08 21:05:35.647 [main] INFO  o.a.catalina.core.StandardService - Starting service [Tomcat]
+2026-01-08 21:05:35.647 [main] INFO  o.a.catalina.core.StandardEngine - Starting Servlet engine: [Apache Tomcat/10.1.17]
+2026-01-08 21:05:35.658 [main] INFO  o.a.c.c.C.[.[localhost].[/api] - Initializing Spring embedded WebApplicationContext
+2026-01-08 21:05:35.659 [main] INFO  o.s.b.w.s.c.ServletWebServerApplicationContext - Root WebApplicationContext: initialization completed in 524 ms
+2026-01-08 21:05:35.719 [main] DEBUG c.f.t.risk.alert.AlertService - Registered alert handler: Webhook Handler
+2026-01-08 21:05:35.720 [main] DEBUG c.f.t.risk.alert.AlertService - Registered alert handler: Email Handler
+2026-01-08 21:05:35.720 [main] DEBUG c.f.t.risk.alert.AlertService - Registered alert handler: SMS Handler
+2026-01-08 21:05:35.720 [main] DEBUG c.f.t.risk.alert.AlertService - Registered alert handler: Log Only Handler
+2026-01-08 21:05:35.720 [main] INFO  c.f.t.risk.alert.AlertService - AlertService initialized with 4 handlers
+2026-01-08 21:05:35.722 [main] DEBUG c.f.t.r.fraud.FraudDetectionService - Added fraud rule: VEL-001 - High Velocity - Hourly
+2026-01-08 21:05:35.722 [main] DEBUG c.f.t.r.fraud.FraudDetectionService - Added fraud rule: VEL-002 - High Velocity - Daily
+2026-01-08 21:05:35.722 [main] DEBUG c.f.t.r.fraud.FraudDetectionService - Added fraud rule: AMT-001 - Large Single Transaction
+2026-01-08 21:05:35.722 [main] DEBUG c.f.t.r.fraud.FraudDetectionService - Added fraud rule: AMT-002 - Unusual Amount Pattern
+2026-01-08 21:05:35.722 [main] DEBUG c.f.t.r.fraud.FraudDetectionService - Added fraud rule: AMT-003 - Daily Limit Approaching
+2026-01-08 21:05:35.722 [main] DEBUG c.f.t.r.fraud.FraudDetectionService - Added fraud rule: GEO-001 - Impossible Travel
+2026-01-08 21:05:35.722 [main] DEBUG c.f.t.r.fraud.FraudDetectionService - Added fraud rule: GEO-002 - Multiple Countries
+2026-01-08 21:05:35.722 [main] DEBUG c.f.t.r.fraud.FraudDetectionService - Added fraud rule: TIME-001 - Unusual Hour
+2026-01-08 21:05:35.722 [main] DEBUG c.f.t.r.fraud.FraudDetectionService - Added fraud rule: TIME-002 - Late Night Transaction
+2026-01-08 21:05:35.722 [main] DEBUG c.f.t.r.fraud.FraudDetectionService - Added fraud rule: DEV-001 - Unknown Device
+2026-01-08 21:05:35.723 [main] DEBUG c.f.t.r.fraud.FraudDetectionService - Added fraud rule: DEV-002 - Multiple Cards on Device
+2026-01-08 21:05:35.723 [main] DEBUG c.f.t.r.fraud.FraudDetectionService - Added fraud rule: BEH-001 - Dormant Account Activation
+2026-01-08 21:05:35.723 [main] DEBUG c.f.t.r.fraud.FraudDetectionService - Added fraud rule: BEH-002 - New Card High Value
+2026-01-08 21:05:35.723 [main] DEBUG c.f.t.r.fraud.FraudDetectionService - Added fraud rule: MERCH-001 - High Risk Merchant
+2026-01-08 21:05:35.723 [main] DEBUG c.f.t.r.fraud.FraudDetectionService - Added fraud rule: MERCH-002 - First Time Merchant Large Amount
+2026-01-08 21:05:35.723 [main] INFO  c.f.t.r.fraud.FraudDetectionService - Initialized 15 default fraud detection rules
+2026-01-08 21:05:35.745 [main] DEBUG c.f.t.service.TransactionServiceImpl - Registered processor WithdrawalProcessor for type WITHDRAWAL
+2026-01-08 21:05:35.746 [main] DEBUG c.f.t.service.TransactionServiceImpl - Registered processor TransferProcessor for type TRANSFER
+2026-01-08 21:05:35.746 [main] DEBUG c.f.t.service.TransactionServiceImpl - Registered processor BalanceInquiryProcessor for type BALANCE_INQUIRY
+2026-01-08 21:05:35.746 [main] DEBUG c.f.t.service.TransactionServiceImpl - Registered processor DepositProcessor for type DEPOSIT
+2026-01-08 21:05:35.746 [main] DEBUG c.f.t.service.TransactionServiceImpl - Registered processor BillPaymentProcessor for type BILL_PAYMENT
+2026-01-08 21:05:35.746 [main] DEBUG c.f.t.service.TransactionServiceImpl - Registered processor ReversalProcessor for type REVERSAL
+2026-01-08 21:05:35.746 [main] DEBUG c.f.t.service.TransactionServiceImpl - Registered processor QrPaymentProcessor for type QR_PAYMENT
+2026-01-08 21:05:35.746 [main] INFO  c.f.t.service.TransactionServiceImpl - TransactionService initialized with 7 processors
+2026-01-08 21:05:35.957 [main] INFO  o.s.b.a.e.web.EndpointLinksResolver - Exposing 3 endpoint(s) beneath base path '/actuator'
+2026-01-08 21:05:35.984 [main] INFO  o.s.b.w.e.tomcat.TomcatWebServer - Tomcat started on port 8080 (http) with context path '/api'
+2026-01-08 21:05:35.995 [main] INFO  com.fep.application.FepApplication - Started FepApplication in 1.073 seconds (process running for 1.273)
+2026-01-08 21:05:36.028 [main] INFO  com.fep.application.FepApplication - ==============================================
+2026-01-08 21:05:36.029 [main] INFO  com.fep.application.FepApplication -   FEP System Started Successfully
+2026-01-08 21:05:36.029 [main] INFO  com.fep.application.FepApplication -   Version: 1.0.0-SNAPSHOT
+2026-01-08 21:05:36.029 [main] INFO  com.fep.application.FepApplication - ==============================================
+2026-01-08 21:05:36.029 [main] INFO  com.fep.application.FepApplication -   API Documentation: http://localhost:8080/swagger-ui.html
+2026-01-08 21:05:36.029 [main] INFO  com.fep.application.FepApplication -   Health Check: http://localhost:8080/actuator/health
+2026-01-08 21:05:36.029 [main] INFO  com.fep.application.FepApplication - ==============================================
+2026-01-08 21:06:27.954 [http-nio-8080-exec-5] INFO  o.a.c.c.C.[.[localhost].[/api] - Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-01-08 21:06:27.955 [http-nio-8080-exec-5] INFO  o.s.web.servlet.DispatcherServlet - Initializing Servlet 'dispatcherServlet'
+2026-01-08 21:06:27.958 [http-nio-8080-exec-5] INFO  o.s.web.servlet.DispatcherServlet - Completed initialization in 3 ms
+2026-01-08 21:06:27.983 [http-nio-8080-exec-5] ERROR c.f.a.config.GlobalExceptionHandler - Unexpected exception: Request method 'GET' is not supported
+org.springframework.web.HttpRequestMethodNotSupportedException: Request method 'GET' is not supported
+	at org.springframework.web.servlet.mvc.method.RequestMappingInfoHandlerMapping.handleNoMatch(RequestMappingInfoHandlerMapping.java:265)
+	at org.springframework.web.servlet.handler.AbstractHandlerMethodMapping.lookupHandlerMethod(AbstractHandlerMethodMapping.java:441)
+	at org.springframework.web.servlet.handler.AbstractHandlerMethodMapping.getHandlerInternal(AbstractHandlerMethodMapping.java:382)
+	at org.springframework.web.servlet.mvc.method.RequestMappingInfoHandlerMapping.getHandlerInternal(RequestMappingInfoHandlerMapping.java:126)
+	at org.springframework.web.servlet.mvc.method.RequestMappingInfoHandlerMapping.getHandlerInternal(RequestMappingInfoHandlerMapping.java:68)
+	at org.springframework.web.servlet.handler.AbstractHandlerMapping.getHandler(AbstractHandlerMapping.java:507)
+	at org.springframework.web.servlet.DispatcherServlet.getHandler(DispatcherServlet.java:1283)
+	at org.springframework.web.servlet.DispatcherServlet.doDispatch(DispatcherServlet.java:1065)
+	at org.springframework.web.servlet.DispatcherServlet.doService(DispatcherServlet.java:979)
+	at org.springframework.web.servlet.FrameworkServlet.processRequest(FrameworkServlet.java:1014)
+	at org.springframework.web.servlet.FrameworkServlet.doGet(FrameworkServlet.java:903)
+	at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:564)
+	at org.springframework.web.servlet.FrameworkServlet.service(FrameworkServlet.java:885)
+	at jakarta.servlet.http.HttpServlet.service(HttpServlet.java:658)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:205)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149)
+	at org.apache.tomcat.websocket.server.WsFilter.doFilter(WsFilter.java:51)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149)
+	at org.springframework.web.filter.RequestContextFilter.doFilterInternal(RequestContextFilter.java:100)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149)
+	at org.springframework.web.filter.FormContentFilter.doFilterInternal(FormContentFilter.java:93)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149)
+	at org.springframework.web.filter.ServerHttpObservationFilter.doFilterInternal(ServerHttpObservationFilter.java:109)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149)
+	at org.springframework.web.filter.CharacterEncodingFilter.doFilterInternal(CharacterEncodingFilter.java:201)
+	at org.springframework.web.filter.OncePerRequestFilter.doFilter(OncePerRequestFilter.java:116)
+	at org.apache.catalina.core.ApplicationFilterChain.internalDoFilter(ApplicationFilterChain.java:174)
+	at org.apache.catalina.core.ApplicationFilterChain.doFilter(ApplicationFilterChain.java:149)
+	at org.apache.catalina.core.StandardWrapperValve.invoke(StandardWrapperValve.java:167)
+	at org.apache.catalina.core.StandardContextValve.invoke(StandardContextValve.java:90)
+	at org.apache.catalina.authenticator.AuthenticatorBase.invoke(AuthenticatorBase.java:482)
+	at org.apache.catalina.core.StandardHostValve.invoke(StandardHostValve.java:115)
+	at org.apache.catalina.valves.ErrorReportValve.invoke(ErrorReportValve.java:93)
+	at org.apache.catalina.core.StandardEngineValve.invoke(StandardEngineValve.java:74)
+	at org.apache.catalina.connector.CoyoteAdapter.service(CoyoteAdapter.java:340)
+	at org.apache.coyote.http11.Http11Processor.service(Http11Processor.java:391)
+	at org.apache.coyote.AbstractProcessorLight.process(AbstractProcessorLight.java:63)
+	at org.apache.coyote.AbstractProtocol$ConnectionHandler.process(AbstractProtocol.java:896)
+	at org.apache.tomcat.util.net.NioEndpoint$SocketProcessor.doRun(NioEndpoint.java:1744)
+	at org.apache.tomcat.util.net.SocketProcessorBase.run(SocketProcessorBase.java:52)
+	at org.apache.tomcat.util.threads.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1191)
+	at org.apache.tomcat.util.threads.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:659)
+	at org.apache.tomcat.util.threads.TaskThread$WrappingRunnable.run(TaskThread.java:61)
+	at java.base/java.lang.Thread.run(Thread.java:1583)
+2026-01-08 21:06:47.734 [http-nio-8080-exec-8] INFO  o.s.api.AbstractOpenApiResource - Init duration for springdoc-openapi is: 160 ms
+2026-01-08 21:12:05.780 [http-nio-8080-exec-3] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.787 [http-nio-8080-exec-7] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.787 [http-nio-8080-exec-6] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.787 [http-nio-8080-exec-9] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.787 [http-nio-8080-exec-8] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.787 [http-nio-8080-exec-4] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.787 [http-nio-8080-exec-11] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.787 [http-nio-8080-exec-5] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.787 [http-nio-8080-exec-1] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.787 [http-nio-8080-exec-10] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.787 [http-nio-8080-exec-2] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.788 [http-nio-8080-exec-3] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.787 [http-nio-8080-exec-12] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.788 [http-nio-8080-exec-13] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.789 [http-nio-8080-exec-9] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.789 [http-nio-8080-exec-14] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.789 [http-nio-8080-exec-3] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.789 [http-nio-8080-exec-7] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.789 [http-nio-8080-exec-10] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.789 [http-nio-8080-exec-12] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.790 [http-nio-8080-exec-3] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.790 [http-nio-8080-exec-6] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.790 [http-nio-8080-exec-2] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.790 [http-nio-8080-exec-13] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.790 [http-nio-8080-exec-9] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.790 [http-nio-8080-exec-12] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.791 [http-nio-8080-exec-2] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.791 [http-nio-8080-exec-7] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.791 [http-nio-8080-exec-15] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.791 [http-nio-8080-exec-6] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.791 [http-nio-8080-exec-13] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.791 [http-nio-8080-exec-4] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.792 [http-nio-8080-exec-3] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.792 [http-nio-8080-exec-13] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.792 [http-nio-8080-exec-4] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.792 [http-nio-8080-exec-9] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.792 [http-nio-8080-exec-16] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.792 [http-nio-8080-exec-11] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.792 [http-nio-8080-exec-7] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.792 [http-nio-8080-exec-14] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.792 [http-nio-8080-exec-17] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.792 [http-nio-8080-exec-5] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.792 [http-nio-8080-exec-4] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.793 [http-nio-8080-exec-13] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.793 [http-nio-8080-exec-8] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.793 [http-nio-8080-exec-10] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.793 [http-nio-8080-exec-16] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.793 [http-nio-8080-exec-5] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.793 [http-nio-8080-exec-18] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.794 [http-nio-8080-exec-7] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.794 [http-nio-8080-exec-11] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.794 [http-nio-8080-exec-1] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.794 [http-nio-8080-exec-18] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.794 [http-nio-8080-exec-5] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.794 [http-nio-8080-exec-15] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.794 [http-nio-8080-exec-7] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.795 [http-nio-8080-exec-11] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.795 [http-nio-8080-exec-1] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.795 [http-nio-8080-exec-16] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.795 [http-nio-8080-exec-9] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.795 [http-nio-8080-exec-2] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.795 [http-nio-8080-exec-19] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.795 [http-nio-8080-exec-1] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.796 [http-nio-8080-exec-20] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.796 [http-nio-8080-exec-9] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.796 [http-nio-8080-exec-2] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.794 [http-nio-8080-exec-3] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.796 [http-nio-8080-exec-7] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.796 [http-nio-8080-exec-19] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.796 [http-nio-8080-exec-1] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.796 [http-nio-8080-exec-16] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.796 [http-nio-8080-exec-20] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.796 [http-nio-8080-exec-13] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.796 [http-nio-8080-exec-11] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.797 [http-nio-8080-exec-14] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.797 [http-nio-8080-exec-17] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.797 [http-nio-8080-exec-7] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.797 [http-nio-8080-exec-19] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.797 [http-nio-8080-exec-1] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.797 [http-nio-8080-exec-16] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.797 [http-nio-8080-exec-20] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.798 [http-nio-8080-exec-17] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.798 [http-nio-8080-exec-7] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.798 [http-nio-8080-exec-14] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.798 [http-nio-8080-exec-19] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.798 [http-nio-8080-exec-11] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.798 [http-nio-8080-exec-13] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.798 [http-nio-8080-exec-21] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.798 [http-nio-8080-exec-17] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.798 [http-nio-8080-exec-19] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.799 [http-nio-8080-exec-13] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.799 [http-nio-8080-exec-11] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.799 [http-nio-8080-exec-22] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.799 [http-nio-8080-exec-19] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.799 [http-nio-8080-exec-17] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.799 [http-nio-8080-exec-14] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.800 [http-nio-8080-exec-4] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.800 [http-nio-8080-exec-11] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.800 [http-nio-8080-exec-19] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.800 [http-nio-8080-exec-17] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.800 [http-nio-8080-exec-22] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.800 [http-nio-8080-exec-14] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.800 [http-nio-8080-exec-5] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.801 [http-nio-8080-exec-12] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.801 [http-nio-8080-exec-15] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.801 [http-nio-8080-exec-19] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.801 [http-nio-8080-exec-17] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.801 [http-nio-8080-exec-23] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.801 [http-nio-8080-exec-14] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.801 [http-nio-8080-exec-22] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.800 [http-nio-8080-exec-21] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.800 [http-nio-8080-exec-11] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.802 [http-nio-8080-exec-19] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.802 [http-nio-8080-exec-14] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.802 [http-nio-8080-exec-22] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.800 [http-nio-8080-exec-4] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.802 [http-nio-8080-exec-15] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.802 [http-nio-8080-exec-9] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.802 [http-nio-8080-exec-5] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.802 [http-nio-8080-exec-24] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.803 [http-nio-8080-exec-3] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.803 [http-nio-8080-exec-21] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.803 [http-nio-8080-exec-14] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.803 [http-nio-8080-exec-2] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.803 [http-nio-8080-exec-17] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.802 [http-nio-8080-exec-23] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.803 [http-nio-8080-exec-4] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.804 [http-nio-8080-exec-14] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.804 [http-nio-8080-exec-2] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.804 [http-nio-8080-exec-5] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.804 [http-nio-8080-exec-9] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.804 [http-nio-8080-exec-15] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.804 [http-nio-8080-exec-19] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.804 [http-nio-8080-exec-3] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.804 [http-nio-8080-exec-24] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.805 [http-nio-8080-exec-19] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.805 [http-nio-8080-exec-23] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.805 [http-nio-8080-exec-24] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.804 [http-nio-8080-exec-25] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.804 [http-nio-8080-exec-1] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.805 [http-nio-8080-exec-6] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.805 [http-nio-8080-exec-26] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.805 [http-nio-8080-exec-14] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.805 [http-nio-8080-exec-19] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.806 [http-nio-8080-exec-15] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.806 [http-nio-8080-exec-14] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.806 [http-nio-8080-exec-19] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.806 [http-nio-8080-exec-27] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.806 [http-nio-8080-exec-23] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.804 [http-nio-8080-exec-21] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.807 [http-nio-8080-exec-14] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.807 [http-nio-8080-exec-19] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.807 [http-nio-8080-exec-10] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.807 [http-nio-8080-exec-7] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.807 [http-nio-8080-exec-27] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.807 [http-nio-8080-exec-23] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.808 [http-nio-8080-exec-24] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.808 [http-nio-8080-exec-5] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.808 [http-nio-8080-exec-18] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.808 [http-nio-8080-exec-15] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.808 [http-nio-8080-exec-7] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.808 [http-nio-8080-exec-23] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.808 [http-nio-8080-exec-24] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.808 [http-nio-8080-exec-5] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.808 [http-nio-8080-exec-12] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.809 [http-nio-8080-exec-18] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.809 [http-nio-8080-exec-7] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.809 [http-nio-8080-exec-23] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.809 [http-nio-8080-exec-10] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.805 [http-nio-8080-exec-2] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.809 [http-nio-8080-exec-11] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.810 [http-nio-8080-exec-22] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.810 [http-nio-8080-exec-18] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.810 [http-nio-8080-exec-29] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.810 [http-nio-8080-exec-20] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.810 [http-nio-8080-exec-10] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.806 [http-nio-8080-exec-4] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.810 [http-nio-8080-exec-23] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.810 [http-nio-8080-exec-22] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.811 [http-nio-8080-exec-2] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.811 [http-nio-8080-exec-10] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.811 [http-nio-8080-exec-23] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.806 [http-nio-8080-exec-9] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.811 [http-nio-8080-exec-30] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.811 [http-nio-8080-exec-22] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.811 [http-nio-8080-exec-8] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.812 [http-nio-8080-exec-2] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.812 [http-nio-8080-exec-10] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.812 [http-nio-8080-exec-23] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.812 [http-nio-8080-exec-2] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.812 [http-nio-8080-exec-10] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.806 [http-nio-8080-exec-3] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.812 [http-nio-8080-exec-27] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.806 [http-nio-8080-exec-25] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.807 [http-nio-8080-exec-21] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.807 [http-nio-8080-exec-14] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.807 [http-nio-8080-exec-19] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.809 [http-nio-8080-exec-1] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.809 [http-nio-8080-exec-5] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.814 [http-nio-8080-exec-21] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.814 [http-nio-8080-exec-6] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.814 [http-nio-8080-exec-33] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.814 [http-nio-8080-exec-34] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.814 [http-nio-8080-exec-7] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.809 [http-nio-8080-exec-28] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.814 [http-nio-8080-exec-31] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.815 [http-nio-8080-exec-21] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.809 [http-nio-8080-exec-24] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.815 [http-nio-8080-exec-7] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.815 [http-nio-8080-exec-28] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.815 [http-nio-8080-exec-6] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.815 [http-nio-8080-exec-31] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.809 [http-nio-8080-exec-16] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.815 [http-nio-8080-exec-21] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.816 [http-nio-8080-exec-33] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.816 [http-nio-8080-exec-24] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.816 [http-nio-8080-exec-31] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.811 [http-nio-8080-exec-18] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.816 [http-nio-8080-exec-16] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.816 [http-nio-8080-exec-21] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.816 [http-nio-8080-exec-35] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.816 [http-nio-8080-exec-1] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.811 [http-nio-8080-exec-29] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.811 [http-nio-8080-exec-20] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.817 [http-nio-8080-exec-36] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.817 [http-nio-8080-exec-37] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.812 [http-nio-8080-exec-9] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.817 [http-nio-8080-exec-1] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.817 [http-nio-8080-exec-35] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.817 [http-nio-8080-exec-36] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.818 [http-nio-8080-exec-37] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.818 [http-nio-8080-exec-19] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.818 [http-nio-8080-exec-1] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.812 [http-nio-8080-exec-30] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.818 [http-nio-8080-exec-36] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.818 [http-nio-8080-exec-20] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.818 [http-nio-8080-exec-37] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.819 [http-nio-8080-exec-1] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.819 [http-nio-8080-exec-35] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.819 [http-nio-8080-exec-36] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.819 [http-nio-8080-exec-37] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.819 [http-nio-8080-exec-9] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.819 [http-nio-8080-exec-1] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.819 [http-nio-8080-exec-7] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.818 [http-nio-8080-exec-29] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.812 [http-nio-8080-exec-22] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.820 [http-nio-8080-exec-20] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.812 [http-nio-8080-exec-8] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.812 [http-nio-8080-exec-26] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.821 [http-nio-8080-exec-37] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.821 [http-nio-8080-exec-24] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.821 [http-nio-8080-exec-33] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.821 [http-nio-8080-exec-22] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.821 [http-nio-8080-exec-31] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.821 [http-nio-8080-exec-36] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.822 [http-nio-8080-exec-24] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.822 [http-nio-8080-exec-33] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.822 [http-nio-8080-exec-18] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.822 [http-nio-8080-exec-22] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.821 [http-nio-8080-exec-20] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.816 [http-nio-8080-exec-6] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.822 [http-nio-8080-exec-33] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.822 [http-nio-8080-exec-24] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.822 [http-nio-8080-exec-37] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.823 [http-nio-8080-exec-31] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.823 [http-nio-8080-exec-26] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.817 [http-nio-8080-exec-34] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.823 [http-nio-8080-exec-33] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.823 [http-nio-8080-exec-37] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.823 [http-nio-8080-exec-24] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.823 [http-nio-8080-exec-31] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.812 [http-nio-8080-exec-4] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.823 [http-nio-8080-exec-6] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.824 [http-nio-8080-exec-26] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.823 [http-nio-8080-exec-16] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.824 [http-nio-8080-exec-24] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.824 [http-nio-8080-exec-26] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.819 [http-nio-8080-exec-35] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.825 [http-nio-8080-exec-14] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.825 [http-nio-8080-exec-42] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.824 [http-nio-8080-exec-34] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.820 [http-nio-8080-exec-30] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.825 [http-nio-8080-exec-16] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.825 [http-nio-8080-exec-19] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.820 [http-nio-8080-exec-1] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.826 [http-nio-8080-exec-24] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.826 [http-nio-8080-exec-30] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.826 [http-nio-8080-exec-34] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.826 [http-nio-8080-exec-35] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.826 [http-nio-8080-exec-16] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.826 [http-nio-8080-exec-43] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.826 [http-nio-8080-exec-7] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.826 [http-nio-8080-exec-24] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.827 [http-nio-8080-exec-34] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.820 [http-nio-8080-exec-38] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.827 [http-nio-8080-exec-44] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.827 [http-nio-8080-exec-42] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.821 [http-nio-8080-exec-8] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.827 [http-nio-8080-exec-24] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.827 [http-nio-8080-exec-34] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.827 [http-nio-8080-exec-7] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.828 [http-nio-8080-exec-29] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.828 [http-nio-8080-exec-8] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.821 [http-nio-8080-exec-39] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.828 [http-nio-8080-exec-36] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.828 [http-nio-8080-exec-34] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.828 [http-nio-8080-exec-42] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.822 [http-nio-8080-exec-18] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.828 [http-nio-8080-exec-43] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.829 [http-nio-8080-exec-36] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.829 [http-nio-8080-exec-34] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.828 [http-nio-8080-exec-24] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.829 [http-nio-8080-exec-44] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.829 [http-nio-8080-exec-43] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.829 [http-nio-8080-exec-45] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.823 [http-nio-8080-exec-40] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.829 [http-nio-8080-exec-7] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.829 [http-nio-8080-exec-5] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.824 [http-nio-8080-exec-33] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.830 [http-nio-8080-exec-8] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.830 [http-nio-8080-exec-7] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.830 [http-nio-8080-exec-40] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.830 [http-nio-8080-exec-22] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.830 [http-nio-8080-exec-5] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.830 [http-nio-8080-exec-21] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.831 [http-nio-8080-exec-7] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.831 [http-nio-8080-exec-33] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.831 [http-nio-8080-exec-29] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.831 [http-nio-8080-exec-43] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.831 [http-nio-8080-exec-7] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.832 [http-nio-8080-exec-33] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.832 [http-nio-8080-exec-35] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.824 [http-nio-8080-exec-37] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.832 [http-nio-8080-exec-43] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.832 [http-nio-8080-exec-8] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.824 [http-nio-8080-exec-31] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.832 [http-nio-8080-exec-33] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.832 [http-nio-8080-exec-28] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.832 [http-nio-8080-exec-43] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.832 [http-nio-8080-exec-7] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.824 [http-nio-8080-exec-20] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.833 [http-nio-8080-exec-8] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.833 [http-nio-8080-exec-31] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.824 [http-nio-8080-exec-4] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.833 [http-nio-8080-exec-47] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.833 [http-nio-8080-exec-7] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.833 [http-nio-8080-exec-20] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.833 [http-nio-8080-exec-8] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.834 [http-nio-8080-exec-31] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.834 [http-nio-8080-exec-4] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.834 [http-nio-8080-exec-47] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.826 [http-nio-8080-exec-19] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.834 [http-nio-8080-exec-7] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.834 [http-nio-8080-exec-20] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.834 [http-nio-8080-exec-8] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.834 [http-nio-8080-exec-31] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.834 [http-nio-8080-exec-48] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.834 [http-nio-8080-exec-4] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.826 [http-nio-8080-exec-26] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.835 [http-nio-8080-exec-8] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.835 [http-nio-8080-exec-47] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.835 [http-nio-8080-exec-18] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.835 [http-nio-8080-exec-24] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.835 [http-nio-8080-exec-34] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.835 [http-nio-8080-exec-31] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.826 [http-nio-8080-exec-41] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.835 [http-nio-8080-exec-8] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.836 [http-nio-8080-exec-2] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.836 [http-nio-8080-exec-44] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.836 [http-nio-8080-exec-49] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.836 [http-nio-8080-exec-48] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.836 [http-nio-8080-exec-8] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.836 [http-nio-8080-exec-4] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.826 [http-nio-8080-exec-14] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.837 [http-nio-8080-exec-2] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.836 [http-nio-8080-exec-41] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.837 [http-nio-8080-exec-49] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.837 [http-nio-8080-exec-48] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.837 [http-nio-8080-exec-8] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.837 [http-nio-8080-exec-21] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.837 [http-nio-8080-exec-4] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.837 [http-nio-8080-exec-41] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.837 [http-nio-8080-exec-33] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.827 [http-nio-8080-exec-9] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.838 [http-nio-8080-exec-50] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.838 [http-nio-8080-exec-41] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.838 [http-nio-8080-exec-33] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.827 [http-nio-8080-exec-38] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.838 [http-nio-8080-exec-50] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.838 [http-nio-8080-exec-51] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.829 [http-nio-8080-exec-39] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.839 [http-nio-8080-exec-41] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.839 [http-nio-8080-exec-43] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.839 [http-nio-8080-exec-9] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.839 [http-nio-8080-exec-33] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.839 [http-nio-8080-exec-35] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.839 [http-nio-8080-exec-51] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.839 [http-nio-8080-exec-41] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.840 [http-nio-8080-exec-38] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.840 [http-nio-8080-exec-9] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.840 [http-nio-8080-exec-52] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.840 [http-nio-8080-exec-43] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.830 [http-nio-8080-exec-6] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.831 [http-nio-8080-exec-23] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.841 [http-nio-8080-exec-41] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.841 [http-nio-8080-exec-43] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.841 [http-nio-8080-exec-53] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.831 [http-nio-8080-exec-40] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.841 [http-nio-8080-exec-50] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.841 [http-nio-8080-exec-23] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.841 [http-nio-8080-exec-43] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.841 [http-nio-8080-exec-52] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.841 [http-nio-8080-exec-53] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.842 [http-nio-8080-exec-20] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.842 [http-nio-8080-exec-7] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.842 [http-nio-8080-exec-23] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.842 [http-nio-8080-exec-43] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.842 [http-nio-8080-exec-6] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.842 [http-nio-8080-exec-23] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.843 [http-nio-8080-exec-54] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.831 [http-nio-8080-exec-22] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.843 [http-nio-8080-exec-43] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.843 [http-nio-8080-exec-40] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.843 [http-nio-8080-exec-6] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.831 [http-nio-8080-exec-46] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.843 [http-nio-8080-exec-8] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.843 [http-nio-8080-exec-55] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.843 [http-nio-8080-exec-43] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.843 [http-nio-8080-exec-40] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.831 [http-nio-8080-exec-5] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.844 [http-nio-8080-exec-14] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.843 [http-nio-8080-exec-23] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.844 [http-nio-8080-exec-8] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.844 [http-nio-8080-exec-55] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.844 [http-nio-8080-exec-22] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.844 [http-nio-8080-exec-30] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.844 [http-nio-8080-exec-43] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.844 [http-nio-8080-exec-40] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.832 [http-nio-8080-exec-29] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.844 [http-nio-8080-exec-52] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.844 [http-nio-8080-exec-56] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.832 [http-nio-8080-exec-1] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.845 [http-nio-8080-exec-52] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.845 [http-nio-8080-exec-29] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.832 [http-nio-8080-exec-37] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.845 [http-nio-8080-exec-19] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.845 [http-nio-8080-exec-6] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.846 [http-nio-8080-exec-3] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.846 [http-nio-8080-exec-40] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.846 [http-nio-8080-exec-29] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.846 [http-nio-8080-exec-52] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.846 [http-nio-8080-exec-19] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.846 [http-nio-8080-exec-1] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.846 [http-nio-8080-exec-37] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.846 [http-nio-8080-exec-6] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.846 [http-nio-8080-exec-3] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.846 [http-nio-8080-exec-29] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.847 [http-nio-8080-exec-6] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.834 [http-nio-8080-exec-28] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.847 [http-nio-8080-exec-37] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.847 [http-nio-8080-exec-3] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.847 [http-nio-8080-exec-58] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.847 [http-nio-8080-exec-14] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.834 [http-nio-8080-exec-42] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.847 [http-nio-8080-exec-6] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.847 [http-nio-8080-exec-28] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.847 [http-nio-8080-exec-37] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.847 [http-nio-8080-exec-46] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.848 [http-nio-8080-exec-3] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.848 [http-nio-8080-exec-58] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.848 [http-nio-8080-exec-10] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.836 [http-nio-8080-exec-18] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.848 [http-nio-8080-exec-46] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.848 [http-nio-8080-exec-14] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.848 [http-nio-8080-exec-3] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.849 [http-nio-8080-exec-55] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.849 [http-nio-8080-exec-8] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.849 [http-nio-8080-exec-59] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.849 [http-nio-8080-exec-18] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.849 [http-nio-8080-exec-46] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.849 [http-nio-8080-exec-14] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.849 [http-nio-8080-exec-22] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.848 [http-nio-8080-exec-6] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.836 [http-nio-8080-exec-47] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.849 [http-nio-8080-exec-18] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.849 [http-nio-8080-exec-46] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.836 [http-nio-8080-exec-26] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.850 [http-nio-8080-exec-3] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.848 [http-nio-8080-exec-37] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.836 [http-nio-8080-exec-34] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.850 [http-nio-8080-exec-59] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.850 [http-nio-8080-exec-23] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.850 [http-nio-8080-exec-18] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.850 [http-nio-8080-exec-46] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.850 [http-nio-8080-exec-3] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.850 [http-nio-8080-exec-60] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.850 [http-nio-8080-exec-26] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.836 [http-nio-8080-exec-24] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.851 [http-nio-8080-exec-23] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.851 [http-nio-8080-exec-37] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.851 [http-nio-8080-exec-34] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.837 [http-nio-8080-exec-44] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.851 [http-nio-8080-exec-43] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.851 [http-nio-8080-exec-60] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.851 [http-nio-8080-exec-61] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.851 [http-nio-8080-exec-24] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.851 [http-nio-8080-exec-13] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.852 [http-nio-8080-exec-23] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.852 [http-nio-8080-exec-34] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.852 [http-nio-8080-exec-56] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.852 [http-nio-8080-exec-5] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.852 [http-nio-8080-exec-24] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.837 [http-nio-8080-exec-31] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.852 [http-nio-8080-exec-23] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.852 [http-nio-8080-exec-44] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.853 [http-nio-8080-exec-34] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.853 [http-nio-8080-exec-38] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.853 [http-nio-8080-exec-56] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.852 [http-nio-8080-exec-43] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.853 [http-nio-8080-exec-13] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.853 [http-nio-8080-exec-31] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.853 [http-nio-8080-exec-62] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.854 [http-nio-8080-exec-5] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.854 [http-nio-8080-exec-49] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.854 [http-nio-8080-exec-31] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.854 [http-nio-8080-exec-62] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.854 [http-nio-8080-exec-43] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.854 [http-nio-8080-exec-34] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.854 [http-nio-8080-exec-49] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.854 [http-nio-8080-exec-31] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.854 [http-nio-8080-exec-13] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.855 [http-nio-8080-exec-49] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.837 [http-nio-8080-exec-2] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.855 [http-nio-8080-exec-34] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.855 [http-nio-8080-exec-6] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.855 [http-nio-8080-exec-13] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.837 [http-nio-8080-exec-48] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.855 [http-nio-8080-exec-49] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.856 [http-nio-8080-exec-2] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.856 [http-nio-8080-exec-21] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.856 [http-nio-8080-exec-6] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.856 [http-nio-8080-exec-48] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.856 [http-nio-8080-exec-64] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.838 [http-nio-8080-exec-4] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.856 [http-nio-8080-exec-2] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.857 [http-nio-8080-exec-8] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.857 [http-nio-8080-exec-21] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.857 [http-nio-8080-exec-48] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.857 [http-nio-8080-exec-59] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.857 [http-nio-8080-exec-34] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.857 [http-nio-8080-exec-63] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.857 [http-nio-8080-exec-13] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.857 [http-nio-8080-exec-2] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.857 [http-nio-8080-exec-64] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.839 [http-nio-8080-exec-39] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.858 [http-nio-8080-exec-40] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.858 [http-nio-8080-exec-27] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.858 [http-nio-8080-exec-2] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.858 [http-nio-8080-exec-63] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.858 [http-nio-8080-exec-66] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.859 [http-nio-8080-exec-27] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.859 [http-nio-8080-exec-38] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.859 [http-nio-8080-exec-2] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.859 [http-nio-8080-exec-63] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.839 [http-nio-8080-exec-16] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.839 [http-nio-8080-exec-33] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.859 [http-nio-8080-exec-40] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.859 [http-nio-8080-exec-56] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.859 [http-nio-8080-exec-27] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.859 [http-nio-8080-exec-63] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.859 [http-nio-8080-exec-66] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.840 [http-nio-8080-exec-35] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.859 [http-nio-8080-exec-39] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.860 [http-nio-8080-exec-64] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.860 [http-nio-8080-exec-56] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.860 [http-nio-8080-exec-63] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.860 [http-nio-8080-exec-66] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.860 [http-nio-8080-exec-58] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.840 [http-nio-8080-exec-51] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.860 [http-nio-8080-exec-67] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.841 [http-nio-8080-exec-41] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.861 [http-nio-8080-exec-58] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.861 [http-nio-8080-exec-16] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.861 [http-nio-8080-exec-67] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.861 [http-nio-8080-exec-41] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.861 [http-nio-8080-exec-22] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.861 [http-nio-8080-exec-58] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.861 [http-nio-8080-exec-16] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.861 [http-nio-8080-exec-41] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.842 [http-nio-8080-exec-50] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.862 [http-nio-8080-exec-68] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.862 [http-nio-8080-exec-49] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.862 [http-nio-8080-exec-51] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.862 [http-nio-8080-exec-48] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.862 [http-nio-8080-exec-32] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.842 [http-nio-8080-exec-53] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.862 [http-nio-8080-exec-41] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.862 [http-nio-8080-exec-69] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.862 [http-nio-8080-exec-59] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.863 [http-nio-8080-exec-48] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.863 [http-nio-8080-exec-32] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.863 [http-nio-8080-exec-53] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.863 [http-nio-8080-exec-41] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.863 [http-nio-8080-exec-69] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.863 [http-nio-8080-exec-4] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.863 [http-nio-8080-exec-49] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.842 [http-nio-8080-exec-20] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.864 [http-nio-8080-exec-70] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.864 [http-nio-8080-exec-4] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.864 [http-nio-8080-exec-69] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.864 [http-nio-8080-exec-20] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.864 [http-nio-8080-exec-30] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.864 [http-nio-8080-exec-35] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.842 [http-nio-8080-exec-7] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.865 [http-nio-8080-exec-4] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.865 [http-nio-8080-exec-69] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.865 [http-nio-8080-exec-20] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.865 [http-nio-8080-exec-2] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.865 [http-nio-8080-exec-35] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.865 [http-nio-8080-exec-7] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.865 [http-nio-8080-exec-49] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.842 [http-nio-8080-exec-45] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.865 [http-nio-8080-exec-4] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.866 [http-nio-8080-exec-69] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.843 [http-nio-8080-exec-54] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.866 [http-nio-8080-exec-7] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.866 [http-nio-8080-exec-71] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.846 [http-nio-8080-exec-52] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.846 [http-nio-8080-exec-57] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.866 [http-nio-8080-exec-17] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.867 [http-nio-8080-exec-7] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.867 [http-nio-8080-exec-54] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.867 [http-nio-8080-exec-2] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.867 [http-nio-8080-exec-17] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.867 [http-nio-8080-exec-45] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.846 [http-nio-8080-exec-19] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.847 [http-nio-8080-exec-9] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.847 [http-nio-8080-exec-29] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.867 [http-nio-8080-exec-2] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.847 [http-nio-8080-exec-1] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.848 [http-nio-8080-exec-28] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.849 [http-nio-8080-exec-10] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.849 [http-nio-8080-exec-55] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.849 [http-nio-8080-exec-42] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.850 [http-nio-8080-exec-14] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.868 [http-nio-8080-exec-2] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.851 [http-nio-8080-exec-46] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.868 [http-nio-8080-exec-16] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.851 [http-nio-8080-exec-18] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.851 [http-nio-8080-exec-26] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.871 [http-nio-8080-exec-15] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.851 [http-nio-8080-exec-3] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.871 [http-nio-8080-exec-2] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.871 [http-nio-8080-exec-46] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.851 [http-nio-8080-exec-47] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.871 [http-nio-8080-exec-55] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.871 [http-nio-8080-exec-72] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.852 [http-nio-8080-exec-37] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.872 [http-nio-8080-exec-52] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.872 [http-nio-8080-exec-7] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.872 [http-nio-8080-exec-66] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.872 [http-nio-8080-exec-17] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.872 [http-nio-8080-exec-37] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.872 [http-nio-8080-exec-52] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.872 [http-nio-8080-exec-18] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.873 [http-nio-8080-exec-7] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.874 [http-nio-8080-exec-49] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.874 [http-nio-8080-exec-18] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.874 [http-nio-8080-exec-57] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.874 [http-nio-8080-exec-69] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.874 [http-nio-8080-exec-12] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.874 [http-nio-8080-exec-10] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.874 [http-nio-8080-exec-7] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.874 [http-nio-8080-exec-75] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.874 [http-nio-8080-exec-18] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.875 [http-nio-8080-exec-7] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.875 [http-nio-8080-exec-74] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.875 [http-nio-8080-exec-15] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.875 [http-nio-8080-exec-57] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.876 [http-nio-8080-exec-18] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.876 [http-nio-8080-exec-7] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.876 [http-nio-8080-exec-74] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.852 [http-nio-8080-exec-61] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.876 [http-nio-8080-exec-57] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.876 [http-nio-8080-exec-75] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.876 [http-nio-8080-exec-42] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.853 [http-nio-8080-exec-24] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.876 [http-nio-8080-exec-18] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.876 [http-nio-8080-exec-78] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.876 [http-nio-8080-exec-74] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.877 [http-nio-8080-exec-42] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.877 [http-nio-8080-exec-24] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.877 [http-nio-8080-exec-25] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.877 [http-nio-8080-exec-61] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.877 [http-nio-8080-exec-74] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.877 [http-nio-8080-exec-75] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.877 [http-nio-8080-exec-18] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.877 [http-nio-8080-exec-42] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.876 [http-nio-8080-exec-2] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.853 [http-nio-8080-exec-23] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.878 [http-nio-8080-exec-42] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.878 [http-nio-8080-exec-46] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.853 [http-nio-8080-exec-60] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.878 [http-nio-8080-exec-23] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.878 [http-nio-8080-exec-16] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.853 [http-nio-8080-exec-44] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.879 [http-nio-8080-exec-46] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.879 [http-nio-8080-exec-55] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.879 [http-nio-8080-exec-23] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.879 [http-nio-8080-exec-16] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.879 [http-nio-8080-exec-11] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.879 [http-nio-8080-exec-46] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.880 [http-nio-8080-exec-11] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.880 [http-nio-8080-exec-55] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.880 [http-nio-8080-exec-66] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.853 [http-nio-8080-exec-36] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.880 [http-nio-8080-exec-23] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.880 [http-nio-8080-exec-44] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.880 [http-nio-8080-exec-55] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.880 [http-nio-8080-exec-11] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.855 [http-nio-8080-exec-62] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.880 [http-nio-8080-exec-36] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.880 [http-nio-8080-exec-23] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.880 [http-nio-8080-exec-37] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.880 [http-nio-8080-exec-44] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.880 [http-nio-8080-exec-46] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.881 [http-nio-8080-exec-52] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.881 [http-nio-8080-exec-55] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.855 [http-nio-8080-exec-43] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.881 [http-nio-8080-exec-23] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.881 [http-nio-8080-exec-81] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.881 [http-nio-8080-exec-44] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.881 [http-nio-8080-exec-46] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.881 [http-nio-8080-exec-52] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.881 [http-nio-8080-exec-66] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.855 [http-nio-8080-exec-5] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.881 [http-nio-8080-exec-43] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.881 [http-nio-8080-exec-55] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.881 [http-nio-8080-exec-23] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.857 [http-nio-8080-exec-6] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.882 [http-nio-8080-exec-82] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.882 [http-nio-8080-exec-55] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.882 [http-nio-8080-exec-26] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.882 [http-nio-8080-exec-23] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.857 [http-nio-8080-exec-21] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.883 [http-nio-8080-exec-2] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.883 [http-nio-8080-exec-26] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.883 [http-nio-8080-exec-55] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.883 [http-nio-8080-exec-21] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.883 [http-nio-8080-exec-82] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.882 [http-nio-8080-exec-83] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.883 [http-nio-8080-exec-84] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.883 [http-nio-8080-exec-21] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.883 [http-nio-8080-exec-82] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.883 [http-nio-8080-exec-55] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.884 [http-nio-8080-exec-6] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.884 [http-nio-8080-exec-21] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.884 [http-nio-8080-exec-84] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.857 [http-nio-8080-exec-8] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.884 [http-nio-8080-exec-11] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.884 [http-nio-8080-exec-21] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.857 [http-nio-8080-exec-65] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.885 [http-nio-8080-exec-8] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.885 [http-nio-8080-exec-6] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.885 [http-nio-8080-exec-44] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.885 [http-nio-8080-exec-11] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.885 [http-nio-8080-exec-21] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.885 [http-nio-8080-exec-11] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.885 [http-nio-8080-exec-21] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.885 [http-nio-8080-exec-85] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.886 [http-nio-8080-exec-28] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.886 [http-nio-8080-exec-6] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.886 [http-nio-8080-exec-85] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.858 [http-nio-8080-exec-34] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.886 [http-nio-8080-exec-52] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.886 [http-nio-8080-exec-46] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.886 [http-nio-8080-exec-66] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.887 [http-nio-8080-exec-85] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.887 [http-nio-8080-exec-6] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.887 [http-nio-8080-exec-5] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.887 [http-nio-8080-exec-52] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.887 [http-nio-8080-exec-66] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.887 [http-nio-8080-exec-85] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.887 [http-nio-8080-exec-6] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.887 [http-nio-8080-exec-5] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.888 [http-nio-8080-exec-86] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.888 [http-nio-8080-exec-34] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.888 [http-nio-8080-exec-52] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.888 [http-nio-8080-exec-57] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.859 [http-nio-8080-exec-40] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.888 [http-nio-8080-exec-87] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.888 [http-nio-8080-exec-34] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.888 [http-nio-8080-exec-52] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.888 [http-nio-8080-exec-5] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.888 [http-nio-8080-exec-40] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.889 [http-nio-8080-exec-87] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.889 [http-nio-8080-exec-82] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.860 [http-nio-8080-exec-27] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.889 [http-nio-8080-exec-18] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.889 [http-nio-8080-exec-5] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.889 [http-nio-8080-exec-55] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.861 [http-nio-8080-exec-39] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.889 [http-nio-8080-exec-27] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.890 [http-nio-8080-exec-82] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.890 [http-nio-8080-exec-55] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.861 [http-nio-8080-exec-56] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.890 [http-nio-8080-exec-18] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.890 [http-nio-8080-exec-40] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.860 [http-nio-8080-exec-33] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.890 [http-nio-8080-exec-39] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.890 [http-nio-8080-exec-55] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.861 [http-nio-8080-exec-67] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.890 [http-nio-8080-exec-23] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.863 [http-nio-8080-exec-59] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.890 [http-nio-8080-exec-47] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.891 [http-nio-8080-exec-55] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.891 [http-nio-8080-exec-66] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.891 [http-nio-8080-exec-39] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.891 [http-nio-8080-exec-59] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.891 [http-nio-8080-exec-55] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.891 [http-nio-8080-exec-33] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.891 [http-nio-8080-exec-66] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.891 [http-nio-8080-exec-23] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.863 [http-nio-8080-exec-51] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.891 [http-nio-8080-exec-39] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.891 [http-nio-8080-exec-88] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.892 [http-nio-8080-exec-59] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.863 [http-nio-8080-exec-68] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.863 [http-nio-8080-exec-48] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.863 [http-nio-8080-exec-32] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.863 [http-nio-8080-exec-53] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.892 [http-nio-8080-exec-23] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.892 [http-nio-8080-exec-68] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.892 [http-nio-8080-exec-51] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.863 [http-nio-8080-exec-41] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.893 [http-nio-8080-exec-48] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.893 [http-nio-8080-exec-32] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.893 [http-nio-8080-exec-23] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.893 [http-nio-8080-exec-51] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.893 [http-nio-8080-exec-41] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.893 [http-nio-8080-exec-32] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.864 [http-nio-8080-exec-13] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.865 [http-nio-8080-exec-70] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.894 [http-nio-8080-exec-43] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.894 [http-nio-8080-exec-90] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.894 [http-nio-8080-exec-52] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.894 [http-nio-8080-exec-41] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.894 [http-nio-8080-exec-13] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.894 [http-nio-8080-exec-32] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.866 [http-nio-8080-exec-63] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.895 [http-nio-8080-exec-13] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.895 [http-nio-8080-exec-87] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.867 [http-nio-8080-exec-31] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.895 [http-nio-8080-exec-40] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.895 [http-nio-8080-exec-43] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.867 [http-nio-8080-exec-4] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.895 [http-nio-8080-exec-87] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.895 [http-nio-8080-exec-91] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.895 [http-nio-8080-exec-63] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.895 [http-nio-8080-exec-31] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.896 [http-nio-8080-exec-55] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.871 [http-nio-8080-exec-76] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.896 [http-nio-8080-exec-40] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.896 [http-nio-8080-exec-11] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.896 [http-nio-8080-exec-31] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.868 [http-nio-8080-exec-45] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.896 [http-nio-8080-exec-92] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.896 [http-nio-8080-exec-76] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.896 [http-nio-8080-exec-40] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.896 [http-nio-8080-exec-88] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.896 [http-nio-8080-exec-66] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.897 [http-nio-8080-exec-11] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.896 [http-nio-8080-exec-4] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.897 [http-nio-8080-exec-45] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.897 [http-nio-8080-exec-88] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.897 [http-nio-8080-exec-55] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.897 [http-nio-8080-exec-4] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.873 [http-nio-8080-exec-58] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.897 [http-nio-8080-exec-45] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.897 [http-nio-8080-exec-59] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.873 [http-nio-8080-exec-17] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.898 [http-nio-8080-exec-55] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.898 [http-nio-8080-exec-85] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.898 [http-nio-8080-exec-66] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.898 [http-nio-8080-exec-59] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.898 [http-nio-8080-exec-55] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.873 [http-nio-8080-exec-20] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.898 [http-nio-8080-exec-2] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.898 [http-nio-8080-exec-17] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.898 [http-nio-8080-exec-59] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.898 [http-nio-8080-exec-55] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.873 [http-nio-8080-exec-64] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.899 [http-nio-8080-exec-87] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.899 [http-nio-8080-exec-2] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.899 [http-nio-8080-exec-17] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.899 [http-nio-8080-exec-20] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.899 [http-nio-8080-exec-59] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.899 [http-nio-8080-exec-55] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.899 [http-nio-8080-exec-91] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.899 [http-nio-8080-exec-87] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.873 [http-nio-8080-exec-30] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.873 [http-nio-8080-exec-38] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.873 [http-nio-8080-exec-29] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.899 [http-nio-8080-exec-91] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.900 [http-nio-8080-exec-93] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.900 [http-nio-8080-exec-43] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.900 [http-nio-8080-exec-87] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.900 [http-nio-8080-exec-30] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.900 [http-nio-8080-exec-31] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.900 [http-nio-8080-exec-29] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.873 [http-nio-8080-exec-72] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.900 [http-nio-8080-exec-91] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.900 [http-nio-8080-exec-43] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.874 [http-nio-8080-exec-35] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.867 [http-nio-8080-exec-54] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.874 [http-nio-8080-exec-73] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.874 [http-nio-8080-exec-77] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.874 [http-nio-8080-exec-50] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.874 [http-nio-8080-exec-22] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.901 [http-nio-8080-exec-54] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.901 [http-nio-8080-exec-76] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.901 [http-nio-8080-exec-73] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.901 [http-nio-8080-exec-50] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.901 [http-nio-8080-exec-35] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.901 [http-nio-8080-exec-55] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.874 [http-nio-8080-exec-14] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.901 [http-nio-8080-exec-76] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.901 [http-nio-8080-exec-50] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.901 [http-nio-8080-exec-22] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.875 [http-nio-8080-exec-69] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.875 [http-nio-8080-exec-12] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.901 [http-nio-8080-exec-87] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.875 [http-nio-8080-exec-1] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.875 [http-nio-8080-exec-10] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.875 [http-nio-8080-exec-9] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.876 [http-nio-8080-exec-3] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.876 [http-nio-8080-exec-49] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.876 [http-nio-8080-exec-15] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.876 [http-nio-8080-exec-7] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.902 [http-nio-8080-exec-73] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.877 [http-nio-8080-exec-78] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.877 [http-nio-8080-exec-24] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.878 [http-nio-8080-exec-74] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.878 [http-nio-8080-exec-25] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.878 [http-nio-8080-exec-79] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.878 [http-nio-8080-exec-61] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.878 [http-nio-8080-exec-80] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.879 [http-nio-8080-exec-71] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.879 [http-nio-8080-exec-60] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.879 [http-nio-8080-exec-42] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.879 [http-nio-8080-exec-16] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.882 [http-nio-8080-exec-37] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.882 [http-nio-8080-exec-81] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.882 [http-nio-8080-exec-62] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.882 [http-nio-8080-exec-19] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.883 [http-nio-8080-exec-26] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.884 [http-nio-8080-exec-75] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.884 [http-nio-8080-exec-83] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.884 [http-nio-8080-exec-84] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.885 [http-nio-8080-exec-36] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.885 [http-nio-8080-exec-65] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.885 [http-nio-8080-exec-8] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.885 [http-nio-8080-exec-44] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.886 [http-nio-8080-exec-21] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.887 [http-nio-8080-exec-28] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.887 [http-nio-8080-exec-46] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.888 [http-nio-8080-exec-57] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.889 [http-nio-8080-exec-34] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.889 [http-nio-8080-exec-5] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.890 [http-nio-8080-exec-27] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.890 [http-nio-8080-exec-18] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.891 [http-nio-8080-exec-47] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.891 [http-nio-8080-exec-56] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.892 [http-nio-8080-exec-89] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.891 [http-nio-8080-exec-67] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.893 [http-nio-8080-exec-6] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.893 [http-nio-8080-exec-68] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.893 [http-nio-8080-exec-33] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.893 [http-nio-8080-exec-48] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.893 [http-nio-8080-exec-86] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.893 [http-nio-8080-exec-23] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.893 [http-nio-8080-exec-53] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.893 [http-nio-8080-exec-51] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.894 [http-nio-8080-exec-90] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.894 [http-nio-8080-exec-82] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.894 [http-nio-8080-exec-52] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.894 [http-nio-8080-exec-41] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.895 [http-nio-8080-exec-32] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.895 [http-nio-8080-exec-70] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.895 [http-nio-8080-exec-13] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.897 [http-nio-8080-exec-92] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.897 [http-nio-8080-exec-40] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.897 [http-nio-8080-exec-39] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.897 [http-nio-8080-exec-11] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.898 [http-nio-8080-exec-85] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.899 [http-nio-8080-exec-17] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.899 [http-nio-8080-exec-66] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.900 [http-nio-8080-exec-93] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.901 [http-nio-8080-exec-77] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456
+2026-01-08 21:12:05.901 [http-nio-8080-exec-63] INFO  c.f.a.c.TransactionController - Balance inquiry: account=****3456

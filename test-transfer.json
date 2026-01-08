@@ -1,0 +1,12 @@
+{
+  "transactionType": "TRANSFER",
+  "channelType": "ATM",
+  "sourceAccount": "1234567890123456",
+  "destinationAccount": "9876543210987654",
+  "destinationBankCode": "004",
+  "amount": 5000.00,
+  "currency": "TWD",
+  "terminalId": "ATM001",
+  "pinBlock": "1234567890ABCDEF",
+  "memo": "測試轉帳"
+}

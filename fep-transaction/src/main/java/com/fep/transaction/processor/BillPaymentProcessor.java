@@ -187,8 +187,11 @@ public class BillPaymentProcessor extends AbstractTransactionProcessor {
         // Tax payments may require tax ID verification
         String taxId = request.getTaxId();
         if (taxId != null && !taxId.isBlank()) {
-            // Validate Taiwan tax ID format (10 digits for individuals, 8 digits for businesses)
-            if (!taxId.matches("\\d{8}|\\d{10}")) {
+            // Validate Taiwan tax ID format:
+            // - Individual (ROC ID): 1 letter + 9 digits (e.g., A123456789)
+            // - Business (統一編號): 8 digits (e.g., 12345678)
+            // - Resident Certificate: 10 digits (e.g., 1234567890)
+            if (!taxId.matches("[A-Z][12][0-9]{8}|\\d{8}|\\d{10}")) {
                 throw TransactionException.invalidRequest("Invalid tax ID format");
             }
         }
@@ -247,6 +250,10 @@ public class BillPaymentProcessor extends AbstractTransactionProcessor {
 
         // TODO: Integrate with core banking and payee institutions
 
+        // Generate payment receipt number
+        String receiptNumber = "RCP" + System.currentTimeMillis() +
+                String.format("%04d", (int) (Math.random() * 10000));
+
         return TransactionResponse.builder()
                 .transactionId(request.getTransactionId())
                 .responseCode(ResponseCode.APPROVED.getCode())
@@ -261,6 +268,7 @@ public class BillPaymentProcessor extends AbstractTransactionProcessor {
                 .stan(request.getStan())
                 .billPaymentNumber(request.getBillPaymentNumber())
                 .billTypeCode(request.getBillTypeCode())
+                .paymentReceiptNumber(receiptNumber)
                 .build();
     }
 

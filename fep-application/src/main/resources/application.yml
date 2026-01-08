@@ -1,0 +1,171 @@
+# FEP System Configuration
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+
+spring:
+  application:
+    name: fep-system
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
+
+  # Jackson Configuration
+  jackson:
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: Asia/Taipei
+    serialization:
+      write-dates-as-timestamps: false
+
+# Actuator Endpoints
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when-authorized
+  info:
+    env:
+      enabled: true
+
+# Application Info
+info:
+  app:
+    name: FEP System
+    description: Front-End Processor for FISC Interbank Transactions
+    version: 1.0.0-SNAPSHOT
+
+# Logging Configuration
+logging:
+  level:
+    root: INFO
+    com.fep: DEBUG
+    org.springframework.web: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/fep-application.log
+    max-size: 100MB
+    max-history: 30
+
+# OpenAPI Documentation
+springdoc:
+  api-docs:
+    path: /api-docs
+    enabled: true
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: true
+    tags-sorter: alpha
+    operations-sorter: alpha
+
+---
+# Development Profile
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+fep:
+  # FISC Connection Settings (Development)
+  fisc:
+    # Single-channel mode (legacy)
+    host: localhost
+    port: 9000
+    connection-timeout: 10000
+    read-timeout: 30000
+    heartbeat-interval: 30000
+    max-connections: 5
+    auto-reconnect: true
+
+    # Dual-channel mode (FISC standard)
+    dual-channel:
+      enabled: false  # Set to true to enable dual-channel mode
+      send-host: localhost
+      send-port: 9001
+      receive-host: localhost
+      receive-port: 9002
+      failure-strategy: FAIL_WHEN_BOTH_DOWN  # FAIL_WHEN_BOTH_DOWN, FAIL_WHEN_ANY_DOWN
+
+  # HSM Settings (Software HSM for Development)
+  hsm:
+    type: SOFTWARE
+    host: localhost
+    port: 1500
+
+  # Transaction Settings
+  transaction:
+    default-timeout: 30000
+    max-retry-count: 3
+    retry-interval: 1000
+
+  # Rate Limiting
+  rate-limit:
+    enabled: true
+    max-tps: 1000
+    algorithm: TOKEN_BUCKET
+
+  # Security
+  security:
+    pin-block-format: FORMAT_0
+    mac-algorithm: ANSI_X9_19
+
+---
+# Production Profile
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+logging:
+  level:
+    root: WARN
+    com.fep: INFO
+
+fep:
+  # FISC Connection Settings (Production)
+  fisc:
+    # Single-channel mode (legacy/fallback)
+    host: ${FISC_HOST:192.168.1.100}
+    port: ${FISC_PORT:9000}
+    connection-timeout: 10000
+    read-timeout: 30000
+    heartbeat-interval: 30000
+    max-connections: 20
+    auto-reconnect: true
+
+    # Dual-channel mode (FISC standard - RECOMMENDED for production)
+    dual-channel:
+      enabled: ${FISC_DUAL_CHANNEL_ENABLED:true}
+      send-host: ${FISC_SEND_HOST:192.168.1.100}
+      send-port: ${FISC_SEND_PORT:9001}
+      send-backup-host: ${FISC_SEND_BACKUP_HOST:192.168.1.101}
+      send-backup-port: ${FISC_SEND_BACKUP_PORT:9001}
+      receive-host: ${FISC_RECV_HOST:192.168.1.100}
+      receive-port: ${FISC_RECV_PORT:9002}
+      receive-backup-host: ${FISC_RECV_BACKUP_HOST:192.168.1.101}
+      receive-backup-port: ${FISC_RECV_BACKUP_PORT:9002}
+      failure-strategy: FAIL_WHEN_BOTH_DOWN
+      health-check-interval: 10000
+
+  # HSM Settings (Hardware HSM for Production)
+  hsm:
+    type: THALES
+    host: ${HSM_HOST:192.168.1.200}
+    port: ${HSM_PORT:1500}
+
+  # Transaction Settings
+  transaction:
+    default-timeout: 30000
+    max-retry-count: 3
+    retry-interval: 1000
+
+  # Rate Limiting
+  rate-limit:
+    enabled: true
+    max-tps: 5000
+    algorithm: TOKEN_BUCKET

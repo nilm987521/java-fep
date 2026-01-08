@@ -179,7 +179,10 @@ public class ETicketTopupProcessor extends AbstractTransactionProcessor {
         }
 
         // Check if amount is a valid top-up denomination
-        if (!VALID_TOPUP_AMOUNTS.contains(amount)) {
+        // Use compareTo to handle different scales (e.g., 500.00 vs 500)
+        boolean isValidAmount = VALID_TOPUP_AMOUNTS.stream()
+                .anyMatch(validAmount -> validAmount.compareTo(amount) == 0);
+        if (!isValidAmount) {
             throw TransactionException.invalidRequest(
                     "Top-up amount must be one of: 100, 200, 300, 500, 1000, 2000, 3000, 5000, 10000 TWD");
         }

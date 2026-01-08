@@ -1,0 +1,6 @@
+{
+  "transactionType": "BALANCE_INQUIRY",
+  "channelType": "ATM",
+  "sourceAccount": "1234567890123456",
+  "terminalId": "ATM001"
+}

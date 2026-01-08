@@ -1,0 +1,10 @@
+{
+  "transactionType": "BILL_PAYMENT",
+  "channelType": "ATM",
+  "sourceAccount": "1234567890123456",
+  "amount": 1500.00,
+  "currency": "TWD",
+  "terminalId": "ATM001",
+  "payeeCode": "TAIPOWER",
+  "paymentNumber": "12345678901234"
+}

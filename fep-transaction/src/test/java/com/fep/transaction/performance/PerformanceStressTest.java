@@ -527,16 +527,22 @@ class PerformanceStressTest {
                             request = createBalanceInquiryRequest(txnId);
                             inquiryCount.incrementAndGet();
                         } else if (rand < 70) {
+                            // Withdrawal: must be multiple of 100 and <= 20000
+                            int withdrawAmount = (10 + random.nextInt(190)) * 100; // 1000-19900
                             request = createWithdrawalRequest(txnId,
-                                    new BigDecimal(1000 + random.nextInt(9000)));
+                                    new BigDecimal(withdrawAmount));
                             withdrawalCount.incrementAndGet();
                         } else if (rand < 90) {
+                            // Transfer: reasonable amount range
+                            int transferAmount = (10 + random.nextInt(100)) * 100; // 1000-10900
                             request = createTransferRequest(txnId,
-                                    new BigDecimal(1000 + random.nextInt(19000)));
+                                    new BigDecimal(transferAmount));
                             transferCount.incrementAndGet();
                         } else {
+                            // Deposit: reasonable amount range
+                            int depositAmount = (10 + random.nextInt(100)) * 100; // 1000-10900
                             request = createDepositRequest(txnId,
-                                    new BigDecimal(1000 + random.nextInt(9000)));
+                                    new BigDecimal(depositAmount));
                             depositCount.incrementAndGet();
                         }
 

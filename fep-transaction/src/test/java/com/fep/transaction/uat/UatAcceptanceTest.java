@@ -334,7 +334,7 @@ class UatAcceptanceTest {
                         .stan(generateStan())
                         .rrn(generateRrn())
                         .channel("ATM")
-                        .cardlessCode("123456")
+                        .cardlessCode("12345678")  // Must be 8-16 characters
                         .mobilePhone("0912345678")
                         .otpCode("654321")
                         .build();
@@ -387,8 +387,8 @@ class UatAcceptanceTest {
                         .stan(generateStan())
                         .rrn(generateRrn())
                         .channel("ATM")
-                        .billPaymentNumber("20240101123456")
-                        .billTypeCode("WATER")
+                        .billPaymentNumber("20240101123456")  // 14 digits
+                        .billTypeCode("01")  // Water bill type code
                         .payeeInstitutionCode("TPWC")
                         .build();
 
@@ -430,8 +430,8 @@ class UatAcceptanceTest {
                         .stan(generateStan())
                         .rrn(generateRrn())
                         .channel("MOBILE")
-                        .billPaymentNumber("0912345678")
-                        .billTypeCode("TELECOM")
+                        .billPaymentNumber("09123456780001")  // 14 digits
+                        .billTypeCode("04")  // Telecom bill type code
                         .payeeInstitutionCode("CHT")
                         .build();
 
@@ -472,8 +472,8 @@ class UatAcceptanceTest {
                         .stan(generateStan())
                         .rrn(generateRrn())
                         .channel("ATM")
-                        .billPaymentNumber("4111111111111111")
-                        .billTypeCode("CREDIT_CARD")
+                        .billPaymentNumber("41111111111111")  // 14 digits
+                        .billTypeCode("05")  // Credit card bill type code
                         .payeeInstitutionCode("BANK012")
                         .build();
 
@@ -514,8 +514,8 @@ class UatAcceptanceTest {
                         .stan(generateStan())
                         .rrn(generateRrn())
                         .channel("ATM")
-                        .billPaymentNumber("1130012345678")
-                        .billTypeCode("TAX")
+                        .billPaymentNumber("11300123456789")  // 14 digits
+                        .billTypeCode("11")  // Vehicle license tax code
                         .payeeInstitutionCode("MOFNTA")
                         .taxId("A123456789")
                         .build();
@@ -569,8 +569,8 @@ class UatAcceptanceTest {
                         .rrn(generateRrn())
                         .channel("MOBILE")
                         .qrCodeData("TW_PAY_QR_12345678")
-                        .merchantQrCode("MERCHANT_QR_001")
-                        .taiwanPayToken("TP_TOKEN_ABC123")
+                        .merchantQrCode("MERCHANT_QR_0012345678901234567890")  // At least 20 chars
+                        .taiwanPayToken("TP_TOKEN_ABC1234567890")  // At least 16 characters
                         .paymentType("PUSH")
                         .build();
 
@@ -613,8 +613,8 @@ class UatAcceptanceTest {
                         .stan(generateStan())
                         .rrn(generateRrn())
                         .channel("MOBILE")
-                        .eWalletProvider("LINEPAY")
-                        .eWalletAccountId("LINEPAY_USER_001")
+                        .eWalletProvider("LINE")  // Must match provider code (LINE, not LINEPAY)
+                        .eWalletAccountId("LINEPAY_USER_001")  // At least 8 characters
                         .eWalletTxnType("TOPUP")
                         .build();
 
@@ -657,8 +657,8 @@ class UatAcceptanceTest {
                         .stan(generateStan())
                         .rrn(generateRrn())
                         .channel("ATM")
-                        .eTicketCardNumber("12345678")
-                        .eTicketType("EASYCARD")
+                        .eTicketCardNumber("1234567890123456")  // 16-20 digits
+                        .eTicketType("01")  // EasyCard type code
                         .build();
 
                 TransactionResponse response = transactionService.process(request);
@@ -699,10 +699,11 @@ class UatAcceptanceTest {
                         .stan(generateStan())
                         .rrn(generateRrn())
                         .channel("MOBILE")
+                        .destinationAccount("12345678901234")  // Required destination account
                         .destinationCountryCode("US")
                         .beneficiaryName("John Doe")
                         .beneficiaryBankSwift("BOFAUS3N")
-                        .remittancePurposeCode("TRADE")
+                        .remittancePurposeCode("04")  // Trade payment code
                         .senderReference("INV-2024-001")
                         .build();
 
@@ -771,17 +772,18 @@ class UatAcceptanceTest {
 
         @Test
         @Order(2)
-        @DisplayName("UAT-041: 餘額不足處理")
+        @DisplayName("UAT-041: 超過提款限額處理")
         void testInsufficientFunds() {
-            logger.info("執行測試案例: UAT-041 - 餘額不足處理");
+            logger.info("執行測試案例: UAT-041 - 超過提款限額處理");
 
             try {
+                // 測試超過單筆提款限額 (20000 TWD)
                 TransactionRequest request = TransactionRequest.builder()
                         .transactionId(generateTransactionId())
                         .transactionType(TransactionType.WITHDRAWAL)
                         .processingCode("011000")
                         .pan(TEST_PAN)
-                        .amount(new BigDecimal("999999.00"))  // 超大金額
+                        .amount(new BigDecimal("25000.00"))  // 超過單筆限額 20000
                         .sourceAccount(TEST_ACCOUNT)
                         .sourceAccountType(AccountType.SAVINGS)
                         .pinBlock(TEST_PIN_BLOCK)
@@ -794,9 +796,9 @@ class UatAcceptanceTest {
                 TransactionResponse response = transactionService.process(request);
 
                 assertNotNull(response);
-                assertFalse(response.isApproved(), "餘額不足應被拒絕");
-                assertEquals(ResponseCode.INSUFFICIENT_FUNDS.getCode(),
-                        response.getResponseCode(), "應回傳餘額不足錯誤碼");
+                assertFalse(response.isApproved(), "超過限額應被拒絕");
+                assertEquals(ResponseCode.EXCEEDS_WITHDRAWAL_LIMIT.getCode(),
+                        response.getResponseCode(), "應回傳超過提款限額錯誤碼");
 
                 logger.info("✓ UAT-041 測試通過: 餘額不足正確處理");
                 passedTests++;

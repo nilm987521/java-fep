@@ -101,6 +101,10 @@ public class WithdrawalProcessor extends AbstractTransactionProcessor {
         // For now, simulate successful processing
         // TODO: Integrate with core banking system via adapter
 
+        // Simulate available balance after withdrawal
+        // In real implementation, this would come from core banking system
+        BigDecimal simulatedBalance = new BigDecimal("10000.00").subtract(request.getAmount());
+
         return TransactionResponse.builder()
                 .transactionId(request.getTransactionId())
                 .responseCode(ResponseCode.APPROVED.getCode())
@@ -113,6 +117,7 @@ public class WithdrawalProcessor extends AbstractTransactionProcessor {
                 .currencyCode(request.getCurrencyCode())
                 .rrn(request.getRrn())
                 .stan(request.getStan())
+                .availableBalance(simulatedBalance)
                 .build();
     }
 
