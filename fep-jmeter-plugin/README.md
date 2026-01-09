@@ -6,6 +6,7 @@ JMeter 外掛，用於測試 FISC ISO 8583 財金交易。
 
 - **FISC Connection Config** - 設定 FISC 連線參數
 - **FISC ISO 8583 Sampler** - 發送 ISO 8583 交易電文
+- **FISC Server Simulator** - 模擬財金伺服器（用於測試 FEP 客戶端）
 
 ## 支援的交易類型
 
@@ -81,14 +82,86 @@ Amount: 50000 (NT$500.00)
 Custom Fields: 103:00000012345678901234  (轉入帳號)
 ```
 
+### 4. 新增 FISC Server Simulator
+
+在 Thread Group 下新增：
+- **右鍵 > Add > Sampler > FISC Server Simulator**
+
+這是一個模擬財金伺服器的 Sampler，可用於：
+- 測試 FEP 客戶端連線功能
+- 模擬各種回應碼場景
+- 壓力測試和效能驗證
+
+設定參數：
+- **Server Port**: 伺服器監聽埠號（預設 9001）
+- **Sample Interval**: 統計取樣間隔（毫秒）
+- **Default Response Code**: 預設回應碼（00=成功）
+- **Response Delay**: 模擬處理延遲（毫秒）
+- **Balance Amount**: 餘額查詢回傳金額
+- **Response Rules**: 依交易類型設定不同回應碼
+- **Custom Response Fields**: 自訂回應欄位
+
+#### 範例設定
+
+##### 基本伺服器（全部成功）
+```
+Server Port: 9001
+Default Response Code: 00
+Response Delay: 100
+```
+
+##### 模擬餘額查詢
+```
+Server Port: 9001
+Default Response Code: 00
+Balance Amount: 1000000 (NT$10,000.00)
+```
+
+##### 依交易類型設定不同回應
+```
+Server Port: 9001
+Default Response Code: 00
+Response Rules: 010000:00;400000:51;310000:00
+```
+說明：
+- `010000:00` - 提款成功
+- `400000:51` - 轉帳餘額不足
+- `310000:00` - 餘額查詢成功
+
+##### 自訂回應欄位
+```
+Custom Response Fields: 43:Test Merchant;49:901;102:1234567890
+```
+
+### 5. Server Simulator 使用場景
+
+#### 場景 A：作為獨立模擬伺服器
+1. 建立一個 Thread Group，設定執行緒數為 1
+2. 新增 FISC Server Simulator
+3. 設定 Loop Count 為 Forever（持續運行）
+4. 啟動測試，伺服器即開始監聽
+
+#### 場景 B：整合測試
+1. 建立 Thread Group 1：運行 FISC Server Simulator
+2. 建立 Thread Group 2：運行 FISC ISO 8583 Sampler
+3. 將 Sampler 指向 localhost:9001
+4. 進行端對端測試
+
 ## JMeter 變數
 
+### FISC Sampler 變數
 執行後，以下變數會被設定：
 - `FISC_MTI` - 回應 MTI
 - `FISC_RESPONSE_CODE` - 回應碼
 - `FISC_STAN` - 交易序號
 - `FISC_RRN` - 調閱參考號碼
 - `FISC_BALANCE` - 餘額（如有）
+
+### FISC Server Simulator 變數
+- `FISC_SERVER_PORT` - 伺服器實際監聽埠號
+- `FISC_SERVER_RECEIVED` - 已接收訊息數
+- `FISC_SERVER_SENT` - 已發送訊息數
+- `FISC_SERVER_CLIENTS` - 目前連線客戶端數
 
 ## 回應碼說明
 
@@ -109,13 +182,15 @@ Custom Fields: 103:00000012345678901234  (轉入帳號)
 fep-jmeter-plugin/
 ├── src/main/java/com/fep/jmeter/
 │   ├── sampler/
-│   │   ├── FiscSampler.java          # 主要 Sampler
-│   │   └── FiscSamplerBeanInfo.java  # GUI 設定
+│   │   ├── FiscSampler.java              # FISC 客戶端 Sampler
+│   │   ├── FiscSamplerBeanInfo.java      # 客戶端 GUI 設定
+│   │   ├── FiscServerSampler.java        # FISC 伺服器模擬 Sampler
+│   │   └── FiscServerSamplerBeanInfo.java # 伺服器 GUI 設定
 │   ├── config/
-│   │   ├── FiscConfigElement.java    # 連線設定元件
+│   │   ├── FiscConfigElement.java        # 連線設定元件
 │   │   └── FiscConfigElementBeanInfo.java
 │   └── gui/
-│       └── FiscSamplerGui.java       # 自訂 GUI
+│       └── FiscSamplerGui.java           # 自訂 GUI
 └── pom.xml
 ```
 
