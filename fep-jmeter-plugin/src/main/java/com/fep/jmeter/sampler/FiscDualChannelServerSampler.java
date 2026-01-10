@@ -60,6 +60,7 @@ public class FiscDualChannelServerSampler extends AbstractSampler implements Tes
     public static final String BANK_ID_FIELD = "bankIdField";
     public static final String RESPONSE_RULES = "responseRules";
     public static final String CUSTOM_RESPONSE_FIELDS = "customResponseFields";
+    public static final String MTI_RESPONSE_RULES = "mtiResponseRules";
 
     // Operation mode properties
     public static final String OPERATION_MODE = "operationMode";
@@ -455,8 +456,19 @@ public class FiscDualChannelServerSampler extends AbstractSampler implements Tes
                     }
                 }
 
-                // Configure response rules
-                configureResponseRules(engine);
+                // Configure MTI response rules (JSON format) - takes precedence
+                String mtiRules = getMtiResponseRules();
+                if (mtiRules != null && !mtiRules.isEmpty()) {
+                    engine.setMtiResponseRules(mtiRules);
+                    // Pass JMeter variables for substitution
+                    JMeterContext context = JMeterContextService.getContext();
+                    if (context != null) {
+                        engine.setJMeterVariables(context.getVariables());
+                    }
+                } else {
+                    // Configure legacy response rules
+                    configureResponseRules(engine);
+                }
 
                 // Start engine
                 engine.start().get();
@@ -485,8 +497,19 @@ public class FiscDualChannelServerSampler extends AbstractSampler implements Tes
                     instance.engine.setValidationCallback(null);
                 }
 
-                // Update response rules
-                configureResponseRules(instance.engine);
+                // Update MTI response rules or legacy response rules
+                String mtiRules = getMtiResponseRules();
+                if (mtiRules != null && !mtiRules.isEmpty()) {
+                    instance.engine.setMtiResponseRules(mtiRules);
+                    // Pass JMeter variables for substitution
+                    JMeterContext context = JMeterContextService.getContext();
+                    if (context != null) {
+                        instance.engine.setJMeterVariables(context.getVariables());
+                    }
+                } else {
+                    // Update legacy response rules
+                    configureResponseRules(instance.engine);
+                }
             }
 
             return instance;
@@ -732,6 +755,14 @@ public class FiscDualChannelServerSampler extends AbstractSampler implements Tes
 
     public void setCustomResponseFields(String fields) {
         setProperty(CUSTOM_RESPONSE_FIELDS, fields);
+    }
+
+    public String getMtiResponseRules() {
+        return getPropertyAsString(MTI_RESPONSE_RULES, "");
+    }
+
+    public void setMtiResponseRules(String rules) {
+        setProperty(MTI_RESPONSE_RULES, rules);
     }
 
     // Operation mode getters and setters

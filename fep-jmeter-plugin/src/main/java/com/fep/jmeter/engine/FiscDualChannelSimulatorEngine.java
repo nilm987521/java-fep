@@ -15,6 +15,7 @@ import io.netty.handler.codec.MessageToByteEncoder;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.jmeter.threads.JMeterVariables;
 
 import java.net.InetSocketAddress;
 import java.util.List;
@@ -129,6 +130,14 @@ public class FiscDualChannelSimulatorEngine implements AutoCloseable {
     @Setter
     private BiConsumer<Iso8583Message, String> requestReceivedCallback;
 
+    /** MTI Response Rule Engine for JSON-configured response rules */
+    private MtiResponseRuleEngine mtiResponseRuleEngine;
+
+    /** JMeter variables for variable substitution in rules */
+    @Getter
+    @Setter
+    private volatile JMeterVariables jMeterVariables;
+
     /** Last received request info */
     @Getter
     private volatile String lastRequestMti;
@@ -223,6 +232,61 @@ public class FiscDualChannelSimulatorEngine implements AutoCloseable {
      */
     public void registerHandler(String mti, Function<Iso8583Message, Iso8583Message> handler) {
         requestHandlers.put(mti, handler);
+    }
+
+    /**
+     * Configures MTI response rules from JSON.
+     *
+     * <p>When configured, the rule engine takes precedence over default handlers
+     * for the MTI types defined in the JSON configuration.
+     *
+     * <p>JSON Format:
+     * <pre>{@code
+     * {
+     *   "defaultResponseCode": "12",
+     *   "handlers": [
+     *     {
+     *       "mti": "0200",
+     *       "rules": [
+     *         {"condition": {"field": 3, "value": "010000"}, "response": {"39": "00"}}
+     *       ]
+     *     }
+     *   ]
+     * }
+     * }</pre>
+     *
+     * @param jsonConfig the JSON configuration string
+     * @throws IllegalArgumentException if the JSON is invalid
+     */
+    public void setMtiResponseRules(String jsonConfig) {
+        if (jsonConfig == null || jsonConfig.isBlank()) {
+            this.mtiResponseRuleEngine = null;
+            log.info("[Engine] Cleared MTI response rules");
+            return;
+        }
+
+        this.mtiResponseRuleEngine = new MtiResponseRuleEngine();
+        this.mtiResponseRuleEngine.configure(jsonConfig);
+
+        // Register handlers for each MTI defined in the rules
+        for (String mti : mtiResponseRuleEngine.getSupportedMtis()) {
+            registerHandler(mti, request ->
+                mtiResponseRuleEngine.applyRules(request, jMeterVariables)
+            );
+            log.debug("[Engine] Registered rule-based handler for MTI {}", mti);
+        }
+
+        log.info("[Engine] Configured MTI response rules with {} MTI types",
+            mtiResponseRuleEngine.getSupportedMtis().size());
+    }
+
+    /**
+     * Gets the MTI response rule engine.
+     *
+     * @return the rule engine, or null if not configured
+     */
+    public MtiResponseRuleEngine getMtiResponseRuleEngine() {
+        return mtiResponseRuleEngine;
     }
 
     /**

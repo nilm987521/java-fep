@@ -83,6 +83,7 @@ public class FiscDualChannelServerSamplerBeanInfo extends BeanInfoSupport {
         });
 
         createPropertyGroup(ADVANCED_GROUP, new String[]{
+            FiscDualChannelServerSampler.MTI_RESPONSE_RULES,
             FiscDualChannelServerSampler.RESPONSE_RULES,
             FiscDualChannelServerSampler.CUSTOM_RESPONSE_FIELDS
         });
@@ -183,7 +184,31 @@ public class FiscDualChannelServerSamplerBeanInfo extends BeanInfoSupport {
         bankIdFieldProp.setDisplayName("Bank ID Field");
         bankIdFieldProp.setShortDescription("Field number containing Bank ID (default: 32 = Acquiring Institution ID).");
 
-        // Advanced properties
+        // Advanced properties - MTI Response Rules (JSON format)
+        PropertyDescriptor mtiRulesProp = property(FiscDualChannelServerSampler.MTI_RESPONSE_RULES);
+        mtiRulesProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
+        mtiRulesProp.setValue(DEFAULT, "");
+        mtiRulesProp.setValue(TypeEditor.class.getName(), TypeEditor.TextAreaEditor);
+        mtiRulesProp.setDisplayName("MTI Response Rules (JSON)");
+        mtiRulesProp.setShortDescription(
+            "JSON format MTI response rules. When configured, takes precedence over legacy Response Rules.\n" +
+            "Format:\n" +
+            "{\n" +
+            "  \"defaultResponseCode\": \"12\",\n" +
+            "  \"handlers\": [\n" +
+            "    {\n" +
+            "      \"mti\": \"0200\",\n" +
+            "      \"rules\": [\n" +
+            "        {\"condition\": {\"field\": 3, \"value\": \"010000\"}, \"response\": {\"39\": \"00\"}},\n" +
+            "        {\"condition\": \"DEFAULT\", \"response\": {\"39\": \"00\"}}\n" +
+            "      ]\n" +
+            "    }\n" +
+            "  ]\n" +
+            "}\n" +
+            "Supports variables: ${VAR}, ${Fnn}, ${STAN}, ${RRN}"
+        );
+
+        // Legacy Response Rules
         PropertyDescriptor responseRulesProp = property(FiscDualChannelServerSampler.RESPONSE_RULES);
         responseRulesProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
         responseRulesProp.setValue(DEFAULT, "");
