@@ -6,7 +6,24 @@ JMeter 外掛，用於測試 FISC ISO 8583 財金交易。
 
 - **FISC Connection Config** - 設定 FISC 連線參數
 - **FISC ISO 8583 Sampler** - 發送 ISO 8583 交易電文
-- **FISC Server Simulator** - 模擬財金伺服器（用於測試 FEP 客戶端）
+- **FISC Dual-Channel Server Simulator** - 模擬財金雙連線伺服器（用於測試 FEP 客戶端）
+
+### 財金雙連線架構
+
+符合財金公司實際連線架構：
+```
+FEP Client                    FISC Simulator
+----------                    --------------
+Send Channel ──request──►     Send Port (9000)
+                              │
+                              ▼ (queue + handler)
+                              │
+Recv Channel ◄──response──    Receive Port (9001)
+```
+
+- **Send Port**: 接收客戶端的交易請求
+- **Receive Port**: 發送交易回應給客戶端
+- **非同步處理**: Request/Response 走不同 TCP 連線
 
 ## 支援的交易類型
 
@@ -82,70 +99,111 @@ Amount: 50000 (NT$500.00)
 Custom Fields: 103:00000012345678901234  (轉入帳號)
 ```
 
-### 4. 新增 FISC Server Simulator
+### 4. 新增 FISC Dual-Channel Server Simulator
 
 在 Thread Group 下新增：
-- **右鍵 > Add > Sampler > FISC Server Simulator**
+- **右鍵 > Add > Sampler > FISC Dual-Channel Server Simulator**
 
-這是一個模擬財金伺服器的 Sampler，可用於：
-- 測試 FEP 客戶端連線功能
+這是模擬財金雙連線伺服器的 Sampler，可用於：
+- 測試 FEP 客戶端雙連線功能
 - 模擬各種回應碼場景
 - 壓力測試和效能驗證
+- 驗證電文欄位格式
 
-設定參數：
-- **Server Port**: 伺服器監聽埠號（預設 9001）
-- **Sample Interval**: 統計取樣間隔（毫秒）
-- **Default Response Code**: 預設回應碼（00=成功）
-- **Response Delay**: 模擬處理延遲（毫秒）
-- **Balance Amount**: 餘額查詢回傳金額
-- **Response Rules**: 依交易類型設定不同回應碼
-- **Custom Response Fields**: 自訂回應欄位
+#### 設定參數
+
+**Server Settings:**
+| 參數 | 說明 | 預設值 |
+|------|------|--------|
+| Send Port | 接收請求的埠號 | 9000 |
+| Receive Port | 發送回應的埠號 | 9001 |
+| Sample Interval | 統計取樣間隔（毫秒） | 1000 |
+
+**Response Settings:**
+| 參數 | 說明 | 預設值 |
+|------|------|--------|
+| Default Response Code | 預設回應碼 | 00 |
+| Response Delay | 模擬處理延遲（毫秒） | 0 |
+| Balance Amount | 餘額查詢回傳金額（分） | - |
+
+**Validation Settings:**
+| 參數 | 說明 | 預設值 |
+|------|------|--------|
+| Enable Validation | 啟用電文驗證 | true |
+| Validation Error Code | 驗證失敗回傳碼 | 30 |
+| Validation Rules | 驗證規則（見下方說明） | - |
+
+**Routing Settings:**
+| 參數 | 說明 | 預設值 |
+|------|------|--------|
+| Enable Bank ID Routing | 依銀行代碼路由 | true |
+| Bank ID Field | 銀行代碼欄位 | 32 |
+
+#### 驗證規則語法
+
+```
+REQUIRED:2,3,4,11,41              # 必填欄位
+FORMAT:2=N(13-19);3=N(6)          # 欄位格式：N=數字，長度範圍
+VALUE:3=010000|400000|310000      # 允許的值
+LENGTH:4=12;11=6                  # 固定長度
+PATTERN:37=^[A-Z0-9]{12}$         # 正規表達式
+```
+
+#### 回應規則語法
+
+依 Processing Code (F3) 設定不同回應碼：
+```
+010000:00;400000:51;310000:00
+```
+- `010000:00` - 提款成功
+- `400000:51` - 轉帳餘額不足
+- `310000:00` - 餘額查詢成功
 
 #### 範例設定
 
 ##### 基本伺服器（全部成功）
 ```
-Server Port: 9001
+Send Port: 9000
+Receive Port: 9001
 Default Response Code: 00
-Response Delay: 100
+Response Delay: 50
 ```
 
 ##### 模擬餘額查詢
 ```
-Server Port: 9001
+Send Port: 9000
+Receive Port: 9001
 Default Response Code: 00
 Balance Amount: 1000000 (NT$10,000.00)
 ```
 
-##### 依交易類型設定不同回應
+##### 模擬轉帳餘額不足
 ```
-Server Port: 9001
+Send Port: 9000
+Receive Port: 9001
 Default Response Code: 00
 Response Rules: 010000:00;400000:51;310000:00
 ```
-說明：
-- `010000:00` - 提款成功
-- `400000:51` - 轉帳餘額不足
-- `310000:00` - 餘額查詢成功
 
 ##### 自訂回應欄位
 ```
-Custom Response Fields: 43:Test Merchant;49:901;102:1234567890
+Custom Response Fields: 43:Test Merchant;49:901
 ```
 
 ### 5. Server Simulator 使用場景
 
 #### 場景 A：作為獨立模擬伺服器
 1. 建立一個 Thread Group，設定執行緒數為 1
-2. 新增 FISC Server Simulator
+2. 新增 FISC Dual-Channel Server Simulator
 3. 設定 Loop Count 為 Forever（持續運行）
-4. 啟動測試，伺服器即開始監聽
+4. 啟動測試，伺服器即開始監聽雙 Port
 
 #### 場景 B：整合測試
-1. 建立 Thread Group 1：運行 FISC Server Simulator
-2. 建立 Thread Group 2：運行 FISC ISO 8583 Sampler
-3. 將 Sampler 指向 localhost:9001
-4. 進行端對端測試
+1. 建立 Thread Group 1：運行 FISC Dual-Channel Server Simulator
+2. FEP 客戶端連線到：
+   - Send Channel → localhost:9000
+   - Receive Channel → localhost:9001
+3. 進行端對端測試
 
 ## JMeter 變數
 
@@ -157,11 +215,17 @@ Custom Response Fields: 43:Test Merchant;49:901;102:1234567890
 - `FISC_RRN` - 調閱參考號碼
 - `FISC_BALANCE` - 餘額（如有）
 
-### FISC Server Simulator 變數
-- `FISC_SERVER_PORT` - 伺服器實際監聽埠號
-- `FISC_SERVER_RECEIVED` - 已接收訊息數
-- `FISC_SERVER_SENT` - 已發送訊息數
-- `FISC_SERVER_CLIENTS` - 目前連線客戶端數
+### FISC Dual-Channel Server Simulator 變數
+- `FISC_SEND_PORT` - Send Port 實際埠號
+- `FISC_RECEIVE_PORT` - Receive Port 實際埠號
+- `FISC_SEND_CLIENTS` - Send Channel 連線數
+- `FISC_RECEIVE_CLIENTS` - Receive Channel 連線數
+- `FISC_MESSAGES_RECEIVED` - 已接收訊息數
+- `FISC_MESSAGES_SENT` - 已發送訊息數
+- `FISC_VALIDATION_ERRORS` - 驗證失敗數
+- `FISC_LAST_REQUEST_MTI` - 最後一筆請求的 MTI
+- `FISC_LAST_REQUEST_STAN` - 最後一筆請求的 STAN
+- `FISC_LAST_VALIDATION_RESULT` - 最後一筆驗證結果
 
 ## 回應碼說明
 
@@ -205,9 +269,34 @@ fep-jmeter-plugin/
 
 | 檔案 | 說明 |
 |------|------|
+| `FISC_DualChannel_Server_Simulator.jmx` | 雙連線伺服器模擬基本範本 |
+| `FISC_DualChannel_Test_Scenarios.jmx` | 多場景測試（成功/餘額不足/逾時/驗證） |
 | `FISC_Test_Plan.jmx` | 完整測試計畫，包含各類交易和壓測 |
 | `FISC_Parameterized_Test.jmx` | 使用 CSV 參數化的測試計畫 |
 | `test_cards.csv` | 測試卡號資料檔案 |
+
+### 雙連線模擬範例
+
+#### 場景 1: 全部成功
+- 所有交易回傳 `00`
+- 適用於正向測試
+
+#### 場景 2: 轉帳餘額不足
+- 提款回傳 `00`
+- 轉帳回傳 `51` (餘額不足)
+- 適用於錯誤處理測試
+
+#### 場景 3: 高延遲回應
+- 回應延遲 3 秒
+- 適用於逾時處理測試
+
+#### 場景 4: 系統故障
+- 所有交易回傳 `96` (系統故障)
+- 適用於異常處理測試
+
+#### 場景 5: 嚴格欄位驗證
+- 完整欄位格式驗證
+- 適用於電文正確性測試
 
 ### 使用範例
 
@@ -220,11 +309,14 @@ fep-jmeter-plugin/
 ### 命令列執行
 
 ```bash
+# 執行雙連線伺服器模擬
+jmeter -n -t FISC_DualChannel_Server_Simulator.jmx -l results.jtl
+
+# 執行多場景測試
+jmeter -n -t FISC_DualChannel_Test_Scenarios.jmx -l results.jtl
+
 # 執行基本測試
 jmeter -n -t FISC_Test_Plan.jmx -l results.jtl
-
-# 執行參數化測試
-jmeter -n -t FISC_Parameterized_Test.jmx -l results.jtl
 
 # 產生 HTML 報告
 jmeter -n -t FISC_Test_Plan.jmx -l results.jtl -e -o report/

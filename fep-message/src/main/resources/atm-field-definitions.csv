@@ -1,0 +1,59 @@
+# ATM ISO 8583 Field Definitions
+# For ATM <-> FEP communication (NDC/DDC protocol compatible)
+#
+# Columns:
+#   fieldNumber: Field number (1-128)
+#   name: Field name
+#   description: Field description (optional)
+#   fieldType: NUMERIC|ALPHA|SPECIAL|ALPHA_NUMERIC|ALPHA_NUMERIC_SPECIAL|NUMERIC_SPECIAL|BINARY|TRACK2|EXTENDED_BCD
+#   lengthType: FIXED|LVAR|LLVAR|LLLVAR|LLLLVAR
+#   length: Maximum length (for variable) or exact length (for fixed)
+#   dataEncoding: ASCII|BCD|EBCDIC|BINARY
+#   lengthEncoding: ASCII|BCD (for variable length fields, default: BCD)
+#   sensitive: true|false (default: false)
+#   paddingChar: padding character (optional)
+#   leftPadding: true|false (default: true for numeric)
+#
+fieldNumber,name,description,fieldType,lengthType,length,dataEncoding,lengthEncoding,sensitive,paddingChar,leftPadding
+2,Primary Account Number,PAN from card,NUMERIC,LLVAR,19,BCD,BCD,true,,
+3,Processing Code,Transaction type,NUMERIC,FIXED,6,BCD,,,0,true
+4,Transaction Amount,Amount requested,NUMERIC,FIXED,12,BCD,,,0,true
+7,Transmission Date Time,MMDDhhmmss,NUMERIC,FIXED,10,BCD,,,,,
+11,STAN,System Trace Audit Number,NUMERIC,FIXED,6,BCD,,,0,true
+12,Local Transaction Time,hhmmss,NUMERIC,FIXED,6,BCD,,,,,
+13,Local Transaction Date,MMDD,NUMERIC,FIXED,4,BCD,,,,,
+14,Expiration Date,YYMM from card,NUMERIC,FIXED,4,BCD,,true,,
+22,POS Entry Mode,Card entry method,NUMERIC,FIXED,3,BCD,,,0,true
+23,Card Sequence Number,Chip card sequence,NUMERIC,FIXED,3,BCD,,,0,true
+25,POS Condition Code,ATM condition,NUMERIC,FIXED,2,BCD,,,0,true
+26,PIN Capture Code,,NUMERIC,FIXED,2,BCD,,,0,true
+32,Acquiring Institution ID,ATM owner bank,NUMERIC,LLVAR,11,BCD,BCD,,,
+35,Track 2 Data,Card track 2,TRACK2,LLVAR,37,BCD,BCD,true,,
+37,Retrieval Reference Number,RRN,ALPHA_NUMERIC,FIXED,12,ASCII,,,,,
+38,Authorization ID Response,Auth code,ALPHA_NUMERIC,FIXED,6,ASCII,,,,,
+39,Response Code,Transaction result,ALPHA_NUMERIC,FIXED,2,ASCII,,,,,
+41,Terminal ID,ATM Terminal ID,ALPHA_NUMERIC_SPECIAL,FIXED,8,ASCII,,, ,false
+42,Card Acceptor ID,ATM Location ID,ALPHA_NUMERIC_SPECIAL,FIXED,15,ASCII,,, ,false
+43,Card Acceptor Name/Location,ATM location name,ALPHA_NUMERIC_SPECIAL,FIXED,40,ASCII,,, ,false
+49,Currency Code Transaction,ISO 4217 code,NUMERIC,FIXED,3,BCD,,,0,true
+52,PIN Data,Encrypted PIN Block,BINARY,FIXED,8,BINARY,,true,,
+53,Security Control Info,Key version info,NUMERIC,FIXED,16,BCD,,,0,true
+54,Additional Amounts,Available balance,ALPHA_NUMERIC,LLLVAR,120,ASCII,BCD,,,
+55,EMV Data,Chip card data,BINARY,LLLVAR,999,BINARY,BCD,true,,
+60,ATM Device Status,Device status codes,ALPHA_NUMERIC_SPECIAL,LLLVAR,100,ASCII,BCD,,,
+61,ATM Transaction Data,Custom ATM data,ALPHA_NUMERIC_SPECIAL,LLLVAR,200,ASCII,BCD,,,
+62,Dispensed Amount,Actual dispensed,ALPHA_NUMERIC_SPECIAL,LLLVAR,50,ASCII,BCD,,,
+63,Notes Dispensed,Denomination breakdown,ALPHA_NUMERIC_SPECIAL,LLLVAR,100,ASCII,BCD,,,
+64,MAC,Message Authentication Code,BINARY,FIXED,8,BINARY,,,,,
+90,Original Data Elements,For reversal,NUMERIC,FIXED,42,BCD,,,0,true
+95,Replacement Amounts,For partial reversal,ALPHA_NUMERIC,FIXED,42,ASCII,,,,,
+100,Receiving Institution ID,Target bank code,NUMERIC,LLVAR,11,BCD,BCD,,,
+102,Account ID 1,Primary account,ALPHA_NUMERIC_SPECIAL,LLVAR,28,ASCII,BCD,true,,
+103,Account ID 2,Secondary account,ALPHA_NUMERIC_SPECIAL,LLVAR,28,ASCII,BCD,true,,
+120,ATM Journal Sequence,ATM journal number,NUMERIC,FIXED,10,ASCII,,,0,true
+121,ATM Hardware ID,Hardware identifier,ALPHA_NUMERIC_SPECIAL,LLVAR,20,ASCII,BCD,,,
+122,Cassette Status,Cash cassette info,ALPHA_NUMERIC_SPECIAL,LLLVAR,100,ASCII,BCD,,,
+123,Deposit Data,For deposit ATMs,ALPHA_NUMERIC_SPECIAL,LLLVAR,200,ASCII,BCD,,,
+124,Receipt Data,Receipt print data,ALPHA_NUMERIC_SPECIAL,LLLVAR,500,ASCII,BCD,,,
+125,Supervisor Data,Supervisor operations,ALPHA_NUMERIC_SPECIAL,LLLVAR,100,ASCII,BCD,,,
+128,MAC Secondary,Secondary MAC,BINARY,FIXED,8,BINARY,,,,,

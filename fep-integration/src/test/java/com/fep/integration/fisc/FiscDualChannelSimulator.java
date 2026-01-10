@@ -98,9 +98,9 @@ public class FiscDualChannelSimulator implements AutoCloseable {
 
     // Statistics
     @Getter
-    private final AtomicInteger sendChannelClients = new AtomicInteger(0);
+    private final AtomicInteger sendChannelClientCount = new AtomicInteger(0);
     @Getter
-    private final AtomicInteger receiveChannelClients = new AtomicInteger(0);
+    private final AtomicInteger receiveChannelClientCount = new AtomicInteger(0);
     @Getter
     private final AtomicInteger messagesReceived = new AtomicInteger(0);
     @Getter
@@ -480,14 +480,14 @@ public class FiscDualChannelSimulator implements AutoCloseable {
 
         @Override
         public void channelActive(ChannelHandlerContext ctx) {
-            int count = sendChannelClients.incrementAndGet();
+            int count = sendChannelClientCount.incrementAndGet();
             log.info("[Simulator] Send channel client connected: {} (total: {})",
                 ctx.channel().remoteAddress(), count);
         }
 
         @Override
         public void channelInactive(ChannelHandlerContext ctx) {
-            int count = sendChannelClients.decrementAndGet();
+            int count = sendChannelClientCount.decrementAndGet();
             log.info("[Simulator] Send channel client disconnected: {} (total: {})",
                 ctx.channel().remoteAddress(), count);
         }
@@ -541,14 +541,14 @@ public class FiscDualChannelSimulator implements AutoCloseable {
         public void channelActive(ChannelHandlerContext ctx) {
             clientId = ctx.channel().remoteAddress().toString();
             receiveChannelClients.put(clientId, ctx.channel());
-            int count = FiscDualChannelSimulator.this.receiveChannelClients.incrementAndGet();
+            int count = FiscDualChannelSimulator.this.receiveChannelClientCount.incrementAndGet();
             log.info("[Simulator] Receive channel client connected: {} (total: {})", clientId, count);
         }
 
         @Override
         public void channelInactive(ChannelHandlerContext ctx) {
             receiveChannelClients.remove(clientId);
-            int count = FiscDualChannelSimulator.this.receiveChannelClients.decrementAndGet();
+            int count = FiscDualChannelSimulator.this.receiveChannelClientCount.decrementAndGet();
             log.info("[Simulator] Receive channel client disconnected: {} (total: {})", clientId, count);
         }
 

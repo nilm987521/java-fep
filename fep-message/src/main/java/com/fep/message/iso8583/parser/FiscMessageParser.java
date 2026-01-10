@@ -161,11 +161,19 @@ public class FiscMessageParser implements MessageParser {
         byte[] bitmapBytes;
         if (hasSecondary) {
             if (buffer.readableBytes() < Bitmap.PRIMARY_BITMAP_SIZE) {
-                throw MessageException.parseError("Not enough bytes for secondary bitmap");
+                // Secondary bitmap indicated but not enough bytes -
+                // This is a malformed message, but we'll try to continue
+                // by clearing bit 1 and treating as primary-only
+                log.warn("Bit 1 set indicating secondary bitmap but only {} bytes available. " +
+                         "Clearing bit 1 and continuing with primary bitmap only.",
+                         buffer.readableBytes());
+                primaryBytes[0] = (byte) (primaryBytes[0] & 0x7F); // Clear bit 1
+                bitmapBytes = primaryBytes;
+            } else {
+                bitmapBytes = new byte[Bitmap.TOTAL_BITMAP_SIZE];
+                System.arraycopy(primaryBytes, 0, bitmapBytes, 0, Bitmap.PRIMARY_BITMAP_SIZE);
+                buffer.readBytes(bitmapBytes, Bitmap.PRIMARY_BITMAP_SIZE, Bitmap.PRIMARY_BITMAP_SIZE);
             }
-            bitmapBytes = new byte[Bitmap.TOTAL_BITMAP_SIZE];
-            System.arraycopy(primaryBytes, 0, bitmapBytes, 0, Bitmap.PRIMARY_BITMAP_SIZE);
-            buffer.readBytes(bitmapBytes, Bitmap.PRIMARY_BITMAP_SIZE, Bitmap.PRIMARY_BITMAP_SIZE);
         } else {
             bitmapBytes = primaryBytes;
         }
@@ -185,7 +193,7 @@ public class FiscMessageParser implements MessageParser {
                 continue;
             }
 
-            FieldDefinition definition = FiscFieldDefinitions.getDefinition(fieldNum);
+            FieldDefinition definition = FiscFieldDefinitions.get(fieldNum);
             if (definition == null) {
                 log.warn("No definition for field {}, skipping", fieldNum);
                 continue;

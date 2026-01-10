@@ -1,0 +1,66 @@
+# Bank Core System ISO 8583 Field Definitions
+# For internal FEP <-> Core Banking System communication
+#
+# Columns:
+#   fieldNumber: Field number (1-128)
+#   name: Field name
+#   description: Field description (optional)
+#   fieldType: NUMERIC|ALPHA|SPECIAL|ALPHA_NUMERIC|ALPHA_NUMERIC_SPECIAL|NUMERIC_SPECIAL|BINARY|TRACK2|EXTENDED_BCD
+#   lengthType: FIXED|LVAR|LLVAR|LLLVAR|LLLLVAR
+#   length: Maximum length (for variable) or exact length (for fixed)
+#   dataEncoding: ASCII|BCD|EBCDIC|BINARY
+#   lengthEncoding: ASCII|BCD (for variable length fields, default: BCD)
+#   sensitive: true|false (default: false)
+#   paddingChar: padding character (optional)
+#   leftPadding: true|false (default: true for numeric)
+#
+fieldNumber,name,description,fieldType,lengthType,length,dataEncoding,lengthEncoding,sensitive,paddingChar,leftPadding
+2,Primary Account Number,PAN - Card number,NUMERIC,LLVAR,19,ASCII,ASCII,true,,
+3,Processing Code,Transaction type code,NUMERIC,FIXED,6,ASCII,,,0,true
+4,Transaction Amount,Amount in minor units,NUMERIC,FIXED,12,ASCII,,,0,true
+5,Settlement Amount,Settlement amount,NUMERIC,FIXED,12,ASCII,,,0,true
+6,Cardholder Billing Amount,,NUMERIC,FIXED,12,ASCII,,,0,true
+7,Transmission Date Time,YYYYMMDDhhmmss,NUMERIC,FIXED,14,ASCII,,,,,
+11,STAN,System Trace Audit Number,NUMERIC,FIXED,6,ASCII,,,0,true
+12,Local Transaction Time,hhmmss,NUMERIC,FIXED,6,ASCII,,,,,
+13,Local Transaction Date,MMDD,NUMERIC,FIXED,4,ASCII,,,,,
+14,Expiration Date,YYMM,NUMERIC,FIXED,4,ASCII,,true,,
+15,Settlement Date,MMDD,NUMERIC,FIXED,4,ASCII,,,,,
+18,Merchant Category Code,MCC,NUMERIC,FIXED,4,ASCII,,,0,true
+22,POS Entry Mode,Point of Service Entry Mode,NUMERIC,FIXED,3,ASCII,,,0,true
+23,Card Sequence Number,,NUMERIC,FIXED,3,ASCII,,,0,true
+25,POS Condition Code,,NUMERIC,FIXED,2,ASCII,,,0,true
+32,Acquiring Institution ID,Bank code,NUMERIC,LLVAR,11,ASCII,ASCII,,,
+35,Track 2 Data,,TRACK2,LLVAR,37,ASCII,ASCII,true,,
+37,Retrieval Reference Number,RRN,ALPHA_NUMERIC,FIXED,12,ASCII,,,,,
+38,Authorization ID Response,,ALPHA_NUMERIC,FIXED,6,ASCII,,,,,
+39,Response Code,Transaction result code,ALPHA_NUMERIC,FIXED,2,ASCII,,,,,
+41,Terminal ID,ATM/POS Terminal ID,ALPHA_NUMERIC_SPECIAL,FIXED,8,ASCII,,, ,false
+42,Card Acceptor ID,Merchant ID,ALPHA_NUMERIC_SPECIAL,FIXED,15,ASCII,,, ,false
+43,Card Acceptor Name/Location,,ALPHA_NUMERIC_SPECIAL,FIXED,40,ASCII,,, ,false
+44,Additional Response Data,,ALPHA_NUMERIC_SPECIAL,LLVAR,25,ASCII,ASCII,,,
+48,Additional Data Private,Internal bank data,ALPHA_NUMERIC_SPECIAL,LLLVAR,999,ASCII,ASCII,,,
+49,Currency Code Transaction,ISO 4217 currency code,NUMERIC,FIXED,3,ASCII,,,0,true
+52,PIN Data,Encrypted PIN Block,BINARY,FIXED,16,BINARY,,true,,
+53,Security Related Control Info,,NUMERIC,FIXED,16,ASCII,,,0,true
+54,Additional Amounts,Balance information,ALPHA_NUMERIC,LLLVAR,120,ASCII,ASCII,,,
+55,EMV Data,ICC/EMV related data,BINARY,LLLVAR,999,BINARY,ASCII,true,,
+60,Reserved Private,Internal use,ALPHA_NUMERIC_SPECIAL,LLLVAR,999,ASCII,ASCII,,,
+61,Reserved Private,Internal use,ALPHA_NUMERIC_SPECIAL,LLLVAR,999,ASCII,ASCII,,,
+62,Reserved Private,Internal use,ALPHA_NUMERIC_SPECIAL,LLLVAR,999,ASCII,ASCII,,,
+63,Reserved Private,Internal use,ALPHA_NUMERIC_SPECIAL,LLLVAR,999,ASCII,ASCII,,,
+64,MAC,Message Authentication Code,BINARY,FIXED,8,BINARY,,,,,
+90,Original Data Elements,For reversal transactions,NUMERIC,FIXED,42,ASCII,,,0,true
+100,Receiving Institution ID,Destination bank code,NUMERIC,LLVAR,11,ASCII,ASCII,,,
+102,Account ID 1,Source account,ALPHA_NUMERIC_SPECIAL,LLVAR,28,ASCII,ASCII,true,,
+103,Account ID 2,Destination account,ALPHA_NUMERIC_SPECIAL,LLVAR,28,ASCII,ASCII,true,,
+104,Transaction Description,Custom description,ALPHA_NUMERIC_SPECIAL,LLLVAR,100,ASCII,ASCII,,,
+120,Transaction Reference,Internal reference number,ALPHA_NUMERIC_SPECIAL,LLLVAR,50,ASCII,ASCII,,,
+121,Authorization Source,Source system identifier,ALPHA_NUMERIC_SPECIAL,LLVAR,20,ASCII,ASCII,,,
+122,Transaction Status,Detailed status code,ALPHA_NUMERIC_SPECIAL,LLVAR,10,ASCII,ASCII,,,
+123,Transaction Flags,Processing flags,ALPHA_NUMERIC_SPECIAL,LLVAR,20,ASCII,ASCII,,,
+124,Customer Reference,Customer internal ID,ALPHA_NUMERIC_SPECIAL,LLVAR,30,ASCII,ASCII,,,
+125,Branch Code,Processing branch,ALPHA_NUMERIC,FIXED,6,ASCII,,,,,
+126,Teller ID,Teller identifier,ALPHA_NUMERIC,FIXED,8,ASCII,,,,,
+127,Host Reference,Core system reference,ALPHA_NUMERIC_SPECIAL,LLLVAR,50,ASCII,ASCII,,,
+128,MAC Secondary,Secondary Message Authentication Code,BINARY,FIXED,8,BINARY,,,,,

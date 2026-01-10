@@ -162,7 +162,7 @@ public class FiscMessageAssembler implements MessageAssembler {
                 continue;
             }
 
-            FieldDefinition definition = FiscFieldDefinitions.getDefinition(fieldNum);
+            FieldDefinition definition = FiscFieldDefinitions.get(fieldNum);
             if (definition == null) {
                 throw MessageException.fieldError(fieldNum, "No definition found");
             }

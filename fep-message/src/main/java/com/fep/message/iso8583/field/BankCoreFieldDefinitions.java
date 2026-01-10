@@ -4,60 +4,59 @@ import java.nio.file.Path;
 import java.util.Map;
 
 /**
- * Field definitions for FISC (Financial Information Service Center) protocol.
- * Based on Taiwan FISC ISO 8583 specifications.
+ * Field definitions for Bank Core System protocol.
+ * Used for internal FEP &lt;-&gt; Core Banking System communication.
  *
- * <p>Field definitions are loaded from a CSV file for easy maintenance and customization.
- * By default, definitions are loaded from the classpath resource: /fisc-field-definitions.csv
+ * <p>Key differences from FISC:
+ * <ul>
+ *   <li>ASCII encoding for most fields (instead of BCD)</li>
+ *   <li>ASCII length prefix for variable fields</li>
+ *   <li>Additional internal fields (120-127) for bank-specific data</li>
+ *   <li>Shorter MAC field (8 bytes instead of 16)</li>
+ * </ul>
+ *
+ * <p>Field definitions are loaded from: /bankcore-field-definitions.csv
  *
  * <p>Usage examples:
  * <pre>{@code
- * // Static access (backward compatible)
- * FieldDefinition pan = FiscFieldDefinitions.getDefinition(2);
+ * // Static access
+ * FieldDefinition pan = BankCoreFieldDefinitions.get(2);
  *
- * // Instance access (new pattern)
- * FieldDefinitionProvider provider = FiscFieldDefinitions.getInstance();
+ * // Instance access
+ * FieldDefinitionProvider provider = BankCoreFieldDefinitions.getInstance();
  * FieldDefinition pan = provider.getDefinition(2);
- *
- * // Load from a custom file
- * FiscFieldDefinitions.loadFromFile("/path/to/custom-definitions.csv");
- *
- * // Reload from default resource
- * FiscFieldDefinitions.reload();
  * }</pre>
- *
- * <p>Thread-safe: All methods are safe for concurrent access.
  *
  * @see AbstractFieldDefinitionProvider
  * @see FieldDefinitionProvider
  */
-public final class FiscFieldDefinitions extends AbstractFieldDefinitionProvider {
+public final class BankCoreFieldDefinitions extends AbstractFieldDefinitionProvider {
 
     /** Provider name */
-    private static final String PROVIDER_NAME = "FISC";
+    private static final String PROVIDER_NAME = "BankCore";
 
     /** Default resource path for field definitions */
-    private static final String DEFAULT_RESOURCE_PATH = "/fisc-field-definitions.csv";
+    private static final String DEFAULT_RESOURCE_PATH = "/bankcore-field-definitions.csv";
 
     /** System property to override the default CSV file path */
-    public static final String CSV_PATH_PROPERTY = "fisc.field.definitions.path";
+    public static final String CSV_PATH_PROPERTY = "bankcore.field.definitions.path";
 
     /** Singleton instance */
-    private static final FiscFieldDefinitions INSTANCE = new FiscFieldDefinitions();
+    private static final BankCoreFieldDefinitions INSTANCE = new BankCoreFieldDefinitions();
 
     /**
      * Private constructor for singleton pattern.
      */
-    private FiscFieldDefinitions() {
+    private BankCoreFieldDefinitions() {
         // Singleton
     }
 
     /**
      * Gets the singleton instance.
      *
-     * @return the FiscFieldDefinitions instance
+     * @return the BankCoreFieldDefinitions instance
      */
-    public static FiscFieldDefinitions getInstance() {
+    public static BankCoreFieldDefinitions getInstance() {
         return INSTANCE;
     }
 
@@ -76,7 +75,7 @@ public final class FiscFieldDefinitions extends AbstractFieldDefinitionProvider 
         return CSV_PATH_PROPERTY;
     }
 
-    // ========== Static methods for backward compatibility ==========
+    // ========== Static methods for convenience ==========
 
     /**
      * Gets the field definition for a specific field number.
@@ -145,15 +144,13 @@ public final class FiscFieldDefinitions extends AbstractFieldDefinitionProvider 
 
     /**
      * Reloads field definitions from the default source.
-     * Useful for runtime configuration updates.
      */
     public static void reloadDefinitions() {
         INSTANCE.reload();
     }
 
     /**
-     * Clears the cached definitions, forcing reload on next access.
-     * Primarily for testing purposes.
+     * Clears the cached definitions.
      */
     public static void clear() {
         INSTANCE.clearCache();

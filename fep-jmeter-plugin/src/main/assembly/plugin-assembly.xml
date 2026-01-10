@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<assembly xmlns="http://maven.apache.org/ASSEMBLY/2.1.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/ASSEMBLY/2.1.0 http://maven.apache.org/xsd/assembly-2.1.0.xsd">
+    <id>plugin</id>
+    <formats>
+        <format>jar</format>
+    </formats>
+    <includeBaseDirectory>false</includeBaseDirectory>
+
+    <dependencySets>
+        <dependencySet>
+            <outputDirectory>/</outputDirectory>
+            <useProjectArtifact>true</useProjectArtifact>
+            <unpack>true</unpack>
+            <scope>runtime</scope>
+            <!-- Exclude libraries that conflict with JMeter's bundled versions -->
+            <excludes>
+                <!-- JMeter provides these -->
+                <exclude>org.apache.commons:commons-lang3</exclude>
+                <exclude>commons-lang:commons-lang</exclude>
+                <exclude>org.slf4j:slf4j-api</exclude>
+                <exclude>org.slf4j:slf4j-simple</exclude>
+                <exclude>org.slf4j:slf4j-log4j12</exclude>
+                <!-- Jackson - JMeter has its own version -->
+                <exclude>com.fasterxml.jackson.core:*</exclude>
+                <exclude>com.fasterxml.jackson.databind:*</exclude>
+                <exclude>com.fasterxml.jackson.dataformat:*</exclude>
+                <!-- Apache HTTP - JMeter provides -->
+                <exclude>org.apache.httpcomponents:*</exclude>
+                <exclude>org.apache.httpcomponents.client5:*</exclude>
+                <!-- Logging - JMeter provides -->
+                <exclude>log4j:log4j</exclude>
+                <exclude>org.apache.logging.log4j:*</exclude>
+            </excludes>
+        </dependencySet>
+    </dependencySets>
+</assembly>

@@ -61,6 +61,13 @@
             <artifactId>netty-all</artifactId>
         </dependency>
 
+        <!-- Gson for JSON parsing -->
+        <dependency>
+            <groupId>com.google.code.gson</groupId>
+            <artifactId>gson</artifactId>
+            <version>2.10.1</version>
+        </dependency>
+
         <!-- Testing -->
         <dependency>
             <groupId>org.junit.jupiter</groupId>
@@ -91,9 +98,10 @@
                             <Implementation-Version>${project.version}</Implementation-Version>
                         </manifestEntries>
                     </archive>
-                    <descriptorRefs>
-                        <descriptorRef>jar-with-dependencies</descriptorRef>
-                    </descriptorRefs>
+                    <!-- Use custom assembly descriptor to exclude JMeter-provided libraries -->
+                    <descriptors>
+                        <descriptor>src/main/assembly/plugin-assembly.xml</descriptor>
+                    </descriptors>
                     <finalName>${project.artifactId}-${project.version}-plugin</finalName>
                     <appendAssemblyId>false</appendAssemblyId>
                 </configuration>
