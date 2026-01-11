@@ -58,6 +58,7 @@ public class BankCoreMessageSenderSamplerBeanInfo extends BeanInfoSupport {
         messageTypeProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
         messageTypeProp.setValue(DEFAULT, BankCoreMessageSenderSampler.TYPE_ECHO_TEST);
         messageTypeProp.setValue(NOT_EXPRESSION, Boolean.TRUE);
+        messageTypeProp.setValue(NOT_OTHER, Boolean.TRUE);
         messageTypeProp.setValue(TAGS, MESSAGE_TYPES);
         messageTypeProp.setDisplayName("Message Type");
         messageTypeProp.setShortDescription(
@@ -80,7 +81,7 @@ public class BankCoreMessageSenderSamplerBeanInfo extends BeanInfoSupport {
         PropertyDescriptor messageFieldsProp = property(BankCoreMessageSenderSampler.MESSAGE_FIELDS);
         messageFieldsProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
         messageFieldsProp.setValue(DEFAULT, "");
-        messageFieldsProp.setValue(TypeEditor.class.getName(), TypeEditor.TextAreaEditor);
+        messageFieldsProp.setPropertyEditorClass(TypeEditor.class);
         messageFieldsProp.setDisplayName("Message Fields");
         messageFieldsProp.setShortDescription(
             "Custom message fields.\n" +

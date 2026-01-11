@@ -1,7 +1,7 @@
 package com.fep.jmeter.config;
 
 import org.apache.jmeter.testbeans.BeanInfoSupport;
-import org.apache.jmeter.testbeans.gui.TypeEditor;
+import org.apache.jmeter.testbeans.gui.TextAreaEditor;
 
 import java.beans.PropertyDescriptor;
 
@@ -44,6 +44,7 @@ public class TransactionTemplateConfigBeanInfo extends BeanInfoSupport {
         sourceProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
         sourceProp.setValue(DEFAULT, TransactionTemplateConfig.SOURCE_COMMON);
         sourceProp.setValue(NOT_EXPRESSION, Boolean.TRUE);
+        sourceProp.setValue(NOT_OTHER, Boolean.TRUE);
         sourceProp.setValue(TAGS, TEMPLATE_SOURCES);
         sourceProp.setDisplayName("Template Source");
         sourceProp.setShortDescription(
@@ -67,7 +68,7 @@ public class TransactionTemplateConfigBeanInfo extends BeanInfoSupport {
         PropertyDescriptor inlineProp = property(TransactionTemplateConfig.INLINE_TEMPLATES);
         inlineProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
         inlineProp.setValue(DEFAULT, "");
-        inlineProp.setValue(TypeEditor.class.getName(), TypeEditor.TextAreaEditor);
+        inlineProp.setPropertyEditorClass(TextAreaEditor.class);
         inlineProp.setDisplayName("Inline Templates (JSON)");
         inlineProp.setShortDescription(
             "JSON array of transaction templates.\n" +

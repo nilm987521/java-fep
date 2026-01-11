@@ -117,6 +117,7 @@ public class FiscDualChannelServerSamplerBeanInfo extends BeanInfoSupport {
         responseCodeProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
         responseCodeProp.setValue(DEFAULT, "00");
         responseCodeProp.setValue(NOT_EXPRESSION, Boolean.TRUE);
+        responseCodeProp.setValue(NOT_OTHER, Boolean.TRUE);
         responseCodeProp.setValue(TAGS, RESPONSE_CODES);
         responseCodeProp.setDisplayName("Default Response Code");
         responseCodeProp.setShortDescription("Default ISO 8583 response code (Field 39).");
@@ -144,6 +145,7 @@ public class FiscDualChannelServerSamplerBeanInfo extends BeanInfoSupport {
         validationErrorCodeProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
         validationErrorCodeProp.setValue(DEFAULT, "30");
         validationErrorCodeProp.setValue(NOT_EXPRESSION, Boolean.TRUE);
+        validationErrorCodeProp.setValue(NOT_OTHER, Boolean.TRUE);
         validationErrorCodeProp.setValue(TAGS, RESPONSE_CODES);
         validationErrorCodeProp.setDisplayName("Validation Error Code");
         validationErrorCodeProp.setShortDescription("Response code when validation fails (default: 30 = Format Error).");

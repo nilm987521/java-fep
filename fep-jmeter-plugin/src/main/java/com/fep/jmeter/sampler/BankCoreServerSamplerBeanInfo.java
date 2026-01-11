@@ -1,6 +1,7 @@
 package com.fep.jmeter.sampler;
 
 import org.apache.jmeter.testbeans.BeanInfoSupport;
+import org.apache.jmeter.testbeans.gui.TextAreaEditor;
 import org.apache.jmeter.testbeans.gui.TypeEditor;
 
 import java.beans.PropertyDescriptor;
@@ -87,6 +88,7 @@ public class BankCoreServerSamplerBeanInfo extends BeanInfoSupport {
         responseCodeProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
         responseCodeProp.setValue(DEFAULT, "00");
         responseCodeProp.setValue(NOT_EXPRESSION, Boolean.TRUE);
+        responseCodeProp.setValue(NOT_OTHER, Boolean.TRUE);
         responseCodeProp.setValue(TAGS, RESPONSE_CODES);
         responseCodeProp.setDisplayName("Default Response Code");
         responseCodeProp.setShortDescription("Default ISO 8583 response code (Field 39).");
@@ -121,6 +123,7 @@ public class BankCoreServerSamplerBeanInfo extends BeanInfoSupport {
         validationErrorCodeProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
         validationErrorCodeProp.setValue(DEFAULT, "30");
         validationErrorCodeProp.setValue(NOT_EXPRESSION, Boolean.TRUE);
+        validationErrorCodeProp.setValue(NOT_OTHER, Boolean.TRUE);
         validationErrorCodeProp.setValue(TAGS, RESPONSE_CODES);
         validationErrorCodeProp.setDisplayName("Validation Error Code");
         validationErrorCodeProp.setShortDescription("Response code when validation fails (default: 30 = Format Error).");
@@ -128,7 +131,7 @@ public class BankCoreServerSamplerBeanInfo extends BeanInfoSupport {
         PropertyDescriptor validationRulesProp = property(BankCoreServerSampler.VALIDATION_RULES);
         validationRulesProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
         validationRulesProp.setValue(DEFAULT, "");
-        validationRulesProp.setValue(TypeEditor.class.getName(), TypeEditor.TextAreaEditor);
+        validationRulesProp.setPropertyEditorClass(TextAreaEditor.class);
         validationRulesProp.setDisplayName("Validation Rules");
         validationRulesProp.setShortDescription(
             "Validation rules configuration. Format:\n" +
@@ -157,7 +160,7 @@ public class BankCoreServerSamplerBeanInfo extends BeanInfoSupport {
         PropertyDescriptor responseRulesProp = property(BankCoreServerSampler.RESPONSE_RULES);
         responseRulesProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
         responseRulesProp.setValue(DEFAULT, "");
-        responseRulesProp.setValue(TypeEditor.class.getName(), TypeEditor.TextAreaEditor);
+        responseRulesProp.setPropertyEditorClass(TextAreaEditor.class);
         responseRulesProp.setDisplayName("Response Rules");
         responseRulesProp.setShortDescription(
             "Response code rules by processing code.\n" +
@@ -168,7 +171,8 @@ public class BankCoreServerSamplerBeanInfo extends BeanInfoSupport {
         PropertyDescriptor customFieldsProp = property(BankCoreServerSampler.CUSTOM_RESPONSE_FIELDS);
         customFieldsProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
         customFieldsProp.setValue(DEFAULT, "");
-        customFieldsProp.setValue(TypeEditor.class.getName(), TypeEditor.TextAreaEditor);
+        customFieldsProp.setPropertyEditorClass(TypeEditor.class);
+        customFieldsProp.setPropertyEditorClass(TypeEditor.class);
         customFieldsProp.setDisplayName("Custom Response Fields");
         customFieldsProp.setShortDescription(
             "Custom fields to add to responses.\n" +

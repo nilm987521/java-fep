@@ -1,7 +1,7 @@
 package com.fep.jmeter.sampler;
 
 import org.apache.jmeter.testbeans.BeanInfoSupport;
-import org.apache.jmeter.testbeans.gui.TypeEditor;
+import org.apache.jmeter.testbeans.gui.TextAreaEditor;
 
 import java.beans.PropertyDescriptor;
 
@@ -89,6 +89,7 @@ public class FiscServerSamplerBeanInfo extends BeanInfoSupport {
         responseCodeProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
         responseCodeProp.setValue(DEFAULT, "00");
         responseCodeProp.setValue(NOT_EXPRESSION, Boolean.TRUE);
+        responseCodeProp.setValue(NOT_OTHER, Boolean.TRUE);
         responseCodeProp.setValue(TAGS, RESPONSE_CODES);
         responseCodeProp.setDisplayName("Default Response Code");
         responseCodeProp.setShortDescription("Default ISO 8583 response code (Field 39). 00=Approved, 51=Insufficient funds, etc.");
@@ -109,7 +110,7 @@ public class FiscServerSamplerBeanInfo extends BeanInfoSupport {
         PropertyDescriptor responseRulesProp = property(FiscServerSampler.RESPONSE_RULES);
         responseRulesProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
         responseRulesProp.setValue(DEFAULT, "");
-        responseRulesProp.setValue(TypeEditor.class.getName(), TypeEditor.TextAreaEditor);
+        responseRulesProp.setPropertyEditorClass(TextAreaEditor.class);
         responseRulesProp.setDisplayName("Response Rules");
         responseRulesProp.setShortDescription(
             "Custom response rules by processing code. Format: processingCode:responseCode;...\n" +
@@ -120,7 +121,7 @@ public class FiscServerSamplerBeanInfo extends BeanInfoSupport {
         PropertyDescriptor customFieldsProp = property(FiscServerSampler.CUSTOM_RESPONSE_FIELDS);
         customFieldsProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
         customFieldsProp.setValue(DEFAULT, "");
-        customFieldsProp.setValue(TypeEditor.class.getName(), TypeEditor.TextAreaEditor);
+        customFieldsProp.setPropertyEditorClass(TextAreaEditor.class);
         customFieldsProp.setDisplayName("Custom Response Fields");
         customFieldsProp.setShortDescription(
             "Additional ISO 8583 fields to include in responses.\n" +

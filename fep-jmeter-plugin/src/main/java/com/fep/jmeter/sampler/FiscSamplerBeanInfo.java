@@ -84,6 +84,7 @@ public class FiscSamplerBeanInfo extends BeanInfoSupport {
         txnTypeProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
         txnTypeProp.setValue(DEFAULT, FiscSampler.TXN_ECHO_TEST);
         txnTypeProp.setValue(NOT_EXPRESSION, Boolean.TRUE);
+        txnTypeProp.setValue(NOT_OTHER, Boolean.TRUE);
         txnTypeProp.setValue(TAGS, TRANSACTION_TYPES);
         txnTypeProp.setDisplayName("Transaction Type");
         txnTypeProp.setShortDescription("Type of FISC transaction to perform");
@@ -122,7 +123,7 @@ public class FiscSamplerBeanInfo extends BeanInfoSupport {
         PropertyDescriptor customFieldsProp = property(FiscSampler.CUSTOM_FIELDS);
         customFieldsProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
         customFieldsProp.setValue(DEFAULT, "");
-        customFieldsProp.setValue(TypeEditor.class.getName(), TypeEditor.TextAreaEditor);
+        customFieldsProp.setPropertyEditorClass(TypeEditor.class);
         customFieldsProp.setDisplayName("Custom Fields");
         customFieldsProp.setShortDescription("Additional ISO 8583 fields. Format: field:value;field:value. Example: 43:Merchant Name;49:901");
     }
