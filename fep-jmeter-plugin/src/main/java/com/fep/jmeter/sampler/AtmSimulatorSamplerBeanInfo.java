@@ -30,6 +30,7 @@ public class AtmSimulatorSamplerBeanInfo extends BeanInfoSupport {
     private static final String ADVANCED_GROUP = "advanced";
     private static final String RAW_MODE_GROUP = "rawMode";
     private static final String TEMPLATE_CONFIG_GROUP = "templateConfig";
+    private static final String GENERIC_SCHEMA_GROUP = "genericSchema";
 
     // Transaction types
     private static final String[] TRANSACTION_TYPES = AtmTransactionType.names();
@@ -37,6 +38,8 @@ public class AtmSimulatorSamplerBeanInfo extends BeanInfoSupport {
     private static final String[] RAW_MESSAGE_FORMATS = RawMessageFormat.names();
     private static final String[] LENGTH_HEADER_TYPES = LengthHeaderType.names();
     private static final String[] TEMPLATE_NAMES = TransactionTemplate.CommonTemplates.names();
+    private static final String[] SCHEMA_SOURCES = SchemaSource.names();
+    private static final String[] PRESET_SCHEMAS = PresetSchema.names();
 
     public AtmSimulatorSamplerBeanInfo() {
         super(AtmSimulatorSampler.class);
@@ -94,6 +97,14 @@ public class AtmSimulatorSamplerBeanInfo extends BeanInfoSupport {
             AtmSimulatorSampler.TEMPLATE_NAME
         });
 
+        createPropertyGroup(GENERIC_SCHEMA_GROUP, new String[]{
+            AtmSimulatorSampler.SCHEMA_SOURCE,
+            AtmSimulatorSampler.SCHEMA_FILE,
+            AtmSimulatorSampler.PRESET_SCHEMA,
+            AtmSimulatorSampler.SCHEMA_CONTENT,
+            AtmSimulatorSampler.FIELD_VALUES
+        });
+
         // ===== Connection properties =====
         PropertyDescriptor fepHostProp = property(AtmSimulatorSampler.FEP_HOST);
         fepHostProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
@@ -130,7 +141,8 @@ public class AtmSimulatorSamplerBeanInfo extends BeanInfoSupport {
         protocolTypeProp.setShortDescription(
             "Message protocol type.\n" +
             "ISO_8583 - Standard ISO 8583 financial message format\n" +
-            "RAW - Send raw bytes (HEX, Base64, or Text encoded)"
+            "RAW - Send raw bytes (HEX, Base64, or Text encoded)\n" +
+            "GENERIC_SCHEMA - User-defined message format via JSON schema"
         );
 
         PropertyDescriptor lengthHeaderTypeProp = property(AtmSimulatorSampler.LENGTH_HEADER_TYPE);
@@ -374,6 +386,89 @@ public class AtmSimulatorSamplerBeanInfo extends BeanInfoSupport {
             "  Bill Payment - Bill payment (繳費)\n" +
             "  Sign On/Sign Off/Echo Test - Network management\n" +
             "  Reversal - Transaction reversal (沖正)"
+        );
+
+        // ===== Generic Schema Mode properties =====
+        PropertyDescriptor schemaSourceProp = property(AtmSimulatorSampler.SCHEMA_SOURCE);
+        schemaSourceProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
+        schemaSourceProp.setValue(DEFAULT, SchemaSource.FILE.name());
+        schemaSourceProp.setValue(NOT_EXPRESSION, Boolean.TRUE);
+        schemaSourceProp.setValue(NOT_OTHER, Boolean.TRUE);
+        schemaSourceProp.setValue(TAGS, SCHEMA_SOURCES);
+        schemaSourceProp.setDisplayName("Schema Source");
+        schemaSourceProp.setShortDescription(
+            "Source of message schema (only when Protocol Type = GENERIC_SCHEMA).\n" +
+            "FILE - Load schema from external JSON file\n" +
+            "INLINE - Use inline JSON schema definition\n" +
+            "PRESET - Use built-in schema for common ATM protocols"
+        );
+
+        PropertyDescriptor schemaFileProp = property(AtmSimulatorSampler.SCHEMA_FILE);
+        schemaFileProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
+        schemaFileProp.setValue(DEFAULT, "");
+        schemaFileProp.setDisplayName("Schema File Path");
+        schemaFileProp.setShortDescription(
+            "Path to JSON schema file (only when Schema Source = FILE).\n" +
+            "Absolute or relative path to the schema JSON file.\n" +
+            "Example: /path/to/my-protocol-schema.json\n" +
+            "Supports JMeter variables: ${schemaPath}"
+        );
+
+        PropertyDescriptor presetSchemaProp = property(AtmSimulatorSampler.PRESET_SCHEMA);
+        presetSchemaProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
+        presetSchemaProp.setValue(DEFAULT, PresetSchema.NCR_NDC.name());
+        presetSchemaProp.setValue(NOT_EXPRESSION, Boolean.TRUE);
+        presetSchemaProp.setValue(NOT_OTHER, Boolean.TRUE);
+        presetSchemaProp.setValue(TAGS, PRESET_SCHEMAS);
+        presetSchemaProp.setDisplayName("Preset Schema");
+        presetSchemaProp.setShortDescription(
+            "Built-in schema to use (only when Schema Source = PRESET).\n" +
+            "NCR_NDC - NCR NDC ATM protocol\n" +
+            "DIEBOLD_91X - Diebold 91x ATM protocol\n" +
+            "WINCOR_DDC - Wincor Nixdorf DDC protocol\n" +
+            "FISC_ATM - Taiwan FISC ATM message format\n" +
+            "ISO8583_GENERIC - Generic ISO 8583 format via schema"
+        );
+
+        PropertyDescriptor schemaContentProp = property(AtmSimulatorSampler.SCHEMA_CONTENT);
+        schemaContentProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
+        schemaContentProp.setValue(DEFAULT, "");
+        schemaContentProp.setPropertyEditorClass(TextAreaEditor.class);
+        schemaContentProp.setDisplayName("Inline Schema (JSON)");
+        schemaContentProp.setShortDescription(
+            "Inline JSON schema definition (only when Schema Source = INLINE).\n\n" +
+            "Example:\n" +
+            "{\n" +
+            "  \"name\": \"My Protocol\",\n" +
+            "  \"fields\": [\n" +
+            "    { \"id\": \"command\", \"length\": 2, \"encoding\": \"ASCII\" },\n" +
+            "    { \"id\": \"terminalId\", \"length\": 8, \"encoding\": \"ASCII\" },\n" +
+            "    { \"id\": \"amount\", \"length\": 12, \"encoding\": \"BCD\" }\n" +
+            "  ]\n" +
+            "}"
+        );
+
+        PropertyDescriptor fieldValuesProp = property(AtmSimulatorSampler.FIELD_VALUES);
+        fieldValuesProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
+        fieldValuesProp.setValue(DEFAULT, "");
+        fieldValuesProp.setPropertyEditorClass(TextAreaEditor.class);
+        fieldValuesProp.setDisplayName("Field Values (JSON)");
+        fieldValuesProp.setShortDescription(
+            "JSON object with field values (only when Protocol Type = GENERIC_SCHEMA).\n" +
+            "Keys are field IDs from the schema, values are the data to send.\n\n" +
+            "Example:\n" +
+            "{\n" +
+            "  \"command\": \"11\",\n" +
+            "  \"terminalId\": \"${atmId}\",\n" +
+            "  \"amount\": \"${amount}\",\n" +
+            "  \"track2\": \"4111111111111111=2512\"\n" +
+            "}\n\n" +
+            "Variables (auto-generated if not provided):\n" +
+            "  ${stan} - System Trace Audit Number\n" +
+            "  ${time} - Local time (HHmmss)\n" +
+            "  ${date} - Local date (MMdd)\n" +
+            "  ${rrn} - Retrieval Reference Number\n" +
+            "Supports JMeter variables for all values."
         );
     }
 }

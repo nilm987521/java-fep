@@ -105,6 +105,13 @@ public class AtmSimulatorSampler extends AbstractSampler implements TestBean, Te
     public static final String USE_TEMPLATE_CONFIG = "useTemplateConfig";
     public static final String TEMPLATE_NAME = "templateName";
 
+    // Property names - Generic Schema Mode
+    public static final String SCHEMA_SOURCE = "schemaSource";
+    public static final String SCHEMA_FILE = "schemaFile";
+    public static final String SCHEMA_CONTENT = "schemaContent";
+    public static final String PRESET_SCHEMA = "presetSchema";
+    public static final String FIELD_VALUES = "fieldValues";
+
     // Static resources
     private static final Map<String, ChannelHolder> channelPool = new ConcurrentHashMap<>();
     private static final Map<String, RawChannelHolder> rawChannelPool = new ConcurrentHashMap<>();
@@ -134,6 +141,7 @@ public class AtmSimulatorSampler extends AbstractSampler implements TestBean, Te
         return switch (protocolType) {
             case ISO_8583 -> sampleIso8583Mode(result);
             case RAW -> sampleRawMode(result);
+            case GENERIC_SCHEMA -> sampleGenericSchemaMode(result);
         };
     }
 
@@ -301,6 +309,258 @@ public class AtmSimulatorSampler extends AbstractSampler implements TestBean, Te
         }
 
         return result;
+    }
+
+    /**
+     * Execute Generic Schema mode sampling.
+     * Uses user-defined schema for message assembly and parsing.
+     */
+    private SampleResult sampleGenericSchemaMode(SampleResult result) {
+        String fepHost = getFepHost();
+        int fepPort = getFepPort();
+
+        try {
+            // Load schema
+            com.fep.message.generic.schema.MessageSchema schema = loadMessageSchema();
+
+            // Create message
+            com.fep.message.generic.message.GenericMessage message =
+                    new com.fep.message.generic.message.GenericMessage(schema);
+
+            // Apply field values from JSON configuration
+            applyFieldValuesToGenericMessage(message);
+
+            // Apply JMeter variables
+            Map<String, String> variables = buildGenericSchemaVariables();
+            message.applyVariables(variables);
+
+            // Validate message
+            var validationResult = message.validate();
+            if (!validationResult.isValid()) {
+                result.sampleEnd();
+                result.setSuccessful(false);
+                result.setResponseCode("VALIDATION_ERROR");
+                result.setResponseMessage("Message validation failed: " + validationResult.errors());
+                return result;
+            }
+
+            // Assemble message
+            com.fep.message.generic.parser.GenericMessageAssembler assembler =
+                    new com.fep.message.generic.parser.GenericMessageAssembler();
+            byte[] messageBytes = assembler.assemble(message);
+
+            // Format request for display
+            String requestStr = formatGenericMessageForDisplay(message, messageBytes);
+            result.setSamplerData(requestStr);
+
+            // Get or create RAW channel (reuse RAW channel for generic schema)
+            RawChannelHolder holder = getOrCreateRawChannel(fepHost, fepPort);
+
+            // Create response future
+            CompletableFuture<byte[]> responseFuture = new CompletableFuture<>();
+            String messageId = String.valueOf(rawMessageCounter.incrementAndGet());
+            holder.pendingRequests.put(messageId, responseFuture);
+            holder.lastRequestId = messageId;
+
+            // Start timing
+            result.sampleStart();
+
+            // Send message
+            ByteBuf buf = prepareRawMessageBuffer(messageBytes);
+            holder.channel.writeAndFlush(buf).sync();
+
+            // Wait for response
+            if (isExpectResponse()) {
+                byte[] responseBytes = responseFuture.get(getReadTimeout(), TimeUnit.MILLISECONDS);
+
+                // Stop timing
+                result.sampleEnd();
+
+                // Parse response
+                com.fep.message.generic.parser.GenericMessageParser parser =
+                        new com.fep.message.generic.parser.GenericMessageParser();
+                com.fep.message.generic.message.GenericMessage response =
+                        parser.parse(responseBytes, schema);
+
+                // Format response
+                String responseStr = formatGenericMessageForDisplay(response, responseBytes);
+                result.setResponseData(responseStr, StandardCharsets.UTF_8.name());
+
+                // Try to get response code from common field names
+                String responseCode = getResponseCodeFromGenericMessage(response);
+                result.setResponseCode(responseCode != null ? responseCode : "OK");
+                result.setResponseMessage(getResponseMessage(responseCode));
+
+                // Check success
+                boolean success = responseCode == null || "00".equals(responseCode) || "000".equals(responseCode);
+                result.setSuccessful(success);
+
+                // Store response variables
+                storeGenericResponseVariables(response);
+
+                log.debug("Generic Schema transaction completed: {}", responseCode);
+            } else {
+                result.sampleEnd();
+                result.setSuccessful(true);
+                result.setResponseCode("SENT");
+                result.setResponseMessage("Message sent, no response expected");
+            }
+
+        } catch (TimeoutException e) {
+            result.sampleEnd();
+            result.setSuccessful(false);
+            result.setResponseCode("TIMEOUT");
+            result.setResponseMessage("Response timeout");
+            result.setResponseData("Timeout waiting for response", StandardCharsets.UTF_8.name());
+            log.warn("Generic Schema message timeout");
+        } catch (Exception e) {
+            result.sampleEnd();
+            result.setSuccessful(false);
+            result.setResponseCode("ERROR");
+            result.setResponseMessage(e.getMessage());
+            result.setResponseData(e.toString(), StandardCharsets.UTF_8.name());
+            log.error("Generic Schema sampler error", e);
+        }
+
+        return result;
+    }
+
+    /**
+     * Load message schema based on source configuration.
+     */
+    private com.fep.message.generic.schema.MessageSchema loadMessageSchema() {
+        SchemaSource source = SchemaSource.fromString(getSchemaSource());
+
+        return switch (source) {
+            case FILE -> com.fep.message.generic.schema.JsonSchemaLoader.fromFile(
+                    java.nio.file.Path.of(substituteVariables(getSchemaFile())));
+            case INLINE -> com.fep.message.generic.schema.JsonSchemaLoader.fromJson(
+                    substituteVariables(getSchemaContent()));
+            case PRESET -> {
+                PresetSchema preset = PresetSchema.fromString(getPresetSchema());
+                yield com.fep.message.generic.schema.JsonSchemaLoader.fromResource(preset.getResourcePath());
+            }
+        };
+    }
+
+    /**
+     * Apply field values from JSON configuration to generic message.
+     */
+    @SuppressWarnings("unchecked")
+    private void applyFieldValuesToGenericMessage(com.fep.message.generic.message.GenericMessage message) {
+        String fieldValuesJson = getFieldValues();
+        if (fieldValuesJson == null || fieldValuesJson.isBlank()) {
+            return;
+        }
+
+        try {
+            Map<String, Object> values = objectMapper.readValue(
+                    substituteVariables(fieldValuesJson),
+                    new TypeReference<Map<String, Object>>() {});
+
+            for (Map.Entry<String, Object> entry : values.entrySet()) {
+                String fieldId = entry.getKey();
+                Object value = entry.getValue();
+
+                if (value instanceof Map) {
+                    // Composite field
+                    Map<String, Object> nested = (Map<String, Object>) value;
+                    for (Map.Entry<String, Object> nestedEntry : nested.entrySet()) {
+                        message.setNestedField(fieldId, nestedEntry.getKey(), nestedEntry.getValue());
+                    }
+                    message.setField(fieldId, nested);
+                } else {
+                    message.setField(fieldId, value);
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Failed to parse field values JSON: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * Build variables map for generic schema mode.
+     */
+    private Map<String, String> buildGenericSchemaVariables() {
+        Map<String, String> variables = new HashMap<>();
+
+        // Auto-generated values
+        LocalDateTime now = LocalDateTime.now();
+        variables.put("stan", String.format("%06d", stanCounter.incrementAndGet() % 1000000));
+        variables.put("time", now.format(DateTimeFormatter.ofPattern("HHmmss")));
+        variables.put("date", now.format(DateTimeFormatter.ofPattern("MMdd")));
+        variables.put("datetime", now.format(DateTimeFormatter.ofPattern("MMddHHmmss")));
+        variables.put("rrn", String.format("%012d", System.currentTimeMillis() % 1000000000000L));
+
+        // User-configured values
+        variables.put("cardNumber", getCardNumber());
+        variables.put("amount", getAmount());
+        variables.put("terminalId", getAtmId());
+        variables.put("atmId", getAtmId());
+        variables.put("atmLocation", getAtmLocation());
+        variables.put("bankCode", getBankCode());
+        variables.put("destinationAccount", getDestinationAccount());
+
+        // Add JMeter variables
+        JMeterVariables jmeterVars = JMeterContextService.getContext().getVariables();
+        if (jmeterVars != null) {
+            for (java.util.Iterator<Map.Entry<String, Object>> it = jmeterVars.getIterator(); it.hasNext(); ) {
+                Map.Entry<String, Object> entry = it.next();
+                if (entry.getValue() != null) {
+                    variables.put(entry.getKey(), entry.getValue().toString());
+                }
+            }
+        }
+
+        return variables;
+    }
+
+    /**
+     * Format generic message for display.
+     */
+    private String formatGenericMessageForDisplay(
+            com.fep.message.generic.message.GenericMessage message, byte[] bytes) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("=== Generic Schema Message ===\n");
+        sb.append("Schema: ").append(message.getSchema().getName()).append("\n");
+        sb.append("Length: ").append(bytes.length).append(" bytes\n\n");
+
+        sb.append("Fields:\n");
+        sb.append(message.toString()).append("\n\n");
+
+        sb.append("Hex:\n");
+        sb.append(hexFormat.formatHex(bytes)).append("\n");
+
+        return sb.toString();
+    }
+
+    /**
+     * Try to get response code from generic message.
+     */
+    private String getResponseCodeFromGenericMessage(com.fep.message.generic.message.GenericMessage message) {
+        // Try common response code field names
+        String[] responseCodeFields = {"responseCode", "response_code", "respCode", "rc", "39"};
+        for (String fieldId : responseCodeFields) {
+            String value = message.getFieldAsString(fieldId);
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Store generic message fields as JMeter variables.
+     */
+    private void storeGenericResponseVariables(com.fep.message.generic.message.GenericMessage response) {
+        JMeterContext context = JMeterContextService.getContext();
+        JMeterVariables vars = context.getVariables();
+        if (vars == null) return;
+
+        for (Map.Entry<String, Object> entry : response.getAllFields().entrySet()) {
+            String key = "RESPONSE_" + entry.getKey();
+            vars.put(key, entry.getValue() != null ? entry.getValue().toString() : "");
+        }
     }
 
     /**
@@ -1292,6 +1552,48 @@ public class AtmSimulatorSampler extends AbstractSampler implements TestBean, Te
 
     public void setTemplateName(String name) {
         setProperty(TEMPLATE_NAME, name);
+    }
+
+    // ===== Generic Schema Mode Getters and Setters =====
+
+    public String getSchemaSource() {
+        return getPropertyAsString(SCHEMA_SOURCE, SchemaSource.FILE.name());
+    }
+
+    public void setSchemaSource(String source) {
+        setProperty(SCHEMA_SOURCE, source);
+    }
+
+    public String getSchemaFile() {
+        return getPropertyAsString(SCHEMA_FILE, "");
+    }
+
+    public void setSchemaFile(String file) {
+        setProperty(SCHEMA_FILE, file);
+    }
+
+    public String getSchemaContent() {
+        return getPropertyAsString(SCHEMA_CONTENT, "");
+    }
+
+    public void setSchemaContent(String content) {
+        setProperty(SCHEMA_CONTENT, content);
+    }
+
+    public String getPresetSchema() {
+        return getPropertyAsString(PRESET_SCHEMA, PresetSchema.NCR_NDC.name());
+    }
+
+    public void setPresetSchema(String preset) {
+        setProperty(PRESET_SCHEMA, preset);
+    }
+
+    public String getFieldValues() {
+        return getPropertyAsString(FIELD_VALUES, "");
+    }
+
+    public void setFieldValues(String values) {
+        setProperty(FIELD_VALUES, values);
     }
 
     /**

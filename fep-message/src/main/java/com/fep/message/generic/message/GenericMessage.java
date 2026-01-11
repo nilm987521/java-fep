@@ -1,0 +1,300 @@
+package com.fep.message.generic.message;
+
+import com.fep.message.generic.schema.FieldSchema;
+import com.fep.message.generic.schema.MessageSchema;
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
+
+import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+/**
+ * Generic message container that supports any message schema.
+ * Fields are accessed by string ID instead of numeric position.
+ */
+@Slf4j
+public class GenericMessage {
+
+    private static final Pattern VARIABLE_PATTERN = Pattern.compile("\\$\\{([^}]+)}");
+
+    @Getter
+    private final MessageSchema schema;
+
+    private final Map<String, Object> fields;
+    private final Map<String, Map<String, Object>> compositeFields;
+
+    @Getter
+    private byte[] rawData;
+
+    public GenericMessage(MessageSchema schema) {
+        this.schema = schema;
+        this.fields = new LinkedHashMap<>();
+        this.compositeFields = new LinkedHashMap<>();
+    }
+
+    /**
+     * Sets a field value by ID.
+     *
+     * @param fieldId the field ID
+     * @param value   the value
+     */
+    public void setField(String fieldId, Object value) {
+        fields.put(fieldId, value);
+    }
+
+    /**
+     * Gets a field value by ID.
+     *
+     * @param fieldId the field ID
+     * @return the value, or null if not set
+     */
+    public Object getField(String fieldId) {
+        return fields.get(fieldId);
+    }
+
+    /**
+     * Gets a field value as String.
+     *
+     * @param fieldId the field ID
+     * @return the string value, or null if not set
+     */
+    public String getFieldAsString(String fieldId) {
+        Object value = fields.get(fieldId);
+        return value != null ? value.toString() : null;
+    }
+
+    /**
+     * Gets a field value as byte array.
+     *
+     * @param fieldId the field ID
+     * @return the byte array, or null if not set
+     */
+    public byte[] getFieldAsBytes(String fieldId) {
+        Object value = fields.get(fieldId);
+        if (value instanceof byte[] bytes) {
+            return bytes;
+        } else if (value != null) {
+            return value.toString().getBytes();
+        }
+        return null;
+    }
+
+    /**
+     * Checks if a field is set.
+     *
+     * @param fieldId the field ID
+     * @return true if set
+     */
+    public boolean hasField(String fieldId) {
+        return fields.containsKey(fieldId);
+    }
+
+    /**
+     * Sets a nested field value within a composite field.
+     *
+     * @param parentId the parent field ID
+     * @param childId  the child field ID
+     * @param value    the value
+     */
+    public void setNestedField(String parentId, String childId, Object value) {
+        compositeFields.computeIfAbsent(parentId, k -> new LinkedHashMap<>()).put(childId, value);
+    }
+
+    /**
+     * Gets a nested field value from a composite field.
+     *
+     * @param parentId the parent field ID
+     * @param childId  the child field ID
+     * @return the value, or null if not set
+     */
+    public Object getNestedField(String parentId, String childId) {
+        Map<String, Object> parent = compositeFields.get(parentId);
+        return parent != null ? parent.get(childId) : null;
+    }
+
+    /**
+     * Gets all nested fields for a composite field.
+     *
+     * @param parentId the parent field ID
+     * @return map of child fields, or empty map if not set
+     */
+    public Map<String, Object> getNestedFields(String parentId) {
+        return compositeFields.getOrDefault(parentId, Collections.emptyMap());
+    }
+
+    /**
+     * Sets the raw message bytes.
+     *
+     * @param data the raw data
+     */
+    public void setRawData(byte[] data) {
+        this.rawData = data;
+    }
+
+    /**
+     * Gets all field IDs that have been set.
+     *
+     * @return set of field IDs
+     */
+    public Set<String> getSetFieldIds() {
+        return new LinkedHashSet<>(fields.keySet());
+    }
+
+    /**
+     * Gets all field values as a map.
+     *
+     * @return map of field ID to value
+     */
+    public Map<String, Object> getAllFields() {
+        return Collections.unmodifiableMap(fields);
+    }
+
+    /**
+     * Applies variables to all field values.
+     * Replaces ${varName} with the corresponding value from the variables map.
+     *
+     * @param variables map of variable name to value
+     */
+    public void applyVariables(Map<String, String> variables) {
+        if (variables == null || variables.isEmpty()) {
+            return;
+        }
+
+        for (Map.Entry<String, Object> entry : fields.entrySet()) {
+            Object value = entry.getValue();
+            if (value instanceof String strValue) {
+                String substituted = substituteVariables(strValue, variables);
+                if (!substituted.equals(strValue)) {
+                    entry.setValue(substituted);
+                }
+            }
+        }
+
+        // Also apply to composite fields
+        for (Map<String, Object> nested : compositeFields.values()) {
+            for (Map.Entry<String, Object> entry : nested.entrySet()) {
+                Object value = entry.getValue();
+                if (value instanceof String strValue) {
+                    String substituted = substituteVariables(strValue, variables);
+                    if (!substituted.equals(strValue)) {
+                        entry.setValue(substituted);
+                    }
+                }
+            }
+        }
+    }
+
+    private String substituteVariables(String template, Map<String, String> variables) {
+        Matcher matcher = VARIABLE_PATTERN.matcher(template);
+        StringBuilder result = new StringBuilder();
+
+        while (matcher.find()) {
+            String varName = matcher.group(1);
+            String replacement = variables.getOrDefault(varName, matcher.group(0));
+            matcher.appendReplacement(result, Matcher.quoteReplacement(replacement));
+        }
+        matcher.appendTail(result);
+
+        return result.toString();
+    }
+
+    /**
+     * Validates the message against the schema.
+     *
+     * @return validation result
+     */
+    public ValidationResult validate() {
+        List<String> errors = new ArrayList<>();
+
+        // Check required fields
+        for (FieldSchema fieldSchema : schema.getFields()) {
+            if (fieldSchema.isRequired() && !hasField(fieldSchema.getId())) {
+                errors.add("Required field missing: " + fieldSchema.getId());
+            }
+        }
+
+        // Check field types and lengths
+        for (Map.Entry<String, Object> entry : fields.entrySet()) {
+            String fieldId = entry.getKey();
+            Object value = entry.getValue();
+
+            Optional<FieldSchema> fieldSchemaOpt = schema.getField(fieldId);
+            if (fieldSchemaOpt.isEmpty()) {
+                // Unknown field - could be a warning
+                log.debug("Unknown field in message: {}", fieldId);
+                continue;
+            }
+
+            FieldSchema fieldSchema = fieldSchemaOpt.get();
+            String strValue = value != null ? value.toString() : "";
+
+            // Check length
+            if (strValue.length() > fieldSchema.getLength()) {
+                errors.add("Field '" + fieldId + "' exceeds max length " + fieldSchema.getLength() +
+                        " (actual: " + strValue.length() + ")");
+            }
+
+            // Check numeric type
+            if (fieldSchema.getType() == FieldSchema.FieldDataType.NUMERIC) {
+                if (!strValue.matches("\\d*")) {
+                    errors.add("Field '" + fieldId + "' must be numeric");
+                }
+            }
+        }
+
+        return new ValidationResult(errors.isEmpty(), errors);
+    }
+
+    /**
+     * Creates a copy of this message.
+     *
+     * @return a new GenericMessage with copied fields
+     */
+    public GenericMessage copy() {
+        GenericMessage copy = new GenericMessage(this.schema);
+        copy.fields.putAll(this.fields);
+        for (Map.Entry<String, Map<String, Object>> entry : this.compositeFields.entrySet()) {
+            copy.compositeFields.put(entry.getKey(), new LinkedHashMap<>(entry.getValue()));
+        }
+        if (this.rawData != null) {
+            copy.rawData = Arrays.copyOf(this.rawData, this.rawData.length);
+        }
+        return copy;
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("GenericMessage[").append(schema.getName()).append("] {\n");
+        for (Map.Entry<String, Object> entry : fields.entrySet()) {
+            String fieldId = entry.getKey();
+            Object value = entry.getValue();
+
+            // Check if sensitive
+            Optional<FieldSchema> fieldSchema = schema.getField(fieldId);
+            boolean sensitive = fieldSchema.map(FieldSchema::isSensitive).orElse(false);
+
+            sb.append("  ").append(fieldId).append("=");
+            if (sensitive) {
+                sb.append("****");
+            } else if (value instanceof byte[] bytes) {
+                sb.append("[").append(bytes.length).append(" bytes]");
+            } else {
+                sb.append(value);
+            }
+            sb.append("\n");
+        }
+        sb.append("}");
+        return sb.toString();
+    }
+
+    /**
+     * Validation result.
+     */
+    public record ValidationResult(boolean valid, List<String> errors) {
+        public boolean isValid() {
+            return valid;
+        }
+    }
+}

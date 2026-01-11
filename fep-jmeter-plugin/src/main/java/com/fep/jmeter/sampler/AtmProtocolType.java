@@ -19,7 +19,14 @@ public enum AtmProtocolType {
      * Allows sending arbitrary bytes in HEX or Base64 format.
      * Full control over message content and structure.
      */
-    RAW("Raw Binary", "Send raw bytes (HEX or Base64 encoded)");
+    RAW("Raw Binary", "Send raw bytes (HEX or Base64 encoded)"),
+
+    /**
+     * Generic schema-based message mode.
+     * Uses user-defined JSON schema for message structure.
+     * Supports any ATM protocol (NCR NDC, Diebold 91x, Wincor DDC, etc.).
+     */
+    GENERIC_SCHEMA("Generic Schema", "User-defined message format via JSON schema");
 
     private final String displayName;
     private final String description;

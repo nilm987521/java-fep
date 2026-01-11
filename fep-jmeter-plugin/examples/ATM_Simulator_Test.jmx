@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6.3">
+<jmeterTestPlan version="1.2" properties="5.0" jmeter="5.5">
   <hashTree>
     <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="ATM Simulator Test Plan" enabled="true">
       <stringProp name="TestPlan.comments">ATM Simulator Test Plan
@@ -10,12 +10,18 @@ This test plan demonstrates the ATM Simulator Sampler capabilities:
 3. Custom JSON message template
 4. PIN Block support
 5. JMeter variable substitution
+6. GENERIC_SCHEMA mode for custom message formats (NCR NDC, FISC, etc.)
 
 Scenarios:
-- Basic Withdrawal: Simple cash withdrawal
-- Balance Inquiry: Check account balance
-- Transfer: Transfer funds between accounts
-- Custom Message: Full ISO 8583 field control via JSON</stringProp>
+- Basic Withdrawal: Simple cash withdrawal (ISO 8583)
+- Balance Inquiry: Check account balance (ISO 8583)
+- Transfer: Transfer funds between accounts (ISO 8583)
+- Custom Message: Full ISO 8583 field control via JSON
+- With PIN Block: Withdrawal with encrypted PIN
+- NCR NDC Protocol: Generic Schema with NCR NDC format (PRESET)
+- FISC ATM: Generic Schema with Taiwan FISC format (PRESET)
+- Custom Schema: Generic Schema with inline JSON schema
+- High Volume: Multi-ATM simulation with CSV data (2000+ ATMs)</stringProp>
       <boolProp name="TestPlan.functional_mode">false</boolProp>
       <boolProp name="TestPlan.tearDown_on_shutdown">true</boolProp>
       <boolProp name="TestPlan.serialize_threadgroups">false</boolProp>
@@ -50,8 +56,6 @@ Scenarios:
       </elementProp>
     </TestPlan>
     <hashTree>
-
-      <!-- Scenario 1: Basic Withdrawal -->
       <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="Scenario 1 - Cash Withdrawal" enabled="true">
         <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
         <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller" enabled="true">
@@ -70,11 +74,11 @@ Uses default MTI 0200 and Processing Code 010000.</stringProp>
       </ThreadGroup>
       <hashTree>
         <com.fep.jmeter.sampler.AtmSimulatorSampler guiclass="TestBeanGUI" testclass="com.fep.jmeter.sampler.AtmSimulatorSampler" testname="ATM Withdrawal" enabled="true">
-          <stringProp name="fepHost">${FEP_HOST}</stringProp>
-          <stringProp name="fepPort">${FEP_PORT}</stringProp>
-          <stringProp name="connectionTimeout">10000</stringProp>
-          <stringProp name="readTimeout">30000</stringProp>
-          <stringProp name="transactionType">WITHDRAWAL</stringProp>
+          <stringProp name="fepHost">localhost</stringProp>
+          <intProp name="fepPort">9000</intProp>
+          <intProp name="connectionTimeout">10000</intProp>
+          <intProp name="readTimeout">30000</intProp>
+          <stringProp name="transactionType">TRANSFER</stringProp>
           <stringProp name="mtiOverride"></stringProp>
           <stringProp name="processingCodeOverride"></stringProp>
           <stringProp name="atmId">${ATM_ID}</stringProp>
@@ -127,8 +131,6 @@ Uses default MTI 0200 and Processing Code 010000.</stringProp>
         </ResultCollector>
         <hashTree/>
       </hashTree>
-
-      <!-- Scenario 2: Balance Inquiry -->
       <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="Scenario 2 - Balance Inquiry" enabled="false">
         <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
         <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller" enabled="true">
@@ -149,8 +151,8 @@ No amount required.</stringProp>
         <com.fep.jmeter.sampler.AtmSimulatorSampler guiclass="TestBeanGUI" testclass="com.fep.jmeter.sampler.AtmSimulatorSampler" testname="ATM Balance Inquiry" enabled="true">
           <stringProp name="fepHost">${FEP_HOST}</stringProp>
           <stringProp name="fepPort">${FEP_PORT}</stringProp>
-          <stringProp name="connectionTimeout">10000</stringProp>
-          <stringProp name="readTimeout">30000</stringProp>
+          <intProp name="connectionTimeout">10000</intProp>
+          <intProp name="readTimeout">30000</intProp>
           <stringProp name="transactionType">BALANCE_INQUIRY</stringProp>
           <stringProp name="mtiOverride"></stringProp>
           <stringProp name="processingCodeOverride"></stringProp>
@@ -204,8 +206,6 @@ No amount required.</stringProp>
         </ResultCollector>
         <hashTree/>
       </hashTree>
-
-      <!-- Scenario 3: Fund Transfer -->
       <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="Scenario 3 - Fund Transfer" enabled="false">
         <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
         <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller" enabled="true">
@@ -226,8 +226,8 @@ Requires destination account.</stringProp>
         <com.fep.jmeter.sampler.AtmSimulatorSampler guiclass="TestBeanGUI" testclass="com.fep.jmeter.sampler.AtmSimulatorSampler" testname="ATM Transfer" enabled="true">
           <stringProp name="fepHost">${FEP_HOST}</stringProp>
           <stringProp name="fepPort">${FEP_PORT}</stringProp>
-          <stringProp name="connectionTimeout">10000</stringProp>
-          <stringProp name="readTimeout">30000</stringProp>
+          <intProp name="connectionTimeout">10000</intProp>
+          <intProp name="readTimeout">30000</intProp>
           <stringProp name="transactionType">TRANSFER</stringProp>
           <stringProp name="mtiOverride"></stringProp>
           <stringProp name="processingCodeOverride"></stringProp>
@@ -281,8 +281,6 @@ Requires destination account.</stringProp>
         </ResultCollector>
         <hashTree/>
       </hashTree>
-
-      <!-- Scenario 4: Custom JSON Template -->
       <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="Scenario 4 - Custom JSON Template" enabled="false">
         <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
         <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller" enabled="true">
@@ -303,8 +301,8 @@ Supports JMeter variable substitution.</stringProp>
         <com.fep.jmeter.sampler.AtmSimulatorSampler guiclass="TestBeanGUI" testclass="com.fep.jmeter.sampler.AtmSimulatorSampler" testname="ATM Custom Message" enabled="true">
           <stringProp name="fepHost">${FEP_HOST}</stringProp>
           <stringProp name="fepPort">${FEP_PORT}</stringProp>
-          <stringProp name="connectionTimeout">10000</stringProp>
-          <stringProp name="readTimeout">30000</stringProp>
+          <intProp name="connectionTimeout">10000</intProp>
+          <intProp name="readTimeout">30000</intProp>
           <stringProp name="transactionType">CUSTOM</stringProp>
           <stringProp name="mtiOverride">0200</stringProp>
           <stringProp name="processingCodeOverride">010000</stringProp>
@@ -318,13 +316,13 @@ Supports JMeter variable substitution.</stringProp>
           <stringProp name="pinBlock"></stringProp>
           <stringProp name="customFields">48:Custom Private Data;60:Batch Number 001</stringProp>
           <stringProp name="messageTemplate">{
-  "fields": {
-    "14": "2512",
-    "18": "6011",
-    "22": "051",
-    "23": "001",
-    "25": "00",
-    "26": "12"
+  &quot;fields&quot;: {
+    &quot;14&quot;: &quot;2512&quot;,
+    &quot;18&quot;: &quot;6011&quot;,
+    &quot;22&quot;: &quot;051&quot;,
+    &quot;23&quot;: &quot;001&quot;,
+    &quot;25&quot;: &quot;00&quot;,
+    &quot;26&quot;: &quot;12&quot;
   }
 }</stringProp>
         </com.fep.jmeter.sampler.AtmSimulatorSampler>
@@ -367,8 +365,6 @@ Supports JMeter variable substitution.</stringProp>
         </ResultCollector>
         <hashTree/>
       </hashTree>
-
-      <!-- Scenario 5: With PIN Block -->
       <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="Scenario 5 - With PIN Block" enabled="false">
         <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
         <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller" enabled="true">
@@ -389,8 +385,8 @@ In real scenarios, the PIN Block would be generated by HSM.</stringProp>
         <com.fep.jmeter.sampler.AtmSimulatorSampler guiclass="TestBeanGUI" testclass="com.fep.jmeter.sampler.AtmSimulatorSampler" testname="ATM Withdrawal with PIN" enabled="true">
           <stringProp name="fepHost">${FEP_HOST}</stringProp>
           <stringProp name="fepPort">${FEP_PORT}</stringProp>
-          <stringProp name="connectionTimeout">10000</stringProp>
-          <stringProp name="readTimeout">30000</stringProp>
+          <intProp name="connectionTimeout">10000</intProp>
+          <intProp name="readTimeout">30000</intProp>
           <stringProp name="transactionType">WITHDRAWAL</stringProp>
           <stringProp name="mtiOverride"></stringProp>
           <stringProp name="processingCodeOverride"></stringProp>
@@ -444,7 +440,483 @@ In real scenarios, the PIN Block would be generated by HSM.</stringProp>
         </ResultCollector>
         <hashTree/>
       </hashTree>
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="Scenario 6 - NCR NDC Protocol (GENERIC_SCHEMA)" enabled="false">
+        <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller" enabled="true">
+          <boolProp name="LoopController.continue_forever">false</boolProp>
+          <stringProp name="LoopController.loops">1</stringProp>
+        </elementProp>
+        <stringProp name="ThreadGroup.num_threads">1</stringProp>
+        <stringProp name="ThreadGroup.ramp_time">0</stringProp>
+        <boolProp name="ThreadGroup.scheduler">false</boolProp>
+        <stringProp name="ThreadGroup.duration"></stringProp>
+        <stringProp name="ThreadGroup.delay"></stringProp>
+        <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
+        <stringProp name="TestPlan.comments">Demonstrates GENERIC_SCHEMA mode with NCR NDC Protocol.
+Uses PRESET schema source to load built-in NCR NDC format.
+Command Code 11 = Transaction Request (with PIN and amount).</stringProp>
+      </ThreadGroup>
+      <hashTree>
+        <com.fep.jmeter.sampler.AtmSimulatorSampler guiclass="TestBeanGUI" testclass="com.fep.jmeter.sampler.AtmSimulatorSampler" testname="NCR NDC Transaction Request" enabled="true">
+          <stringProp name="fepHost">${FEP_HOST}</stringProp>
+          <stringProp name="fepPort">${FEP_PORT}</stringProp>
+          <intProp name="connectionTimeout">10000</intProp>
+          <intProp name="readTimeout">30000</intProp>
+          <stringProp name="protocolType">GENERIC_SCHEMA</stringProp>
+          <stringProp name="schemaSource">PRESET</stringProp>
+          <stringProp name="presetSchema">NCR_NDC</stringProp>
+          <stringProp name="schemaFile"></stringProp>
+          <stringProp name="schemaContent"></stringProp>
+          <stringProp name="fieldValues">{
+  &quot;commandCode&quot;: &quot;11&quot;,
+  &quot;responseFlag&quot;: &quot; &quot;,
+  &quot;luno&quot;: &quot;${ATM_ID}&quot;,
+  &quot;statusInfo&quot;: &quot;0&quot;,
+  &quot;track2&quot;: &quot;${CARD_NUMBER}=2512101123400001&quot;,
+  &quot;pinBlock&quot;: &quot;0411123456789ABC&quot;,
+  &quot;amount&quot;: &quot;000000100000&quot;,
+  &quot;transactionSerialNumber&quot;: &quot;0001&quot;,
+  &quot;functionId&quot;: &quot;001&quot;
+}</stringProp>
+          <stringProp name="transactionType">CUSTOM</stringProp>
+          <stringProp name="atmId">${ATM_ID}</stringProp>
+          <stringProp name="atmLocation">Taipei Main Branch</stringProp>
+          <stringProp name="bankCode">${BANK_CODE}</stringProp>
+          <stringProp name="cardNumber">${CARD_NUMBER}</stringProp>
+          <stringProp name="amount"></stringProp>
+          <stringProp name="destinationAccount"></stringProp>
+          <boolProp name="enablePinBlock">false</boolProp>
+          <stringProp name="pinBlock"></stringProp>
+          <stringProp name="customFields"></stringProp>
+          <stringProp name="messageTemplate"></stringProp>
+          <stringProp name="mtiOverride"></stringProp>
+          <stringProp name="processingCodeOverride"></stringProp>
+        </com.fep.jmeter.sampler.AtmSimulatorSampler>
+        <hashTree/>
+        <ResultCollector guiclass="ViewResultsFullVisualizer" testclass="ResultCollector" testname="View Results Tree" enabled="true">
+          <boolProp name="ResultCollector.error_logging">false</boolProp>
+          <objProp>
+            <name>saveConfig</name>
+            <value class="SampleSaveConfiguration">
+              <time>true</time>
+              <latency>true</latency>
+              <timestamp>true</timestamp>
+              <success>true</success>
+              <label>true</label>
+              <code>true</code>
+              <message>true</message>
+              <threadName>true</threadName>
+              <dataType>true</dataType>
+              <encoding>false</encoding>
+              <assertions>true</assertions>
+              <subresults>true</subresults>
+              <responseData>true</responseData>
+              <samplerData>true</samplerData>
+              <xml>false</xml>
+              <fieldNames>true</fieldNames>
+              <responseHeaders>true</responseHeaders>
+              <requestHeaders>true</requestHeaders>
+              <responseDataOnError>false</responseDataOnError>
+              <saveAssertionResultsFailureMessage>true</saveAssertionResultsFailureMessage>
+              <assertionsResultsToSave>0</assertionsResultsToSave>
+              <bytes>true</bytes>
+              <sentBytes>true</sentBytes>
+              <url>true</url>
+              <threadCounts>true</threadCounts>
+              <idleTime>true</idleTime>
+              <connectTime>true</connectTime>
+            </value>
+          </objProp>
+          <stringProp name="filename"></stringProp>
+        </ResultCollector>
+        <hashTree/>
+      </hashTree>
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="Scenario 7 - FISC ATM Format (GENERIC_SCHEMA)" enabled="false">
+        <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller" enabled="true">
+          <boolProp name="LoopController.continue_forever">false</boolProp>
+          <stringProp name="LoopController.loops">1</stringProp>
+        </elementProp>
+        <stringProp name="ThreadGroup.num_threads">1</stringProp>
+        <stringProp name="ThreadGroup.ramp_time">0</stringProp>
+        <boolProp name="ThreadGroup.scheduler">false</boolProp>
+        <stringProp name="ThreadGroup.duration"></stringProp>
+        <stringProp name="ThreadGroup.delay"></stringProp>
+        <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
+        <stringProp name="TestPlan.comments">Demonstrates GENERIC_SCHEMA mode with Taiwan FISC ATM format.
+Uses PRESET schema source to load built-in FISC ATM format.
+Similar to ISO 8583 but with BCD encoding for numeric fields.</stringProp>
+      </ThreadGroup>
+      <hashTree>
+        <com.fep.jmeter.sampler.AtmSimulatorSampler guiclass="TestBeanGUI" testclass="com.fep.jmeter.sampler.AtmSimulatorSampler" testname="FISC ATM Withdrawal" enabled="true">
+          <stringProp name="fepHost">${FEP_HOST}</stringProp>
+          <stringProp name="fepPort">${FEP_PORT}</stringProp>
+          <intProp name="connectionTimeout">10000</intProp>
+          <intProp name="readTimeout">30000</intProp>
+          <stringProp name="protocolType">GENERIC_SCHEMA</stringProp>
+          <stringProp name="schemaSource">PRESET</stringProp>
+          <stringProp name="presetSchema">FISC_ATM</stringProp>
+          <stringProp name="schemaFile"></stringProp>
+          <stringProp name="schemaContent"></stringProp>
+          <stringProp name="fieldValues">{
+  &quot;mti&quot;: &quot;0200&quot;,
+  &quot;pan&quot;: &quot;${CARD_NUMBER}&quot;,
+  &quot;processingCode&quot;: &quot;010000&quot;,
+  &quot;amount&quot;: &quot;000000100000&quot;,
+  &quot;stan&quot;: &quot;000001&quot;,
+  &quot;terminalId&quot;: &quot;${ATM_ID}&quot;,
+  &quot;acquiringInstitution&quot;: &quot;${BANK_CODE}&quot;,
+  &quot;cardAcceptorName&quot;: &quot;Taipei Main Branch&quot;,
+  &quot;currencyCode&quot;: &quot;901&quot;,
+  &quot;pinBlock&quot;: &quot;0411123456789ABC&quot;
+}</stringProp>
+          <stringProp name="transactionType">CUSTOM</stringProp>
+          <stringProp name="atmId">${ATM_ID}</stringProp>
+          <stringProp name="atmLocation">Taipei Main Branch</stringProp>
+          <stringProp name="bankCode">${BANK_CODE}</stringProp>
+          <stringProp name="cardNumber">${CARD_NUMBER}</stringProp>
+          <stringProp name="amount"></stringProp>
+          <stringProp name="destinationAccount"></stringProp>
+          <boolProp name="enablePinBlock">false</boolProp>
+          <stringProp name="pinBlock"></stringProp>
+          <stringProp name="customFields"></stringProp>
+          <stringProp name="messageTemplate"></stringProp>
+          <stringProp name="mtiOverride"></stringProp>
+          <stringProp name="processingCodeOverride"></stringProp>
+        </com.fep.jmeter.sampler.AtmSimulatorSampler>
+        <hashTree/>
+        <ResultCollector guiclass="ViewResultsFullVisualizer" testclass="ResultCollector" testname="View Results Tree" enabled="true">
+          <boolProp name="ResultCollector.error_logging">false</boolProp>
+          <objProp>
+            <name>saveConfig</name>
+            <value class="SampleSaveConfiguration">
+              <time>true</time>
+              <latency>true</latency>
+              <timestamp>true</timestamp>
+              <success>true</success>
+              <label>true</label>
+              <code>true</code>
+              <message>true</message>
+              <threadName>true</threadName>
+              <dataType>true</dataType>
+              <encoding>false</encoding>
+              <assertions>true</assertions>
+              <subresults>true</subresults>
+              <responseData>true</responseData>
+              <samplerData>true</samplerData>
+              <xml>false</xml>
+              <fieldNames>true</fieldNames>
+              <responseHeaders>true</responseHeaders>
+              <requestHeaders>true</requestHeaders>
+              <responseDataOnError>false</responseDataOnError>
+              <saveAssertionResultsFailureMessage>true</saveAssertionResultsFailureMessage>
+              <assertionsResultsToSave>0</assertionsResultsToSave>
+              <bytes>true</bytes>
+              <sentBytes>true</sentBytes>
+              <url>true</url>
+              <threadCounts>true</threadCounts>
+              <idleTime>true</idleTime>
+              <connectTime>true</connectTime>
+            </value>
+          </objProp>
+          <stringProp name="filename"></stringProp>
+        </ResultCollector>
+        <hashTree/>
+      </hashTree>
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="Scenario 8 - Custom Inline Schema (GENERIC_SCHEMA)" enabled="false">
+        <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller" enabled="true">
+          <boolProp name="LoopController.continue_forever">false</boolProp>
+          <stringProp name="LoopController.loops">1</stringProp>
+        </elementProp>
+        <stringProp name="ThreadGroup.num_threads">1</stringProp>
+        <stringProp name="ThreadGroup.ramp_time">0</stringProp>
+        <boolProp name="ThreadGroup.scheduler">false</boolProp>
+        <stringProp name="ThreadGroup.duration"></stringProp>
+        <stringProp name="ThreadGroup.delay"></stringProp>
+        <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
+        <stringProp name="TestPlan.comments">Demonstrates GENERIC_SCHEMA mode with custom inline JSON schema.
+This allows complete flexibility to define any message format.
+Example shows a simple proprietary ATM protocol with mixed encodings.</stringProp>
+      </ThreadGroup>
+      <hashTree>
+        <com.fep.jmeter.sampler.AtmSimulatorSampler guiclass="TestBeanGUI" testclass="com.fep.jmeter.sampler.AtmSimulatorSampler" testname="Custom Protocol Message" enabled="true">
+          <stringProp name="fepHost">${FEP_HOST}</stringProp>
+          <stringProp name="fepPort">${FEP_PORT}</stringProp>
+          <intProp name="connectionTimeout">10000</intProp>
+          <intProp name="readTimeout">30000</intProp>
+          <stringProp name="protocolType">GENERIC_SCHEMA</stringProp>
+          <stringProp name="schemaSource">INLINE</stringProp>
+          <stringProp name="presetSchema"></stringProp>
+          <stringProp name="schemaFile"></stringProp>
+          <stringProp name="schemaContent">{
+  &quot;name&quot;: &quot;Custom ATM Protocol&quot;,
+  &quot;version&quot;: &quot;1.0&quot;,
+  &quot;header&quot;: {
+    &quot;includeLength&quot;: true,
+    &quot;lengthBytes&quot;: 2,
+    &quot;lengthEncoding&quot;: &quot;BINARY&quot;,
+    &quot;lengthIncludesHeader&quot;: false
+  },
+  &quot;fields&quot;: [
+    { &quot;id&quot;: &quot;messageType&quot;, &quot;length&quot;: 4, &quot;encoding&quot;: &quot;ASCII&quot;, &quot;required&quot;: true },
+    { &quot;id&quot;: &quot;terminalId&quot;, &quot;length&quot;: 8, &quot;encoding&quot;: &quot;ASCII&quot;, &quot;required&quot;: true },
+    { &quot;id&quot;: &quot;transactionCode&quot;, &quot;length&quot;: 2, &quot;encoding&quot;: &quot;ASCII&quot; },
+    { &quot;id&quot;: &quot;cardNumber&quot;, &quot;length&quot;: 16, &quot;encoding&quot;: &quot;BCD&quot;, &quot;sensitive&quot;: true },
+    { &quot;id&quot;: &quot;amount&quot;, &quot;length&quot;: 12, &quot;encoding&quot;: &quot;BCD&quot; },
+    { &quot;id&quot;: &quot;pinBlock&quot;, &quot;length&quot;: 8, &quot;encoding&quot;: &quot;HEX&quot;, &quot;sensitive&quot;: true },
+    { &quot;id&quot;: &quot;additionalInfo&quot;, &quot;length&quot;: 99, &quot;lengthType&quot;: &quot;LLVAR&quot;, &quot;encoding&quot;: &quot;ASCII&quot;, &quot;lengthEncoding&quot;: &quot;ASCII&quot; }
+  ]
+}</stringProp>
+          <stringProp name="fieldValues">{
+  &quot;messageType&quot;: &quot;0200&quot;,
+  &quot;terminalId&quot;: &quot;${ATM_ID}&quot;,
+  &quot;transactionCode&quot;: &quot;01&quot;,
+  &quot;cardNumber&quot;: &quot;${CARD_NUMBER}&quot;,
+  &quot;amount&quot;: &quot;000000100000&quot;,
+  &quot;pinBlock&quot;: &quot;0411123456789ABC&quot;,
+  &quot;additionalInfo&quot;: &quot;Custom data from ${ATM_ID}&quot;
+}</stringProp>
+          <stringProp name="transactionType">CUSTOM</stringProp>
+          <stringProp name="atmId">${ATM_ID}</stringProp>
+          <stringProp name="atmLocation">Taipei Main Branch</stringProp>
+          <stringProp name="bankCode">${BANK_CODE}</stringProp>
+          <stringProp name="cardNumber">${CARD_NUMBER}</stringProp>
+          <stringProp name="amount"></stringProp>
+          <stringProp name="destinationAccount"></stringProp>
+          <boolProp name="enablePinBlock">false</boolProp>
+          <stringProp name="pinBlock"></stringProp>
+          <stringProp name="customFields"></stringProp>
+          <stringProp name="messageTemplate"></stringProp>
+          <stringProp name="mtiOverride"></stringProp>
+          <stringProp name="processingCodeOverride"></stringProp>
+        </com.fep.jmeter.sampler.AtmSimulatorSampler>
+        <hashTree/>
+        <ResultCollector guiclass="ViewResultsFullVisualizer" testclass="ResultCollector" testname="View Results Tree" enabled="true">
+          <boolProp name="ResultCollector.error_logging">false</boolProp>
+          <objProp>
+            <name>saveConfig</name>
+            <value class="SampleSaveConfiguration">
+              <time>true</time>
+              <latency>true</latency>
+              <timestamp>true</timestamp>
+              <success>true</success>
+              <label>true</label>
+              <code>true</code>
+              <message>true</message>
+              <threadName>true</threadName>
+              <dataType>true</dataType>
+              <encoding>false</encoding>
+              <assertions>true</assertions>
+              <subresults>true</subresults>
+              <responseData>true</responseData>
+              <samplerData>true</samplerData>
+              <xml>false</xml>
+              <fieldNames>true</fieldNames>
+              <responseHeaders>true</responseHeaders>
+              <requestHeaders>true</requestHeaders>
+              <responseDataOnError>false</responseDataOnError>
+              <saveAssertionResultsFailureMessage>true</saveAssertionResultsFailureMessage>
+              <assertionsResultsToSave>0</assertionsResultsToSave>
+              <bytes>true</bytes>
+              <sentBytes>true</sentBytes>
+              <url>true</url>
+              <threadCounts>true</threadCounts>
+              <idleTime>true</idleTime>
+              <connectTime>true</connectTime>
+            </value>
+          </objProp>
+          <stringProp name="filename"></stringProp>
+        </ResultCollector>
+        <hashTree/>
+      </hashTree>
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="Scenario 9 - High Volume Multi-ATM Simulation" enabled="false">
+        <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller" enabled="true">
+          <boolProp name="LoopController.continue_forever">false</boolProp>
+          <stringProp name="LoopController.loops">10</stringProp>
+        </elementProp>
+        <stringProp name="ThreadGroup.num_threads">100</stringProp>
+        <stringProp name="ThreadGroup.ramp_time">10</stringProp>
+        <boolProp name="ThreadGroup.scheduler">false</boolProp>
+        <stringProp name="ThreadGroup.duration">60</stringProp>
+        <stringProp name="ThreadGroup.delay"></stringProp>
+        <boolProp name="ThreadGroup.same_user_on_next_iteration">false</boolProp>
+        <stringProp name="TestPlan.comments">High Volume ATM Simulation using CSV Data Set.
 
+This scenario demonstrates how to simulate multiple ATMs with unique IDs
+and different card numbers from CSV files.
+
+Configuration:
+- 100 threads (simulating 100 concurrent ATMs)
+- Each thread uses different ATM_ID from atm-list.csv
+- Each iteration uses different CARD_NUMBER from card-list.csv
+- 10 loops per thread = 1000 total transactions
+
+For 2000 ATM simulation:
+1. Generate large data files: ./data/generate-test-data.sh 2000 10000
+2. Update CSV file paths to use *-large.csv files
+3. Set num_threads to 2000
+4. Adjust ramp_time accordingly (e.g., 60 seconds)</stringProp>
+      </ThreadGroup>
+      <hashTree>
+        <CSVDataSet guiclass="TestBeanGUI" testclass="CSVDataSet" testname="ATM Data - CSV Data Set" enabled="true">
+          <stringProp name="delimiter">,</stringProp>
+          <stringProp name="fileEncoding">UTF-8</stringProp>
+          <stringProp name="filename">data/atm-list.csv</stringProp>
+          <boolProp name="ignoreFirstLine">true</boolProp>
+          <boolProp name="quotedData">false</boolProp>
+          <boolProp name="recycle">true</boolProp>
+          <stringProp name="shareMode">shareMode.thread</stringProp>
+          <boolProp name="stopThread">false</boolProp>
+          <stringProp name="variableNames">ATM_ID,ATM_LOCATION,BANK_CODE,BRANCH_CODE</stringProp>
+        </CSVDataSet>
+        <hashTree/>
+        <CSVDataSet guiclass="TestBeanGUI" testclass="CSVDataSet" testname="Card Data - CSV Data Set" enabled="true">
+          <stringProp name="delimiter">,</stringProp>
+          <stringProp name="fileEncoding">UTF-8</stringProp>
+          <stringProp name="filename">data/card-list.csv</stringProp>
+          <boolProp name="ignoreFirstLine">true</boolProp>
+          <boolProp name="quotedData">false</boolProp>
+          <boolProp name="recycle">true</boolProp>
+          <stringProp name="shareMode">shareMode.all</stringProp>
+          <boolProp name="stopThread">false</boolProp>
+          <stringProp name="variableNames">CARD_NUMBER,CARD_EXPIRY,TRACK2_DATA,PIN_BLOCK,ACCOUNT_NUMBER</stringProp>
+        </CSVDataSet>
+        <hashTree/>
+        <com.fep.jmeter.sampler.AtmSimulatorSampler guiclass="TestBeanGUI" testclass="com.fep.jmeter.sampler.AtmSimulatorSampler" testname="Multi-ATM Withdrawal (ISO 8583)" enabled="true">
+          <stringProp name="fepHost">${FEP_HOST}</stringProp>
+          <stringProp name="fepPort">${FEP_PORT}</stringProp>
+          <intProp name="connectionTimeout">10000</intProp>
+          <intProp name="readTimeout">30000</intProp>
+          <stringProp name="protocolType">ISO_8583</stringProp>
+          <stringProp name="transactionType">WITHDRAWAL</stringProp>
+          <stringProp name="mtiOverride"></stringProp>
+          <stringProp name="processingCodeOverride"></stringProp>
+          <stringProp name="atmId">${ATM_ID}</stringProp>
+          <stringProp name="atmLocation">${ATM_LOCATION}</stringProp>
+          <stringProp name="bankCode">${BANK_CODE}</stringProp>
+          <stringProp name="cardNumber">${CARD_NUMBER}</stringProp>
+          <stringProp name="amount">${__Random(10000,100000)}</stringProp>
+          <stringProp name="destinationAccount"></stringProp>
+          <boolProp name="enablePinBlock">true</boolProp>
+          <stringProp name="pinBlock">${PIN_BLOCK}</stringProp>
+          <stringProp name="customFields"></stringProp>
+          <stringProp name="messageTemplate"></stringProp>
+        </com.fep.jmeter.sampler.AtmSimulatorSampler>
+        <hashTree/>
+        <com.fep.jmeter.sampler.AtmSimulatorSampler guiclass="TestBeanGUI" testclass="com.fep.jmeter.sampler.AtmSimulatorSampler" testname="Multi-ATM Withdrawal (GENERIC_SCHEMA)" enabled="false">
+          <stringProp name="fepHost">${FEP_HOST}</stringProp>
+          <stringProp name="fepPort">${FEP_PORT}</stringProp>
+          <intProp name="connectionTimeout">10000</intProp>
+          <intProp name="readTimeout">30000</intProp>
+          <stringProp name="protocolType">GENERIC_SCHEMA</stringProp>
+          <stringProp name="schemaSource">PRESET</stringProp>
+          <stringProp name="presetSchema">FISC_ATM</stringProp>
+          <stringProp name="schemaFile"></stringProp>
+          <stringProp name="schemaContent"></stringProp>
+          <stringProp name="fieldValues">{
+  &quot;mti&quot;: &quot;0200&quot;,
+  &quot;pan&quot;: &quot;${CARD_NUMBER}&quot;,
+  &quot;processingCode&quot;: &quot;010000&quot;,
+  &quot;amount&quot;: &quot;${__Random(10000,100000,AMOUNT)}&quot;,
+  &quot;stan&quot;: &quot;${__counter(FALSE)}&quot;,
+  &quot;terminalId&quot;: &quot;${ATM_ID}&quot;,
+  &quot;acquiringInstitution&quot;: &quot;${BANK_CODE}&quot;,
+  &quot;cardAcceptorName&quot;: &quot;${ATM_LOCATION}&quot;,
+  &quot;currencyCode&quot;: &quot;901&quot;,
+  &quot;pinBlock&quot;: &quot;${PIN_BLOCK}&quot;
+}</stringProp>
+          <stringProp name="transactionType">CUSTOM</stringProp>
+          <stringProp name="atmId">${ATM_ID}</stringProp>
+          <stringProp name="atmLocation">${ATM_LOCATION}</stringProp>
+          <stringProp name="bankCode">${BANK_CODE}</stringProp>
+          <stringProp name="cardNumber">${CARD_NUMBER}</stringProp>
+          <stringProp name="amount"></stringProp>
+          <stringProp name="destinationAccount"></stringProp>
+          <boolProp name="enablePinBlock">false</boolProp>
+          <stringProp name="pinBlock"></stringProp>
+          <stringProp name="customFields"></stringProp>
+          <stringProp name="messageTemplate"></stringProp>
+          <stringProp name="mtiOverride"></stringProp>
+          <stringProp name="processingCodeOverride"></stringProp>
+        </com.fep.jmeter.sampler.AtmSimulatorSampler>
+        <hashTree/>
+        <ResultCollector guiclass="SummaryReport" testclass="ResultCollector" testname="Summary Report" enabled="true">
+          <boolProp name="ResultCollector.error_logging">false</boolProp>
+          <objProp>
+            <name>saveConfig</name>
+            <value class="SampleSaveConfiguration">
+              <time>true</time>
+              <latency>true</latency>
+              <timestamp>true</timestamp>
+              <success>true</success>
+              <label>true</label>
+              <code>true</code>
+              <message>true</message>
+              <threadName>true</threadName>
+              <dataType>true</dataType>
+              <encoding>false</encoding>
+              <assertions>true</assertions>
+              <subresults>true</subresults>
+              <responseData>false</responseData>
+              <samplerData>false</samplerData>
+              <xml>false</xml>
+              <fieldNames>true</fieldNames>
+              <responseHeaders>false</responseHeaders>
+              <requestHeaders>false</requestHeaders>
+              <responseDataOnError>false</responseDataOnError>
+              <saveAssertionResultsFailureMessage>true</saveAssertionResultsFailureMessage>
+              <assertionsResultsToSave>0</assertionsResultsToSave>
+              <bytes>true</bytes>
+              <sentBytes>true</sentBytes>
+              <url>true</url>
+              <threadCounts>true</threadCounts>
+              <idleTime>true</idleTime>
+              <connectTime>true</connectTime>
+            </value>
+          </objProp>
+          <stringProp name="filename"></stringProp>
+        </ResultCollector>
+        <hashTree/>
+        <ResultCollector guiclass="ViewResultsFullVisualizer" testclass="ResultCollector" testname="View Results Tree" enabled="true">
+          <boolProp name="ResultCollector.error_logging">false</boolProp>
+          <objProp>
+            <name>saveConfig</name>
+            <value class="SampleSaveConfiguration">
+              <time>true</time>
+              <latency>true</latency>
+              <timestamp>true</timestamp>
+              <success>true</success>
+              <label>true</label>
+              <code>true</code>
+              <message>true</message>
+              <threadName>true</threadName>
+              <dataType>true</dataType>
+              <encoding>false</encoding>
+              <assertions>true</assertions>
+              <subresults>true</subresults>
+              <responseData>true</responseData>
+              <samplerData>true</samplerData>
+              <xml>false</xml>
+              <fieldNames>true</fieldNames>
+              <responseHeaders>true</responseHeaders>
+              <requestHeaders>true</requestHeaders>
+              <responseDataOnError>false</responseDataOnError>
+              <saveAssertionResultsFailureMessage>true</saveAssertionResultsFailureMessage>
+              <assertionsResultsToSave>0</assertionsResultsToSave>
+              <bytes>true</bytes>
+              <sentBytes>true</sentBytes>
+              <url>true</url>
+              <threadCounts>true</threadCounts>
+              <idleTime>true</idleTime>
+              <connectTime>true</connectTime>
+            </value>
+          </objProp>
+          <stringProp name="filename"></stringProp>
+        </ResultCollector>
+        <hashTree/>
+      </hashTree>
     </hashTree>
   </hashTree>
 </jmeterTestPlan>

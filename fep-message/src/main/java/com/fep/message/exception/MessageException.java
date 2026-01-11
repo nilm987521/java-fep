@@ -31,6 +31,10 @@ public class MessageException extends FepException {
         return new MessageException("MSG003", "Field " + fieldNumber + " error: " + message);
     }
 
+    public static MessageException fieldError(String fieldId, String message) {
+        return new MessageException("MSG003", "Field '" + fieldId + "' error: " + message);
+    }
+
     public static MessageException bitmapError(String message) {
         return new MessageException("MSG004", "Bitmap error: " + message);
     }

@@ -1,0 +1,318 @@
+{
+  "$schema": "fep-message-schema-v1",
+  "name": "NCR NDC Protocol",
+  "version": "1.0",
+  "vendor": "NCR",
+  "description": "NCR NDC (Network Data Control) ATM protocol",
+
+  "header": {
+    "includeLength": true,
+    "lengthBytes": 2,
+    "lengthEncoding": "BINARY",
+    "lengthIncludesHeader": false,
+    "fields": [
+      {
+        "id": "protocolId",
+        "name": "Protocol Identifier",
+        "type": "BINARY",
+        "length": 2,
+        "encoding": "HEX",
+        "defaultValue": "6000"
+      }
+    ]
+  },
+
+  "fields": [
+    {
+      "id": "commandCode",
+      "name": "Command Code",
+      "description": "NDC command identifier",
+      "type": "ALPHANUMERIC",
+      "length": 2,
+      "encoding": "ASCII",
+      "required": true
+    },
+    {
+      "id": "responseFlag",
+      "name": "Response Flag",
+      "description": "Indicates request or response",
+      "type": "ALPHA",
+      "length": 1,
+      "encoding": "ASCII",
+      "defaultValue": " "
+    },
+    {
+      "id": "luno",
+      "name": "Logical Unit Number",
+      "description": "Terminal logical unit number",
+      "type": "ALPHANUMERIC",
+      "length": 9,
+      "encoding": "ASCII",
+      "padding": {
+        "char": " ",
+        "direction": "right"
+      }
+    },
+    {
+      "id": "statusInfo",
+      "name": "Status Information",
+      "description": "Terminal status descriptor",
+      "type": "ALPHANUMERIC",
+      "length": 1,
+      "encoding": "ASCII"
+    },
+    {
+      "id": "track2",
+      "name": "Track 2 Data",
+      "description": "Card track 2 data",
+      "type": "TRACK2",
+      "length": 40,
+      "lengthType": "LLVAR",
+      "encoding": "ASCII",
+      "lengthEncoding": "ASCII",
+      "sensitive": true
+    },
+    {
+      "id": "track3",
+      "name": "Track 3 Data",
+      "description": "Card track 3 data",
+      "type": "ALPHANUMERIC",
+      "length": 107,
+      "lengthType": "LLLVAR",
+      "encoding": "ASCII",
+      "lengthEncoding": "ASCII",
+      "sensitive": true
+    },
+    {
+      "id": "pinBlock",
+      "name": "PIN Block",
+      "description": "Encrypted PIN block",
+      "type": "BINARY",
+      "length": 16,
+      "encoding": "HEX",
+      "sensitive": true
+    },
+    {
+      "id": "amount",
+      "name": "Transaction Amount",
+      "description": "Amount in cents",
+      "type": "NUMERIC",
+      "length": 12,
+      "encoding": "ASCII",
+      "padding": {
+        "char": "0",
+        "direction": "left"
+      }
+    },
+    {
+      "id": "amountAvailable",
+      "name": "Amount Available",
+      "description": "Available amount for withdrawal",
+      "type": "NUMERIC",
+      "length": 12,
+      "encoding": "ASCII",
+      "padding": {
+        "char": "0",
+        "direction": "left"
+      }
+    },
+    {
+      "id": "transactionSerialNumber",
+      "name": "Transaction Serial Number",
+      "description": "Sequential transaction number",
+      "type": "NUMERIC",
+      "length": 4,
+      "encoding": "ASCII",
+      "padding": {
+        "char": "0",
+        "direction": "left"
+      }
+    },
+    {
+      "id": "functionId",
+      "name": "Function Identifier",
+      "description": "Transaction function code",
+      "type": "ALPHANUMERIC",
+      "length": 3,
+      "encoding": "ASCII"
+    },
+    {
+      "id": "screenNumber",
+      "name": "Screen Number",
+      "description": "Screen display identifier",
+      "type": "NUMERIC",
+      "length": 3,
+      "encoding": "ASCII"
+    },
+    {
+      "id": "coordinationNumber",
+      "name": "Coordination Number",
+      "description": "Message coordination identifier",
+      "type": "NUMERIC",
+      "length": 1,
+      "encoding": "ASCII"
+    },
+    {
+      "id": "nextStateId",
+      "name": "Next State ID",
+      "description": "State table identifier",
+      "type": "ALPHANUMERIC",
+      "length": 3,
+      "encoding": "ASCII"
+    },
+    {
+      "id": "cardRetained",
+      "name": "Card Retained",
+      "description": "Card retain indicator",
+      "type": "NUMERIC",
+      "length": 1,
+      "encoding": "ASCII",
+      "defaultValue": "0"
+    },
+    {
+      "id": "deviceStatus",
+      "name": "Device Status",
+      "description": "ATM device status indicators",
+      "type": "COMPOSITE",
+      "fields": [
+        {
+          "id": "cardReader",
+          "name": "Card Reader Status",
+          "type": "NUMERIC",
+          "length": 1,
+          "encoding": "ASCII"
+        },
+        {
+          "id": "cashDispenser",
+          "name": "Cash Dispenser Status",
+          "type": "NUMERIC",
+          "length": 1,
+          "encoding": "ASCII"
+        },
+        {
+          "id": "depositoryModule",
+          "name": "Depository Module Status",
+          "type": "NUMERIC",
+          "length": 1,
+          "encoding": "ASCII"
+        },
+        {
+          "id": "receiptPrinter",
+          "name": "Receipt Printer Status",
+          "type": "NUMERIC",
+          "length": 1,
+          "encoding": "ASCII"
+        },
+        {
+          "id": "journalPrinter",
+          "name": "Journal Printer Status",
+          "type": "NUMERIC",
+          "length": 1,
+          "encoding": "ASCII"
+        },
+        {
+          "id": "encryptor",
+          "name": "Encryptor Status",
+          "type": "NUMERIC",
+          "length": 1,
+          "encoding": "ASCII"
+        }
+      ]
+    },
+    {
+      "id": "notesDispensed",
+      "name": "Notes Dispensed",
+      "description": "Number of notes dispensed per cassette",
+      "type": "COMPOSITE",
+      "fields": [
+        {
+          "id": "cassette1",
+          "name": "Cassette 1",
+          "type": "NUMERIC",
+          "length": 5,
+          "encoding": "ASCII",
+          "padding": { "char": "0", "direction": "left" }
+        },
+        {
+          "id": "cassette2",
+          "name": "Cassette 2",
+          "type": "NUMERIC",
+          "length": 5,
+          "encoding": "ASCII",
+          "padding": { "char": "0", "direction": "left" }
+        },
+        {
+          "id": "cassette3",
+          "name": "Cassette 3",
+          "type": "NUMERIC",
+          "length": 5,
+          "encoding": "ASCII",
+          "padding": { "char": "0", "direction": "left" }
+        },
+        {
+          "id": "cassette4",
+          "name": "Cassette 4",
+          "type": "NUMERIC",
+          "length": 5,
+          "encoding": "ASCII",
+          "padding": { "char": "0", "direction": "left" }
+        }
+      ]
+    },
+    {
+      "id": "responseCode",
+      "name": "Response Code",
+      "description": "Transaction response code",
+      "type": "ALPHANUMERIC",
+      "length": 2,
+      "encoding": "ASCII"
+    },
+    {
+      "id": "messageText",
+      "name": "Message Text",
+      "description": "Free-form message text",
+      "type": "ALPHANUMERIC",
+      "length": 256,
+      "lengthType": "LLLVAR",
+      "encoding": "ASCII",
+      "lengthEncoding": "ASCII"
+    }
+  ],
+
+  "trailer": {
+    "fields": [
+      {
+        "id": "mac",
+        "name": "Message Authentication Code",
+        "description": "Message MAC for security verification",
+        "type": "BINARY",
+        "length": 8,
+        "encoding": "HEX"
+      }
+    ]
+  },
+
+  "encoding": {
+    "defaultCharset": "ASCII",
+    "endianness": "BIG_ENDIAN"
+  },
+
+  "validation": {
+    "rules": [
+      {
+        "type": "required",
+        "fields": ["commandCode", "luno"]
+      },
+      {
+        "type": "conditional",
+        "if": { "field": "commandCode", "equals": "11" },
+        "then": { "required": ["track2", "pinBlock", "amount"] }
+      },
+      {
+        "type": "conditional",
+        "if": { "field": "commandCode", "equals": "12" },
+        "then": { "required": ["track2", "amount"] }
+      }
+    ]
+  }
+}

@@ -1,0 +1,21 @@
+ATM_ID,ATM_LOCATION,BANK_CODE,BRANCH_CODE
+ATM00001,Taipei Main Branch,012,0001
+ATM00002,Taipei East Branch,012,0002
+ATM00003,Taipei West Branch,012,0003
+ATM00004,Taipei South Branch,012,0004
+ATM00005,Taipei North Branch,012,0005
+ATM00006,Taoyuan Station,012,0010
+ATM00007,Taoyuan Airport T1,012,0011
+ATM00008,Taoyuan Airport T2,012,0012
+ATM00009,Hsinchu Science Park,012,0020
+ATM00010,Hsinchu Station,012,0021
+ATM00011,Taichung Main Branch,012,0030
+ATM00012,Taichung Station,012,0031
+ATM00013,Taichung HSR,012,0032
+ATM00014,Tainan Main Branch,012,0040
+ATM00015,Tainan Station,012,0041
+ATM00016,Kaohsiung Main Branch,012,0050
+ATM00017,Kaohsiung Station,012,0051
+ATM00018,Kaohsiung Airport,012,0052
+ATM00019,Kaohsiung HSR,012,0053
+ATM00020,Hualien Main Branch,012,0060
