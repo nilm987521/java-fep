@@ -154,18 +154,23 @@ public class FiscDualChannelServerSamplerBeanInfo extends BeanInfoSupport {
         validationRulesProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
         validationRulesProp.setValue(DEFAULT, "");
         validationRulesProp.setPropertyEditorClass(TextAreaEditor.class);
-        validationRulesProp.setDisplayName("Validation Rules");
+        validationRulesProp.setValue(GenericTestBeanCustomizer.TEXT_LANGUAGE, "json");
+        validationRulesProp.setDisplayName("Validation Rules (JSON)");
         validationRulesProp.setShortDescription(
-            "Validation rules (JSON or Text format - auto-detected).\n\n" +
-            "JSON format (recommended):\n" +
-            "{\"globalRules\": {\"required\": [2,3,4], \"format\": {\"2\": \"N(13-19)\"}}}\n\n" +
-            "Text format:\n" +
-            "REQUIRED:2,3,4,11,41,42\n" +
-            "FORMAT:2=N(13-19);3=N(6)\n" +
-            "VALUE:3=010000|400000|310000\n" +
-            "LENGTH:4=12;11=6\n" +
-            "PATTERN:37=^[A-Z0-9]{12}$\n" +
-            "MTI:0200=REQUIRED:2,3,4,11"
+            "JSON validation rules configuration.\n\n" +
+            "Example:\n" +
+            "{\n" +
+            "  \"globalRules\": {\n" +
+            "    \"required\": [2, 3, 4, 11],\n" +
+            "    \"format\": {\"2\": \"N(13-19)\", \"3\": \"N(6)\"},\n" +
+            "    \"value\": {\"3\": [\"010000\", \"400000\"]},\n" +
+            "    \"length\": {\"4\": 12},\n" +
+            "    \"pattern\": {\"37\": \"^[A-Z0-9]{12}$\"}\n" +
+            "  },\n" +
+            "  \"mtiRules\": {\n" +
+            "    \"0800\": {\"required\": [70], \"value\": {\"70\": [\"001\", \"301\"]}}\n" +
+            "  }\n" +
+            "}"
         );
 
         // Routing properties

@@ -127,9 +127,13 @@ class FiscDualChannelServerSamplerIntegrationTest {
     void testValidationEngine() {
         MessageValidationEngine validationEngine = new MessageValidationEngine();
         validationEngine.configure("""
-            REQUIRED:2,3,4,11
-            FORMAT:2=N(13-19);3=N(6);4=N(12)
-            VALUE:3=010000|400000|310000
+            {
+                "globalRules": {
+                    "required": [2, 3, 4, 11],
+                    "format": {"2": "N(13-19)", "3": "N(6)", "4": "N(12)"},
+                    "value": {"3": ["010000", "400000", "310000"]}
+                }
+            }
             """);
 
         // Valid message
@@ -169,7 +173,7 @@ class FiscDualChannelServerSamplerIntegrationTest {
     void testValidationIntegration() throws Exception {
         // Configure validation on engine
         MessageValidationEngine validationEngine = new MessageValidationEngine();
-        validationEngine.configure("REQUIRED:2,3,4,11");
+        validationEngine.configure("{\"globalRules\": {\"required\": [2, 3, 4, 11]}}");
         engine.setValidationCallback(validationEngine.createValidationCallback());
         engine.setValidationErrorCode("30");
 

@@ -21,35 +21,6 @@ class ValidationRuleJsonParserTest {
     }
 
     @Nested
-    @DisplayName("isJson() detection")
-    class IsJsonDetection {
-
-        @Test
-        @DisplayName("Should detect valid JSON object")
-        void detectsJsonObject() {
-            assertTrue(ValidationRuleJsonParser.isJson("{\"globalRules\": {}}"));
-            assertTrue(ValidationRuleJsonParser.isJson("{ }"));
-            assertTrue(ValidationRuleJsonParser.isJson("  {  \"key\": \"value\"  }  "));
-        }
-
-        @Test
-        @DisplayName("Should not detect text format as JSON")
-        void doesNotDetectTextAsJson() {
-            assertFalse(ValidationRuleJsonParser.isJson("REQUIRED:2,3,4"));
-            assertFalse(ValidationRuleJsonParser.isJson("FORMAT:2=N(13-19)"));
-            assertFalse(ValidationRuleJsonParser.isJson("# comment"));
-        }
-
-        @Test
-        @DisplayName("Should handle null and empty strings")
-        void handlesNullAndEmpty() {
-            assertFalse(ValidationRuleJsonParser.isJson(null));
-            assertFalse(ValidationRuleJsonParser.isJson(""));
-            assertFalse(ValidationRuleJsonParser.isJson("   "));
-        }
-    }
-
-    @Nested
     @DisplayName("JSON Parsing")
     class JsonParsing {
 
@@ -257,31 +228,6 @@ class ValidationRuleJsonParserTest {
     class EngineIntegration {
 
         @Test
-        @DisplayName("Engine should auto-detect JSON format")
-        void engineAutoDetectsJson() {
-            MessageValidationEngine engine = new MessageValidationEngine();
-
-            String json = """
-                {
-                    "globalRules": {
-                        "required": [2, 3, 4]
-                    }
-                }
-                """;
-
-            engine.configure(json);
-            assertTrue(engine.isJsonFormat());
-        }
-
-        @Test
-        @DisplayName("Engine should auto-detect text format")
-        void engineAutoDetectsText() {
-            MessageValidationEngine engine = new MessageValidationEngine();
-            engine.configure("REQUIRED:2,3,4");
-            assertFalse(engine.isJsonFormat());
-        }
-
-        @Test
         @DisplayName("Should validate with JSON config")
         void validatesWithJsonConfig() {
             MessageValidationEngine engine = new MessageValidationEngine();
@@ -316,50 +262,27 @@ class ValidationRuleJsonParserTest {
             result = engine.validate(invalidMessage);
             assertFalse(result.isValid());
         }
-    }
-
-    @Nested
-    @DisplayName("Text to JSON conversion")
-    class TextToJsonConversion {
 
         @Test
-        @DisplayName("Should convert text config to JSON")
-        void convertsTextToJson() {
-            String textConfig = """
-                REQUIRED:2,3,4,11
-                FORMAT:2=N(13-19);3=N(6)
-                VALUE:3=010000|400000|310000
-                LENGTH:4=12;11=6
-                """;
+        @DisplayName("Should handle empty config")
+        void handlesEmptyConfig() {
+            MessageValidationEngine engine = new MessageValidationEngine();
+            engine.configure("");
 
-            String json = ValidationRuleJsonParser.convertToJson(textConfig);
-
-            assertNotNull(json);
-            assertTrue(json.contains("\"required\""));
-            assertTrue(json.contains("\"format\""));
-            assertTrue(json.contains("\"value\""));
-            assertTrue(json.contains("\"length\""));
-
-            // Verify the JSON can be parsed back
-            ValidationRuleJsonParser jsonParser = new ValidationRuleJsonParser();
-            ValidationRuleParser.ParsedRules rules = jsonParser.parse(json);
-            assertEquals(4, rules.globalRules.size());
+            Iso8583Message message = new Iso8583Message("0200");
+            ValidationResult result = engine.validate(message);
+            assertTrue(result.isValid());
         }
 
         @Test
-        @DisplayName("Should convert MTI-specific rules to JSON")
-        void convertsMtiRulesToJson() {
-            String textConfig = """
-                MTI:0200=REQUIRED:2,3,4;VALUE:3=010000|400000
-                MTI:0800=REQUIRED:70;VALUE:70=001|101|301
-                """;
+        @DisplayName("Should handle null config")
+        void handlesNullConfig() {
+            MessageValidationEngine engine = new MessageValidationEngine();
+            engine.configure(null);
 
-            String json = ValidationRuleJsonParser.convertToJson(textConfig);
-
-            assertNotNull(json);
-            assertTrue(json.contains("\"mtiRules\""));
-            assertTrue(json.contains("\"0200\""));
-            assertTrue(json.contains("\"0800\""));
+            Iso8583Message message = new Iso8583Message("0200");
+            ValidationResult result = engine.validate(message);
+            assertTrue(result.isValid());
         }
     }
 
