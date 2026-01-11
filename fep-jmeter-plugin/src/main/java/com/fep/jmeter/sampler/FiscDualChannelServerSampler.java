@@ -68,23 +68,22 @@ public class FiscDualChannelServerSampler extends AbstractSampler implements Tes
     public static final String ACTIVE_CUSTOM_MTI = "activeCustomMti";
     public static final String ACTIVE_CUSTOM_FIELDS = "activeCustomFields";
 
-    // Operation mode constants (deprecated - use OperationMode enum instead)
-    /** @deprecated Use {@link OperationMode#PASSIVE} instead */
+    // Active message type constants (deprecated - use ActiveMessageType enum instead)
+    /** @deprecated Use {@link ActiveMessageType#SIGN_ON} instead */
     @Deprecated
-    public static final String MODE_PASSIVE = OperationMode.PASSIVE.name();
-    /** @deprecated Use {@link OperationMode#ACTIVE} instead */
+    public static final String ACTIVE_TYPE_SIGN_ON = ActiveMessageType.SIGN_ON.name();
+    /** @deprecated Use {@link ActiveMessageType#SIGN_OFF} instead */
     @Deprecated
-    public static final String MODE_ACTIVE = OperationMode.ACTIVE.name();
-    /** @deprecated Use {@link OperationMode#BIDIRECTIONAL} instead */
+    public static final String ACTIVE_TYPE_SIGN_OFF = ActiveMessageType.SIGN_OFF.name();
+    /** @deprecated Use {@link ActiveMessageType#ECHO_TEST} instead */
     @Deprecated
-    public static final String MODE_BIDIRECTIONAL = OperationMode.BIDIRECTIONAL.name();
-
-    // Active message type constants
-    public static final String ACTIVE_TYPE_SIGN_ON = "SIGN_ON";
-    public static final String ACTIVE_TYPE_SIGN_OFF = "SIGN_OFF";
-    public static final String ACTIVE_TYPE_ECHO_TEST = "ECHO_TEST";
-    public static final String ACTIVE_TYPE_KEY_EXCHANGE = "KEY_EXCHANGE";
-    public static final String ACTIVE_TYPE_CUSTOM = "CUSTOM";
+    public static final String ACTIVE_TYPE_ECHO_TEST = ActiveMessageType.ECHO_TEST.name();
+    /** @deprecated Use {@link ActiveMessageType#KEY_EXCHANGE} instead */
+    @Deprecated
+    public static final String ACTIVE_TYPE_KEY_EXCHANGE = ActiveMessageType.KEY_EXCHANGE.name();
+    /** @deprecated Use {@link ActiveMessageType#CUSTOM} instead */
+    @Deprecated
+    public static final String ACTIVE_TYPE_CUSTOM = ActiveMessageType.CUSTOM.name();
 
     // Default values (from Sampler's perspective)
     private static final int DEFAULT_RECEIVE_PORT = 9000;  // Sampler RECEIVES requests here
@@ -362,39 +361,37 @@ public class FiscDualChannelServerSampler extends AbstractSampler implements Tes
      * Build message for active sending based on configured message type.
      */
     private Iso8583Message buildActiveMessage() {
-        String messageType = getActiveMessageType();
-        Iso8583Message message;
-
-        switch (messageType) {
-            case ACTIVE_TYPE_SIGN_ON -> {
-                message = new Iso8583Message(MessageType.NETWORK_MANAGEMENT_REQUEST);
-                message.setField(70, "001"); // Sign-on
+        ActiveMessageType messageType = ActiveMessageType.fromString(getActiveMessageType());
+        Iso8583Message message = switch (messageType) {
+            case SIGN_ON -> {
+                Iso8583Message msg = new Iso8583Message(MessageType.NETWORK_MANAGEMENT_REQUEST);
+                msg.setField(70, "001"); // Sign-on
+                yield msg;
             }
-            case ACTIVE_TYPE_SIGN_OFF -> {
-                message = new Iso8583Message(MessageType.NETWORK_MANAGEMENT_REQUEST);
-                message.setField(70, "002"); // Sign-off
+            case SIGN_OFF -> {
+                Iso8583Message msg = new Iso8583Message(MessageType.NETWORK_MANAGEMENT_REQUEST);
+                msg.setField(70, "002"); // Sign-off
+                yield msg;
             }
-            case ACTIVE_TYPE_ECHO_TEST -> {
-                message = new Iso8583Message(MessageType.NETWORK_MANAGEMENT_REQUEST);
-                message.setField(70, "301"); // Echo test
+            case ECHO_TEST -> {
+                Iso8583Message msg = new Iso8583Message(MessageType.NETWORK_MANAGEMENT_REQUEST);
+                msg.setField(70, "301"); // Echo test
+                yield msg;
             }
-            case ACTIVE_TYPE_KEY_EXCHANGE -> {
-                message = new Iso8583Message(MessageType.NETWORK_MANAGEMENT_REQUEST);
-                message.setField(70, "161"); // Key exchange
-                message.setField(48, "KEY_CHANGE_REQUIRED");
+            case KEY_EXCHANGE -> {
+                Iso8583Message msg = new Iso8583Message(MessageType.NETWORK_MANAGEMENT_REQUEST);
+                msg.setField(70, "161"); // Key exchange
+                msg.setField(48, "KEY_CHANGE_REQUIRED");
+                yield msg;
             }
-            case ACTIVE_TYPE_CUSTOM -> {
+            case CUSTOM -> {
                 String customMti = getActiveCustomMti();
                 if (customMti == null || customMti.isEmpty()) {
                     customMti = "0800";
                 }
-                message = new Iso8583Message(customMti);
+                yield new Iso8583Message(customMti);
             }
-            default -> {
-                message = new Iso8583Message(MessageType.NETWORK_MANAGEMENT_REQUEST);
-                message.setField(70, "301"); // Default to echo test
-            }
-        }
+        };
 
         // Set common fields
         String stan = String.format("%06d", stanCounter.incrementAndGet() % 1000000);
@@ -779,7 +776,7 @@ public class FiscDualChannelServerSampler extends AbstractSampler implements Tes
     }
 
     public String getActiveMessageType() {
-        return getPropertyAsString(ACTIVE_MESSAGE_TYPE, ACTIVE_TYPE_ECHO_TEST);
+        return getPropertyAsString(ACTIVE_MESSAGE_TYPE, ActiveMessageType.ECHO_TEST.name());
     }
 
     public void setActiveMessageType(String type) {

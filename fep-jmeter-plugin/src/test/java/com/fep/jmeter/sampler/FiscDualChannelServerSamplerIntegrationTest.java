@@ -369,15 +369,36 @@ class FiscDualChannelServerSamplerIntegrationTest {
         assertEquals(OperationMode.PASSIVE, OperationMode.fromString("INVALID"));
 
         // Verify deprecated constants still work for backwards compatibility
-        assertEquals("PASSIVE", FiscDualChannelServerSampler.MODE_PASSIVE);
-        assertEquals("ACTIVE", FiscDualChannelServerSampler.MODE_ACTIVE);
-        assertEquals("BIDIRECTIONAL", FiscDualChannelServerSampler.MODE_BIDIRECTIONAL);
+        assertEquals("PASSIVE", OperationMode.PASSIVE.name());
+        assertEquals("ACTIVE", OperationMode.ACTIVE.name());
+        assertEquals("BIDIRECTIONAL", OperationMode.BIDIRECTIONAL.name());
     }
 
     @Test
     @Order(14)
     void testActiveMessageTypeConstants() {
-        // Verify active message type constants
+        // Test ActiveMessageType enum
+        assertEquals(5, ActiveMessageType.values().length);
+        assertEquals("SIGN_ON", ActiveMessageType.SIGN_ON.name());
+        assertEquals("SIGN_OFF", ActiveMessageType.SIGN_OFF.name());
+        assertEquals("ECHO_TEST", ActiveMessageType.ECHO_TEST.name());
+        assertEquals("KEY_EXCHANGE", ActiveMessageType.KEY_EXCHANGE.name());
+        assertEquals("CUSTOM", ActiveMessageType.CUSTOM.name());
+
+        // Test ActiveMessageType.names() helper
+        assertArrayEquals(
+            new String[]{"SIGN_ON", "SIGN_OFF", "ECHO_TEST", "KEY_EXCHANGE", "CUSTOM"},
+            ActiveMessageType.names()
+        );
+
+        // Test ActiveMessageType.fromString() helper
+        assertEquals(ActiveMessageType.SIGN_ON, ActiveMessageType.fromString("SIGN_ON"));
+        assertEquals(ActiveMessageType.ECHO_TEST, ActiveMessageType.fromString("echo_test"));
+        assertEquals(ActiveMessageType.ECHO_TEST, ActiveMessageType.fromString(null));
+        assertEquals(ActiveMessageType.ECHO_TEST, ActiveMessageType.fromString(""));
+        assertEquals(ActiveMessageType.ECHO_TEST, ActiveMessageType.fromString("INVALID"));
+
+        // Verify deprecated constants still work for backwards compatibility
         assertEquals("SIGN_ON", FiscDualChannelServerSampler.ACTIVE_TYPE_SIGN_ON);
         assertEquals("SIGN_OFF", FiscDualChannelServerSampler.ACTIVE_TYPE_SIGN_OFF);
         assertEquals("ECHO_TEST", FiscDualChannelServerSampler.ACTIVE_TYPE_ECHO_TEST);
@@ -496,8 +517,8 @@ class FiscDualChannelServerSamplerIntegrationTest {
         assertEquals(OperationMode.BIDIRECTIONAL.name(), sampler.getOperationMode());
 
         // Test active message type property
-        sampler.setActiveMessageType(FiscDualChannelServerSampler.ACTIVE_TYPE_KEY_EXCHANGE);
-        assertEquals(FiscDualChannelServerSampler.ACTIVE_TYPE_KEY_EXCHANGE, sampler.getActiveMessageType());
+        sampler.setActiveMessageType(ActiveMessageType.KEY_EXCHANGE.name());
+        assertEquals(ActiveMessageType.KEY_EXCHANGE.name(), sampler.getActiveMessageType());
 
         // Test active target bank ID property
         sampler.setActiveTargetBankId("007");

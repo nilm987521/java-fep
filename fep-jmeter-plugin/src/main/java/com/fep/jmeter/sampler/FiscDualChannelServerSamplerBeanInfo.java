@@ -33,13 +33,7 @@ public class FiscDualChannelServerSamplerBeanInfo extends BeanInfoSupport {
     private static final String[] OPERATION_MODES = OperationMode.names();
 
     // Active message types
-    private static final String[] ACTIVE_MESSAGE_TYPES = {
-        FiscDualChannelServerSampler.ACTIVE_TYPE_SIGN_ON,
-        FiscDualChannelServerSampler.ACTIVE_TYPE_SIGN_OFF,
-        FiscDualChannelServerSampler.ACTIVE_TYPE_ECHO_TEST,
-        FiscDualChannelServerSampler.ACTIVE_TYPE_KEY_EXCHANGE,
-        FiscDualChannelServerSampler.ACTIVE_TYPE_CUSTOM
-    };
+    private static final String[] ACTIVE_MESSAGE_TYPES = ActiveMessageType.names();
 
     public FiscDualChannelServerSamplerBeanInfo() {
         super(FiscDualChannelServerSampler.class);
@@ -220,8 +214,9 @@ public class FiscDualChannelServerSamplerBeanInfo extends BeanInfoSupport {
         // Active mode properties
         PropertyDescriptor activeMessageTypeProp = property(FiscDualChannelServerSampler.ACTIVE_MESSAGE_TYPE);
         activeMessageTypeProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
-        activeMessageTypeProp.setValue(DEFAULT, FiscDualChannelServerSampler.ACTIVE_TYPE_ECHO_TEST);
+        activeMessageTypeProp.setValue(DEFAULT, ActiveMessageType.ECHO_TEST.name());
         activeMessageTypeProp.setValue(NOT_EXPRESSION, Boolean.TRUE);
+        activeMessageTypeProp.setValue(NOT_OTHER, Boolean.TRUE);
         activeMessageTypeProp.setValue(TAGS, ACTIVE_MESSAGE_TYPES);
         activeMessageTypeProp.setDisplayName("Active Message Type");
         activeMessageTypeProp.setShortDescription(
