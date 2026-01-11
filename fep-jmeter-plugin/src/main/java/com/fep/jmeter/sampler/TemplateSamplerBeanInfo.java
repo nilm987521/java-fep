@@ -1,7 +1,7 @@
 package com.fep.jmeter.sampler;
 
 import org.apache.jmeter.testbeans.BeanInfoSupport;
-import org.apache.jmeter.testbeans.gui.TypeEditor;
+import org.apache.jmeter.testbeans.gui.TextAreaEditor;
 
 import java.beans.PropertyDescriptor;
 
@@ -172,7 +172,7 @@ public class TemplateSamplerBeanInfo extends BeanInfoSupport {
         PropertyDescriptor customFieldsProp = property(TemplateSampler.CUSTOM_FIELDS);
         customFieldsProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
         customFieldsProp.setValue(DEFAULT, "");
-        customFieldsProp.setValue(TypeEditor.class.getName(), TypeEditor.TextAreaEditor);
+        customFieldsProp.setPropertyEditorClass(TextAreaEditor.class);
         customFieldsProp.setDisplayName("Custom Fields");
         customFieldsProp.setShortDescription(
             "Additional ISO 8583 fields (highest priority, overrides template).\n" +

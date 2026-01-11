@@ -1,7 +1,7 @@
 package com.fep.jmeter.sampler;
 
 import org.apache.jmeter.testbeans.BeanInfoSupport;
-import org.apache.jmeter.testbeans.gui.TypeEditor;
+import org.apache.jmeter.testbeans.gui.TextAreaEditor;
 
 import java.beans.PropertyDescriptor;
 
@@ -188,6 +188,8 @@ public class AtmSimulatorSamplerBeanInfo extends BeanInfoSupport {
         PropertyDescriptor enablePinBlockProp = property(AtmSimulatorSampler.ENABLE_PIN_BLOCK);
         enablePinBlockProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
         enablePinBlockProp.setValue(DEFAULT, Boolean.FALSE);
+        enablePinBlockProp.setValue(NOT_EXPRESSION, Boolean.TRUE);
+        enablePinBlockProp.setValue(NOT_OTHER, Boolean.TRUE);
         enablePinBlockProp.setDisplayName("Enable PIN Block");
         enablePinBlockProp.setShortDescription("Enable PIN Block field (Field 52) in the transaction.");
 
@@ -205,7 +207,7 @@ public class AtmSimulatorSamplerBeanInfo extends BeanInfoSupport {
         PropertyDescriptor customFieldsProp = property(AtmSimulatorSampler.CUSTOM_FIELDS);
         customFieldsProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
         customFieldsProp.setValue(DEFAULT, "");
-        customFieldsProp.setValue(TypeEditor.class.getName(), TypeEditor.TextAreaEditor);
+        customFieldsProp.setPropertyEditorClass(TextAreaEditor.class);
         customFieldsProp.setDisplayName("Custom Fields");
         customFieldsProp.setShortDescription(
             "Additional ISO 8583 fields (highest priority, overrides all).\n" +
@@ -217,7 +219,7 @@ public class AtmSimulatorSamplerBeanInfo extends BeanInfoSupport {
         PropertyDescriptor messageTemplateProp = property(AtmSimulatorSampler.MESSAGE_TEMPLATE);
         messageTemplateProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
         messageTemplateProp.setValue(DEFAULT, "");
-        messageTemplateProp.setValue(TypeEditor.class.getName(), TypeEditor.TextAreaEditor);
+        messageTemplateProp.setPropertyEditorClass(TextAreaEditor.class);
         messageTemplateProp.setDisplayName("Message Template (JSON)");
         messageTemplateProp.setShortDescription(
             "JSON template for CUSTOM transaction type.\n" +

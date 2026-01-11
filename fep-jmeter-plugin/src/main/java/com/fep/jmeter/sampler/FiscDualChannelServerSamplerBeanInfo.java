@@ -138,6 +138,8 @@ public class FiscDualChannelServerSamplerBeanInfo extends BeanInfoSupport {
         PropertyDescriptor enableValidationProp = property(FiscDualChannelServerSampler.ENABLE_VALIDATION);
         enableValidationProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
         enableValidationProp.setValue(DEFAULT, Boolean.TRUE);
+        enableValidationProp.setValue(NOT_EXPRESSION, Boolean.TRUE);
+        enableValidationProp.setValue(NOT_OTHER, Boolean.TRUE);
         enableValidationProp.setDisplayName("Enable Validation");
         enableValidationProp.setShortDescription("Enable message validation against rules.");
 
@@ -177,6 +179,8 @@ public class FiscDualChannelServerSamplerBeanInfo extends BeanInfoSupport {
         PropertyDescriptor enableRoutingProp = property(FiscDualChannelServerSampler.ENABLE_BANK_ID_ROUTING);
         enableRoutingProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
         enableRoutingProp.setValue(DEFAULT, Boolean.TRUE);
+        enableRoutingProp.setValue(NOT_EXPRESSION, Boolean.TRUE);
+        enableRoutingProp.setValue(NOT_OTHER, Boolean.TRUE);
         enableRoutingProp.setDisplayName("Enable Bank ID Routing");
         enableRoutingProp.setShortDescription("Route responses to clients based on Bank ID field.");
 

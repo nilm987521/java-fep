@@ -35,11 +35,17 @@
           <stringProp name="balanceAmount">1000000</stringProp>
           <boolProp name="enableValidation">true</boolProp>
           <stringProp name="validationErrorCode">30</stringProp>
-          <stringProp name="validationRules">{"globalRules": {"required": [2, 3, 4, 11, 41], "format": {"2": "N(13-19)", "3": "N(6)", "4": "N(12)", "11": "N(6)"}, "value": {"3": ["010000", "400000", "310000", "300000"]}}}</stringProp>
+          <stringProp name="validationRules">{&quot;globalRules&quot;: {&quot;required&quot;: [2, 3, 4, 11, 41], &quot;format&quot;: {&quot;2&quot;: &quot;N(13-19)&quot;, &quot;3&quot;: &quot;N(6)&quot;, &quot;4&quot;: &quot;N(12)&quot;, &quot;11&quot;: &quot;N(6)&quot;}, &quot;value&quot;: {&quot;3&quot;: [&quot;010000&quot;, &quot;400000&quot;, &quot;310000&quot;, &quot;300000&quot;]}}}</stringProp>
           <boolProp name="enableBankIdRouting">true</boolProp>
           <intProp name="bankIdField">32</intProp>
-          <stringProp name="responseRules">{"010000": "00", "400000": "00", "310000": "00", "300000": "00"}</stringProp>
+          <stringProp name="responseRules">{&quot;010000&quot;: &quot;00&quot;, &quot;400000&quot;: &quot;00&quot;, &quot;310000&quot;: &quot;00&quot;, &quot;300000&quot;: &quot;00&quot;}</stringProp>
           <stringProp name="customResponseFields">43:FISC SIMULATOR;49:901</stringProp>
+          <stringProp name="operationMode">PASSIVE</stringProp>
+          <stringProp name="activeMessageType">ECHO_TEST</stringProp>
+          <stringProp name="activeTargetBankId"></stringProp>
+          <stringProp name="activeCustomMti">0800</stringProp>
+          <stringProp name="activeCustomFields"></stringProp>
+          <stringProp name="mtiResponseRules"></stringProp>
         </com.fep.jmeter.sampler.FiscDualChannelServerSampler>
         <hashTree/>
       </hashTree>

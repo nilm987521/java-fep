@@ -1,7 +1,7 @@
 package com.fep.jmeter.sampler;
 
 import org.apache.jmeter.testbeans.BeanInfoSupport;
-import org.apache.jmeter.testbeans.gui.TypeEditor;
+import org.apache.jmeter.testbeans.gui.TextAreaEditor;
 
 import java.beans.PropertyDescriptor;
 
@@ -115,7 +115,7 @@ public class FiscSamplerBeanInfo extends BeanInfoSupport {
         PropertyDescriptor customFieldsProp = property(FiscSampler.CUSTOM_FIELDS);
         customFieldsProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
         customFieldsProp.setValue(DEFAULT, "");
-        customFieldsProp.setPropertyEditorClass(TypeEditor.class);
+        customFieldsProp.setPropertyEditorClass(TextAreaEditor.class);
         customFieldsProp.setDisplayName("Custom Fields");
         customFieldsProp.setShortDescription("Additional ISO 8583 fields. Format: field:value;field:value. Example: 43:Merchant Name;49:901");
     }

@@ -1,7 +1,7 @@
 package com.fep.jmeter.sampler;
 
 import org.apache.jmeter.testbeans.BeanInfoSupport;
-import org.apache.jmeter.testbeans.gui.TypeEditor;
+import org.apache.jmeter.testbeans.gui.TextAreaEditor;
 
 import java.beans.PropertyDescriptor;
 
@@ -73,7 +73,7 @@ public class BankCoreMessageSenderSamplerBeanInfo extends BeanInfoSupport {
         PropertyDescriptor messageFieldsProp = property(BankCoreMessageSenderSampler.MESSAGE_FIELDS);
         messageFieldsProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
         messageFieldsProp.setValue(DEFAULT, "");
-        messageFieldsProp.setPropertyEditorClass(TypeEditor.class);
+        messageFieldsProp.setPropertyEditorClass(TextAreaEditor.class);
         messageFieldsProp.setDisplayName("Message Fields");
         messageFieldsProp.setShortDescription(
             "Custom message fields.\n" +

@@ -3,7 +3,6 @@ package com.fep.jmeter.sampler;
 import org.apache.jmeter.testbeans.BeanInfoSupport;
 import org.apache.jmeter.testbeans.gui.GenericTestBeanCustomizer;
 import org.apache.jmeter.testbeans.gui.TextAreaEditor;
-import org.apache.jmeter.testbeans.gui.TypeEditor;
 
 import java.beans.PropertyDescriptor;
 
@@ -117,6 +116,8 @@ public class BankCoreServerSamplerBeanInfo extends BeanInfoSupport {
         PropertyDescriptor enableValidationProp = property(BankCoreServerSampler.ENABLE_VALIDATION);
         enableValidationProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
         enableValidationProp.setValue(DEFAULT, Boolean.TRUE);
+        enableValidationProp.setValue(NOT_EXPRESSION, Boolean.TRUE);
+        enableValidationProp.setValue(NOT_OTHER, Boolean.TRUE);
         enableValidationProp.setDisplayName("Enable Validation");
         enableValidationProp.setShortDescription("Enable message validation against rules.");
 
@@ -153,6 +154,8 @@ public class BankCoreServerSamplerBeanInfo extends BeanInfoSupport {
         PropertyDescriptor enableRoutingProp = property(BankCoreServerSampler.ENABLE_FEP_ID_ROUTING);
         enableRoutingProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
         enableRoutingProp.setValue(DEFAULT, Boolean.TRUE);
+        enableRoutingProp.setValue(NOT_EXPRESSION, Boolean.TRUE);
+        enableRoutingProp.setValue(NOT_OTHER, Boolean.TRUE);
         enableRoutingProp.setDisplayName("Enable FEP ID Routing");
         enableRoutingProp.setShortDescription("Route responses to FEP clients based on FEP ID field.");
 
@@ -178,8 +181,7 @@ public class BankCoreServerSamplerBeanInfo extends BeanInfoSupport {
         PropertyDescriptor customFieldsProp = property(BankCoreServerSampler.CUSTOM_RESPONSE_FIELDS);
         customFieldsProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
         customFieldsProp.setValue(DEFAULT, "");
-        customFieldsProp.setPropertyEditorClass(TypeEditor.class);
-        customFieldsProp.setPropertyEditorClass(TypeEditor.class);
+        customFieldsProp.setPropertyEditorClass(TextAreaEditor.class);
         customFieldsProp.setDisplayName("Custom Response Fields");
         customFieldsProp.setShortDescription(
             "Custom fields to add to responses.\n" +
