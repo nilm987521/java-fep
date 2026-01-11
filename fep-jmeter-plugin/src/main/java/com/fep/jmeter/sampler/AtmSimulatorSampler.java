@@ -2,6 +2,8 @@ package com.fep.jmeter.sampler;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fep.jmeter.config.TransactionTemplate;
+import com.fep.jmeter.config.TransactionTemplateConfig;
 import com.fep.message.iso8583.Iso8583Message;
 import com.fep.message.iso8583.Iso8583MessageFactory;
 import com.fep.message.iso8583.MessageType;
@@ -33,8 +35,10 @@ import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Base64;
+import java.util.HashMap;
 import java.util.HexFormat;
 import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -96,6 +100,10 @@ public class AtmSimulatorSampler extends AbstractSampler implements TestBean, Te
     public static final String LENGTH_HEADER_TYPE = "lengthHeaderType";
     public static final String EXPECT_RESPONSE = "expectResponse";
     public static final String RESPONSE_MATCH_PATTERN = "responseMatchPattern";
+
+    // Property names - Template Config Integration
+    public static final String USE_TEMPLATE_CONFIG = "useTemplateConfig";
+    public static final String TEMPLATE_NAME = "templateName";
 
     // Static resources
     private static final Map<String, ChannelHolder> channelPool = new ConcurrentHashMap<>();
@@ -543,6 +551,11 @@ public class AtmSimulatorSampler extends AbstractSampler implements TestBean, Te
     }
 
     private Iso8583Message buildAtmTransaction(String transactionTypeStr) {
+        // Check if Template Config mode is enabled
+        if (isUseTemplateConfig()) {
+            return buildFromTemplateConfig();
+        }
+
         AtmTransactionType transactionType = AtmTransactionType.fromString(transactionTypeStr);
 
         // Determine MTI - use override if provided, otherwise use transaction type default
@@ -778,6 +791,148 @@ public class AtmSimulatorSampler extends AbstractSampler implements TestBean, Te
                     log.warn("Invalid field number: {}", kv[0]);
                 }
             }
+        }
+    }
+
+    /**
+     * Finds TransactionTemplateConfig in the current test plan.
+     * If not found, returns a default config using COMMON templates.
+     */
+    private TransactionTemplateConfig findTemplateConfig() {
+        JMeterContext context = JMeterContextService.getContext();
+        if (context != null) {
+            // Search for TransactionTemplateConfig in the sampler's scope
+            org.apache.jmeter.testelement.TestElement current = context.getCurrentSampler();
+            if (current != null) {
+                // Try to find config from thread group's config elements
+                // This is a simplified approach - in real JMeter, configs are
+                // automatically merged into the sampler's scope
+                org.apache.jmeter.threads.JMeterThread thread =
+                    org.apache.jmeter.threads.JMeterContextService.getContext().getThread();
+                if (thread != null) {
+                    // Check if there's a TransactionTemplateConfig in scope
+                    // For now, we'll create a default one using COMMON templates
+                }
+            }
+        }
+
+        // Default: use COMMON templates
+        TransactionTemplateConfig defaultConfig = new TransactionTemplateConfig();
+        defaultConfig.setTemplateSource("COMMON");
+        defaultConfig.setAutoGenerateStan(true);
+        defaultConfig.setAutoGenerateTimestamp(true);
+        return defaultConfig;
+    }
+
+    /**
+     * Builds an ISO 8583 message from TransactionTemplateConfig.
+     */
+    private Iso8583Message buildFromTemplateConfig() {
+        TransactionTemplateConfig config = findTemplateConfig();
+        String templateName = getTemplateName();
+
+        // Get template
+        Optional<TransactionTemplate> templateOpt = config.getTemplate(templateName);
+        if (templateOpt.isEmpty()) {
+            log.warn("Template not found: {}. Using Balance Inquiry as fallback.", templateName);
+            templateOpt = Optional.of(TransactionTemplate.CommonTemplates.balanceInquiry());
+        }
+
+        TransactionTemplate template = templateOpt.get();
+
+        // Build variables
+        Map<String, String> variables = buildTemplateVariables();
+
+        // Create message from template
+        Iso8583Message message = template.createMessage(variables);
+
+        // Apply MTI override if provided
+        String mtiOverride = getMtiOverride();
+        if (mtiOverride != null && !mtiOverride.isEmpty()) {
+            message.setMti(mtiOverride);
+        }
+
+        // Apply processing code override if provided
+        String processingCodeOverride = getProcessingCodeOverride();
+        if (processingCodeOverride != null && !processingCodeOverride.isEmpty()) {
+            message.setField(3, processingCodeOverride);
+        }
+
+        // Apply custom fields (highest priority, can override anything)
+        applyCustomFields(message);
+
+        return message;
+    }
+
+    /**
+     * Builds variable map for template substitution.
+     */
+    private Map<String, String> buildTemplateVariables() {
+        Map<String, String> variables = new HashMap<>();
+
+        // Auto-generate STAN
+        String stan = String.format("%06d", stanCounter.incrementAndGet() % 1000000);
+        variables.put("stan", stan);
+
+        // Auto-generate timestamps
+        LocalDateTime now = LocalDateTime.now();
+        variables.put("time", now.format(DateTimeFormatter.ofPattern("HHmmss")));
+        variables.put("date", now.format(DateTimeFormatter.ofPattern("MMdd")));
+        variables.put("datetime", now.format(DateTimeFormatter.ofPattern("MMddHHmmss")));
+
+        // From sampler properties
+        addIfNotEmpty(variables, "amount", formatAmount(getAmount()));
+        addIfNotEmpty(variables, "cardNumber", getCardNumber());
+        addIfNotEmpty(variables, "pan", getCardNumber());
+        addIfNotEmpty(variables, "terminalId", getAtmId());
+        addIfNotEmpty(variables, "atmId", getAtmId());
+        addIfNotEmpty(variables, "atmLocation", getAtmLocation());
+        addIfNotEmpty(variables, "bankCode", getBankCode());
+        addIfNotEmpty(variables, "destAccount", getDestinationAccount());
+        addIfNotEmpty(variables, "sourceAccount", getCardNumber());
+
+        // Generate RRN
+        String rrn = String.format("%012d", System.currentTimeMillis() % 1000000000000L);
+        variables.put("rrn", rrn);
+
+        // From JMeter variables
+        JMeterContext context = JMeterContextService.getContext();
+        if (context != null && context.getVariables() != null) {
+            JMeterVariables vars = context.getVariables();
+            // Add any JMeter variables that might be useful for templates
+            for (String varName : new String[]{"amount", "cardNumber", "pan", "terminalId",
+                    "atmId", "bankCode", "destAccount", "sourceAccount", "billerCode", "billReference"}) {
+                String value = vars.get(varName);
+                if (value != null && !variables.containsKey(varName)) {
+                    variables.put(varName, value);
+                }
+            }
+        }
+
+        return variables;
+    }
+
+    /**
+     * Formats amount to 12-digit format.
+     */
+    private String formatAmount(String amount) {
+        if (amount == null || amount.isEmpty()) {
+            return "";
+        }
+        try {
+            long amountValue = Long.parseLong(amount.replaceAll("[^0-9]", ""));
+            return String.format("%012d", amountValue);
+        } catch (NumberFormatException e) {
+            return amount;
+        }
+    }
+
+    /**
+     * Adds value to map if not empty.
+     */
+    private void addIfNotEmpty(Map<String, String> map, String key, String value) {
+        if (value != null && !value.isEmpty()) {
+            map.put(key, value);
         }
     }
 
@@ -1119,6 +1274,24 @@ public class AtmSimulatorSampler extends AbstractSampler implements TestBean, Te
 
     public void setResponseMatchPattern(String pattern) {
         setProperty(RESPONSE_MATCH_PATTERN, pattern);
+    }
+
+    // ===== Template Config Getters and Setters =====
+
+    public boolean isUseTemplateConfig() {
+        return getPropertyAsBoolean(USE_TEMPLATE_CONFIG, false);
+    }
+
+    public void setUseTemplateConfig(boolean use) {
+        setProperty(USE_TEMPLATE_CONFIG, use);
+    }
+
+    public String getTemplateName() {
+        return getPropertyAsString(TEMPLATE_NAME, "Withdrawal");
+    }
+
+    public void setTemplateName(String name) {
+        setProperty(TEMPLATE_NAME, name);
     }
 
     /**

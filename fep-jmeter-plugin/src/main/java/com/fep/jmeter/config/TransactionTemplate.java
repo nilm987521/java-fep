@@ -413,5 +413,14 @@ public class TransactionTemplate implements Serializable {
                 reversal()
             );
         }
+
+        /**
+         * Gets all template names as a String array for JMeter GUI TAGS.
+         */
+        public static String[] names() {
+            return all().stream()
+                .map(TransactionTemplate::getName)
+                .toArray(String[]::new);
+        }
     }
 }

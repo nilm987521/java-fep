@@ -1,5 +1,6 @@
 package com.fep.jmeter.sampler;
 
+import com.fep.jmeter.config.TransactionTemplate;
 import org.apache.jmeter.testbeans.BeanInfoSupport;
 import org.apache.jmeter.testbeans.gui.TextAreaEditor;
 
@@ -28,12 +29,14 @@ public class AtmSimulatorSamplerBeanInfo extends BeanInfoSupport {
     private static final String SECURITY_GROUP = "security";
     private static final String ADVANCED_GROUP = "advanced";
     private static final String RAW_MODE_GROUP = "rawMode";
+    private static final String TEMPLATE_CONFIG_GROUP = "templateConfig";
 
     // Transaction types
     private static final String[] TRANSACTION_TYPES = AtmTransactionType.names();
     private static final String[] PROTOCOL_TYPES = AtmProtocolType.names();
     private static final String[] RAW_MESSAGE_FORMATS = RawMessageFormat.names();
     private static final String[] LENGTH_HEADER_TYPES = LengthHeaderType.names();
+    private static final String[] TEMPLATE_NAMES = TransactionTemplate.CommonTemplates.names();
 
     public AtmSimulatorSamplerBeanInfo() {
         super(AtmSimulatorSampler.class);
@@ -84,6 +87,11 @@ public class AtmSimulatorSamplerBeanInfo extends BeanInfoSupport {
             AtmSimulatorSampler.RAW_MESSAGE_DATA,
             AtmSimulatorSampler.EXPECT_RESPONSE,
             AtmSimulatorSampler.RESPONSE_MATCH_PATTERN
+        });
+
+        createPropertyGroup(TEMPLATE_CONFIG_GROUP, new String[]{
+            AtmSimulatorSampler.USE_TEMPLATE_CONFIG,
+            AtmSimulatorSampler.TEMPLATE_NAME
         });
 
         // ===== Connection properties =====
@@ -335,6 +343,37 @@ public class AtmSimulatorSamplerBeanInfo extends BeanInfoSupport {
             "  CONTAINS:OK - Response text contains 'OK'\n" +
             "  REGEX:.* - Response matches regex\n" +
             "  LENGTH:100 - Response is exactly 100 bytes"
+        );
+
+        // ===== Template Config properties =====
+        PropertyDescriptor useTemplateConfigProp = property(AtmSimulatorSampler.USE_TEMPLATE_CONFIG);
+        useTemplateConfigProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
+        useTemplateConfigProp.setValue(DEFAULT, Boolean.FALSE);
+        useTemplateConfigProp.setValue(NOT_EXPRESSION, Boolean.TRUE);
+        useTemplateConfigProp.setValue(NOT_OTHER, Boolean.TRUE);
+        useTemplateConfigProp.setDisplayName("Use Template Config");
+        useTemplateConfigProp.setShortDescription(
+            "Use TransactionTemplateConfig for message generation.\n" +
+            "When enabled, uses predefined templates instead of Transaction Type.\n" +
+            "Templates provide flexible field configuration with variable substitution."
+        );
+
+        PropertyDescriptor templateNameProp = property(AtmSimulatorSampler.TEMPLATE_NAME);
+        templateNameProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
+        templateNameProp.setValue(DEFAULT, "Withdrawal");
+        templateNameProp.setValue(NOT_EXPRESSION, Boolean.TRUE);
+        templateNameProp.setValue(NOT_OTHER, Boolean.TRUE);
+        templateNameProp.setValue(TAGS, TEMPLATE_NAMES);
+        templateNameProp.setDisplayName("Template Name");
+        templateNameProp.setShortDescription(
+            "Name of the template to use (only when Use Template Config is enabled).\n" +
+            "Built-in templates:\n" +
+            "  Withdrawal - Cash withdrawal (提款)\n" +
+            "  Balance Inquiry - Balance inquiry (餘額查詢)\n" +
+            "  Fund Transfer - Interbank transfer (轉帳)\n" +
+            "  Bill Payment - Bill payment (繳費)\n" +
+            "  Sign On/Sign Off/Echo Test - Network management\n" +
+            "  Reversal - Transaction reversal (沖正)"
         );
     }
 }

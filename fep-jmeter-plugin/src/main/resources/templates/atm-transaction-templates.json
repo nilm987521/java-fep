@@ -1,0 +1,259 @@
+[
+  {
+    "name": "ATM提款",
+    "mti": "0200",
+    "description": "ATM現金提款交易",
+    "fields": {
+      "2": "${cardNumber}",
+      "3": "010000",
+      "4": "${amount}",
+      "11": "${stan}",
+      "12": "${time}",
+      "13": "${date}",
+      "22": "051",
+      "25": "00",
+      "32": "${bankCode}",
+      "37": "${rrn}",
+      "41": "${terminalId}",
+      "42": "MERCHANT_ID_001",
+      "43": "${atmLocation}",
+      "49": "901"
+    },
+    "validationRules": "REQUIRED:2,3,4,11,41"
+  },
+  {
+    "name": "ATM餘額查詢",
+    "mti": "0200",
+    "description": "ATM帳戶餘額查詢",
+    "fields": {
+      "2": "${cardNumber}",
+      "3": "310000",
+      "11": "${stan}",
+      "12": "${time}",
+      "13": "${date}",
+      "22": "051",
+      "25": "00",
+      "32": "${bankCode}",
+      "37": "${rrn}",
+      "41": "${terminalId}",
+      "49": "901"
+    },
+    "validationRules": "REQUIRED:2,3,11,41"
+  },
+  {
+    "name": "ATM跨行轉帳",
+    "mti": "0200",
+    "description": "ATM跨行轉帳交易",
+    "fields": {
+      "2": "${cardNumber}",
+      "3": "400000",
+      "4": "${amount}",
+      "11": "${stan}",
+      "12": "${time}",
+      "13": "${date}",
+      "22": "051",
+      "25": "00",
+      "32": "${bankCode}",
+      "37": "${rrn}",
+      "41": "${terminalId}",
+      "43": "${atmLocation}",
+      "49": "901",
+      "102": "${sourceAccount}",
+      "103": "${destAccount}"
+    },
+    "validationRules": "REQUIRED:2,3,4,11,41,102,103"
+  },
+  {
+    "name": "ATM存款",
+    "mti": "0200",
+    "description": "ATM現金存款交易",
+    "fields": {
+      "2": "${cardNumber}",
+      "3": "210000",
+      "4": "${amount}",
+      "11": "${stan}",
+      "12": "${time}",
+      "13": "${date}",
+      "22": "051",
+      "25": "00",
+      "32": "${bankCode}",
+      "37": "${rrn}",
+      "41": "${terminalId}",
+      "49": "901"
+    },
+    "validationRules": "REQUIRED:2,3,4,11,41"
+  },
+  {
+    "name": "ATM繳費",
+    "mti": "0200",
+    "description": "ATM代繳費用（水電瓦斯等）",
+    "fields": {
+      "2": "${cardNumber}",
+      "3": "500000",
+      "4": "${amount}",
+      "11": "${stan}",
+      "12": "${time}",
+      "13": "${date}",
+      "22": "051",
+      "32": "${bankCode}",
+      "37": "${rrn}",
+      "41": "${terminalId}",
+      "48": "${billerCode}",
+      "49": "901",
+      "62": "${billReference}"
+    },
+    "validationRules": "REQUIRED:2,3,4,11,41,48,62"
+  },
+  {
+    "name": "ATM無卡提款",
+    "mti": "0200",
+    "description": "ATM無卡提款交易（使用OTP）",
+    "fields": {
+      "3": "012000",
+      "4": "${amount}",
+      "11": "${stan}",
+      "12": "${time}",
+      "13": "${date}",
+      "22": "010",
+      "25": "00",
+      "32": "${bankCode}",
+      "37": "${rrn}",
+      "41": "${terminalId}",
+      "48": "${otpCode}",
+      "49": "901",
+      "102": "${withdrawalAccount}"
+    },
+    "validationRules": "REQUIRED:3,4,11,41,48,102"
+  },
+  {
+    "name": "ATM密碼變更",
+    "mti": "0200",
+    "description": "ATM PIN碼變更",
+    "fields": {
+      "2": "${cardNumber}",
+      "3": "920000",
+      "11": "${stan}",
+      "12": "${time}",
+      "13": "${date}",
+      "22": "051",
+      "25": "00",
+      "32": "${bankCode}",
+      "37": "${rrn}",
+      "41": "${terminalId}",
+      "52": "${newPinBlock}"
+    },
+    "validationRules": "REQUIRED:2,3,11,41,52"
+  },
+  {
+    "name": "網路簽到",
+    "mti": "0800",
+    "description": "終端機網路簽到",
+    "fields": {
+      "11": "${stan}",
+      "12": "${time}",
+      "13": "${date}",
+      "41": "${terminalId}",
+      "70": "001"
+    },
+    "validationRules": "REQUIRED:11,41,70"
+  },
+  {
+    "name": "網路簽退",
+    "mti": "0800",
+    "description": "終端機網路簽退",
+    "fields": {
+      "11": "${stan}",
+      "12": "${time}",
+      "13": "${date}",
+      "41": "${terminalId}",
+      "70": "002"
+    },
+    "validationRules": "REQUIRED:11,41,70"
+  },
+  {
+    "name": "Echo測試",
+    "mti": "0800",
+    "description": "網路連線測試",
+    "fields": {
+      "11": "${stan}",
+      "12": "${time}",
+      "13": "${date}",
+      "41": "${terminalId}",
+      "70": "301"
+    },
+    "validationRules": "REQUIRED:11,70"
+  },
+  {
+    "name": "金鑰交換",
+    "mti": "0800",
+    "description": "終端機金鑰交換",
+    "fields": {
+      "11": "${stan}",
+      "12": "${time}",
+      "13": "${date}",
+      "41": "${terminalId}",
+      "70": "101"
+    },
+    "validationRules": "REQUIRED:11,41,70"
+  },
+  {
+    "name": "交易沖正",
+    "mti": "0400",
+    "description": "交易沖正/取消",
+    "fields": {
+      "2": "${cardNumber}",
+      "3": "${originalProcessingCode}",
+      "4": "${amount}",
+      "11": "${stan}",
+      "12": "${time}",
+      "13": "${date}",
+      "32": "${bankCode}",
+      "37": "${originalRrn}",
+      "41": "${terminalId}",
+      "49": "901",
+      "90": "${originalDataElements}"
+    },
+    "validationRules": "REQUIRED:2,3,4,11,37,41,90"
+  },
+  {
+    "name": "預先授權",
+    "mti": "0100",
+    "description": "交易預先授權",
+    "fields": {
+      "2": "${cardNumber}",
+      "3": "000000",
+      "4": "${amount}",
+      "11": "${stan}",
+      "12": "${time}",
+      "13": "${date}",
+      "22": "051",
+      "25": "00",
+      "32": "${bankCode}",
+      "37": "${rrn}",
+      "41": "${terminalId}",
+      "49": "901"
+    },
+    "validationRules": "REQUIRED:2,3,4,11,41"
+  },
+  {
+    "name": "授權完成",
+    "mti": "0200",
+    "description": "預先授權完成",
+    "fields": {
+      "2": "${cardNumber}",
+      "3": "000000",
+      "4": "${amount}",
+      "11": "${stan}",
+      "12": "${time}",
+      "13": "${date}",
+      "22": "051",
+      "25": "00",
+      "32": "${bankCode}",
+      "37": "${rrn}",
+      "38": "${originalAuthCode}",
+      "41": "${terminalId}",
+      "49": "901"
+    },
+    "validationRules": "REQUIRED:2,3,4,11,38,41"
+  }
+]
