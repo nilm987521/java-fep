@@ -361,6 +361,18 @@ fep-jmeter-plugin/
 | `BankCore_Server_Simulator.jmx` | 銀行核心系統雙連線伺服器基本範本 |
 | `BankCore_Test_Scenarios.jmx` | 多場景測試（基本、驗證、路由、規則、餘額不足） |
 
+### ATM 模擬器
+
+| 檔案 | 說明 |
+|------|------|
+| `ATM_Simulator_Test.jmx` | ATM 模擬器測試（提款、轉帳、餘額查詢、自訂範本） |
+
+### 交易範本 (Transaction Template)
+
+| 檔案 | 說明 |
+|------|------|
+| `Transaction_Template_Test.jmx` | 交易範本功能示範（COMMON/INLINE/FILE 三種來源） |
+
 ### 雙連線模擬範例
 
 #### 場景 1: 全部成功
@@ -407,3 +419,128 @@ jmeter -n -t FISC_Test_Plan.jmx -l results.jtl
 # 產生 HTML 報告
 jmeter -n -t FISC_Test_Plan.jmx -l results.jtl -e -o report/
 ```
+
+## 交易範本 (Transaction Template)
+
+TransactionTemplate 提供彈性的 ISO 8583 電文配置機制，允許自訂交易範本。
+
+### 功能特色
+
+- **任意欄位配置** - 支援 ISO 8583 所有欄位 (1-128)
+- **變數替換** - 使用 `${variable}` 語法替換變數
+- **自動欄位生成** - 自動產生 STAN、時間戳記
+- **多種來源** - COMMON (預設)、FILE (JSON檔案)、INLINE (內嵌JSON)
+- **JMeter 整合** - 支援 JMeter 變數
+
+### 預設範本 (CommonTemplates)
+
+| 範本名稱 | MTI | 說明 |
+|---------|-----|------|
+| Withdrawal | 0200 | 提款交易 |
+| Balance Inquiry | 0200 | 餘額查詢 |
+| Fund Transfer | 0200 | 轉帳交易 |
+| Bill Payment | 0200 | 繳費交易 |
+| Sign On | 0800 | 簽到 |
+| Sign Off | 0800 | 簽退 |
+| Echo Test | 0800 | 連線測試 |
+| Reversal | 0400 | 沖正交易 |
+
+### JSON 範本格式
+
+```json
+{
+  "name": "Custom Withdrawal",
+  "mti": "0200",
+  "description": "自訂提款交易",
+  "fields": {
+    "3": "010000",
+    "4": "${amount}",
+    "11": "${stan}",
+    "12": "${time}",
+    "13": "${date}",
+    "22": "051",
+    "41": "${terminalId}"
+  },
+  "validationRules": "REQUIRED:2,3,4,11,41",
+  "enabled": true,
+  "priority": 10
+}
+```
+
+### 支援的變數
+
+| 變數名 | 說明 | 來源 |
+|--------|------|------|
+| `${stan}` | System Trace Audit Number | 自動生成 |
+| `${time}` | 時間 (HHmmss) | 自動生成 |
+| `${date}` | 日期 (MMdd) | 自動生成 |
+| `${datetime}` | 日期時間 (MMddHHmmss) | 自動生成 |
+| `${amount}` | 交易金額 | Sampler 屬性 |
+| `${cardNumber}` | 卡號 | Sampler 屬性 |
+| `${terminalId}` | 終端機 ID | Sampler 屬性 |
+| `${bankCode}` | 銀行代碼 | Sampler 屬性 |
+| `${sourceAccount}` | 來源帳號 | Sampler 屬性 |
+| `${destAccount}` | 目的帳號 | Sampler 屬性 |
+
+### 使用方式
+
+#### 1. 新增 Transaction Template Config
+
+在 Test Plan 或 Thread Group 下新增：
+- **右鍵 > Add > Config Element > Transaction Template Config**
+
+設定參數：
+- **Template Source**: COMMON / FILE / INLINE
+- **Template File**: JSON 檔案路徑 (FILE 模式)
+- **Inline Templates**: 內嵌 JSON (INLINE 模式)
+- **Include Common Templates**: 是否包含預設範本
+- **Auto-generate STAN**: 自動產生 STAN
+- **Auto-generate Timestamp**: 自動產生時間戳記
+
+#### 2. 新增 Template Sampler
+
+在 Thread Group 下新增：
+- **右鍵 > Add > Sampler > Template Sampler**
+
+設定參數：
+- **Target Host/Port**: 目標伺服器位址
+- **Template Name**: 範本名稱
+- **MTI Override**: 覆寫 MTI (選填)
+- **Amount/Card Number/Terminal ID/Bank Code**: 變數值
+- **Custom Fields**: 額外欄位 (格式: field:value;field:value)
+
+#### 3. 範例
+
+##### 使用 COMMON 範本
+```
+Template Source: COMMON
+Template Name: Withdrawal
+Amount: 100000
+Card Number: 4111111111111111
+Terminal ID: ATM00001
+```
+
+##### 使用 INLINE 自訂範本
+```
+Template Source: INLINE
+Inline Templates: [{"name": "Custom", "mti": "0100", "fields": {"3": "000000"}}]
+Template Name: Custom
+```
+
+##### 使用 FILE 外部範本
+```
+Template Source: FILE
+Template File: /path/to/templates.json
+Template Name: MyTemplate
+```
+
+### Template Sampler 變數
+
+執行後，以下變數會被設定：
+- `TPL_TEMPLATE` - 使用的範本名稱
+- `TPL_MTI` - 回應 MTI
+- `TPL_RESPONSE_CODE` - 回應碼
+- `TPL_STAN` - 交易序號
+- `TPL_RRN` - 調閱參考號碼
+- `TPL_AUTH_CODE` - 授權碼
+- `TPL_BALANCE` - 餘額（如有）
