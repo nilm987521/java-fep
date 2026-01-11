@@ -1,0 +1,238 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6.3">
+  <hashTree>
+    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="BankCore Server Simulator" enabled="true">
+      <stringProp name="TestPlan.comments">Bank Core System Dual-Channel Server Simulator for FEP Testing.
+
+This test plan simulates a bank core system that:
+- Accepts transactions from FEP on Send Channel (port 9100)
+- Sends responses to FEP on Receive Channel (port 9101)
+- Supports FEP ID routing for multi-FEP environments
+- Provides configurable response rules and validation
+
+Supported MTI Types:
+- 0100: Authorization Request
+- 0200: Financial Request (Withdrawal, Transfer, Inquiry)
+- 0400: Reversal Request
+- 0800: Network Management (Sign On/Off, Echo Test)</stringProp>
+      <boolProp name="TestPlan.functional_mode">false</boolProp>
+      <boolProp name="TestPlan.tearDown_on_shutdown">true</boolProp>
+      <boolProp name="TestPlan.serialize_threadgroups">false</boolProp>
+      <elementProp name="TestPlan.user_defined_variables" elementType="Arguments" guiclass="ArgumentsPanel" testclass="Arguments" testname="User Defined Variables" enabled="true">
+        <collectionProp name="Arguments.arguments">
+          <elementProp name="SEND_PORT" elementType="Argument">
+            <stringProp name="Argument.name">SEND_PORT</stringProp>
+            <stringProp name="Argument.value">9100</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="RECEIVE_PORT" elementType="Argument">
+            <stringProp name="Argument.name">RECEIVE_PORT</stringProp>
+            <stringProp name="Argument.value">9101</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="AVAILABLE_BALANCE" elementType="Argument">
+            <stringProp name="Argument.name">AVAILABLE_BALANCE</stringProp>
+            <stringProp name="Argument.value">100000</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="LEDGER_BALANCE" elementType="Argument">
+            <stringProp name="Argument.name">LEDGER_BALANCE</stringProp>
+            <stringProp name="Argument.value">150000</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+        </collectionProp>
+      </elementProp>
+    </TestPlan>
+    <hashTree>
+      <!-- Bank Core Server Thread Group -->
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="Bank Core Server" enabled="true">
+        <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller" enabled="true">
+          <boolProp name="LoopController.continue_forever">true</boolProp>
+          <intProp name="LoopController.loops">-1</intProp>
+        </elementProp>
+        <stringProp name="ThreadGroup.num_threads">1</stringProp>
+        <stringProp name="ThreadGroup.ramp_time">0</stringProp>
+        <boolProp name="ThreadGroup.scheduler">false</boolProp>
+        <stringProp name="ThreadGroup.duration"></stringProp>
+        <stringProp name="ThreadGroup.delay"></stringProp>
+        <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
+      </ThreadGroup>
+      <hashTree>
+        <!-- Bank Core Server Sampler -->
+        <com.fep.jmeter.sampler.BankCoreServerSampler guiclass="TestBeanGUI" testclass="com.fep.jmeter.sampler.BankCoreServerSampler" testname="Bank Core Dual-Channel Server" enabled="true">
+          <!-- Server Settings -->
+          <stringProp name="sendPort">${SEND_PORT}</stringProp>
+          <stringProp name="receivePort">${RECEIVE_PORT}</stringProp>
+          <stringProp name="sampleInterval">1000</stringProp>
+
+          <!-- Response Settings -->
+          <stringProp name="defaultResponseCode">00</stringProp>
+          <stringProp name="responseDelay">50</stringProp>
+
+          <!-- Balance Settings -->
+          <stringProp name="availableBalance">${AVAILABLE_BALANCE}</stringProp>
+          <stringProp name="ledgerBalance">${LEDGER_BALANCE}</stringProp>
+
+          <!-- Validation Settings -->
+          <boolProp name="enableValidation">false</boolProp>
+          <stringProp name="validationErrorCode">30</stringProp>
+          <stringProp name="validationRules"></stringProp>
+
+          <!-- Routing Settings -->
+          <boolProp name="enableFepIdRouting">true</boolProp>
+          <stringProp name="fepIdField">32</stringProp>
+
+          <!-- Response Rules (JSON) -->
+          <stringProp name="responseRules">{
+  "defaultResponseCode": "00",
+  "handlers": [
+    {
+      "mti": "0200",
+      "rules": [
+        {
+          "condition": {"field": 3, "value": "010000"},
+          "response": {"39": "00", "38": "AUTH01"}
+        },
+        {
+          "condition": {"field": 3, "value": "400000"},
+          "response": {"39": "00", "38": "WD0001"}
+        },
+        {
+          "condition": {"field": 3, "value": "310000"},
+          "response": {"39": "00"}
+        },
+        {
+          "condition": "DEFAULT",
+          "response": {"39": "00"}
+        }
+      ]
+    },
+    {
+      "mti": "0100",
+      "rules": [
+        {
+          "condition": {"field": 3, "value": "000000"},
+          "response": {"39": "00", "38": "PRE001"}
+        },
+        {
+          "condition": "DEFAULT",
+          "response": {"39": "00"}
+        }
+      ]
+    },
+    {
+      "mti": "0400",
+      "rules": [
+        {
+          "condition": "DEFAULT",
+          "response": {"39": "00"}
+        }
+      ]
+    },
+    {
+      "mti": "0800",
+      "rules": [
+        {
+          "condition": {"field": 70, "value": "001"},
+          "response": {"39": "00"}
+        },
+        {
+          "condition": {"field": 70, "value": "301"},
+          "response": {"39": "00"}
+        },
+        {
+          "condition": "DEFAULT",
+          "response": {"39": "00"}
+        }
+      ]
+    }
+  ]
+}</stringProp>
+
+          <!-- Custom Response Fields -->
+          <stringProp name="customResponseFields"></stringProp>
+        </com.fep.jmeter.sampler.BankCoreServerSampler>
+        <hashTree/>
+
+        <!-- View Results Tree -->
+        <ResultCollector guiclass="ViewResultsFullVisualizer" testclass="ResultCollector" testname="View Results Tree" enabled="true">
+          <boolProp name="ResultCollector.error_logging">false</boolProp>
+          <objProp>
+            <name>saveConfig</name>
+            <value class="SampleSaveConfiguration">
+              <time>true</time>
+              <latency>true</latency>
+              <timestamp>true</timestamp>
+              <success>true</success>
+              <label>true</label>
+              <code>true</code>
+              <message>true</message>
+              <threadName>true</threadName>
+              <dataType>true</dataType>
+              <encoding>false</encoding>
+              <assertions>true</assertions>
+              <subresults>true</subresults>
+              <responseData>true</responseData>
+              <samplerData>true</samplerData>
+              <xml>false</xml>
+              <fieldNames>true</fieldNames>
+              <responseHeaders>true</responseHeaders>
+              <requestHeaders>true</requestHeaders>
+              <responseDataOnError>false</responseDataOnError>
+              <saveAssertionResultsFailureMessage>true</saveAssertionResultsFailureMessage>
+              <assertionsResultsToSave>0</assertionsResultsToSave>
+              <bytes>true</bytes>
+              <sentBytes>true</sentBytes>
+              <url>true</url>
+              <threadCounts>true</threadCounts>
+              <idleTime>true</idleTime>
+              <connectTime>true</connectTime>
+            </value>
+          </objProp>
+          <stringProp name="filename"></stringProp>
+        </ResultCollector>
+        <hashTree/>
+
+        <!-- Summary Report -->
+        <ResultCollector guiclass="SummaryReport" testclass="ResultCollector" testname="Summary Report" enabled="true">
+          <boolProp name="ResultCollector.error_logging">false</boolProp>
+          <objProp>
+            <name>saveConfig</name>
+            <value class="SampleSaveConfiguration">
+              <time>true</time>
+              <latency>true</latency>
+              <timestamp>true</timestamp>
+              <success>true</success>
+              <label>true</label>
+              <code>true</code>
+              <message>true</message>
+              <threadName>true</threadName>
+              <dataType>true</dataType>
+              <encoding>false</encoding>
+              <assertions>true</assertions>
+              <subresults>true</subresults>
+              <responseData>false</responseData>
+              <samplerData>false</samplerData>
+              <xml>false</xml>
+              <fieldNames>true</fieldNames>
+              <responseHeaders>false</responseHeaders>
+              <requestHeaders>false</requestHeaders>
+              <responseDataOnError>false</responseDataOnError>
+              <saveAssertionResultsFailureMessage>true</saveAssertionResultsFailureMessage>
+              <assertionsResultsToSave>0</assertionsResultsToSave>
+              <bytes>true</bytes>
+              <sentBytes>true</sentBytes>
+              <url>true</url>
+              <threadCounts>true</threadCounts>
+              <idleTime>true</idleTime>
+              <connectTime>true</connectTime>
+            </value>
+          </objProp>
+          <stringProp name="filename"></stringProp>
+        </ResultCollector>
+        <hashTree/>
+      </hashTree>
+    </hashTree>
+  </hashTree>
+</jmeterTestPlan>

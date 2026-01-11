@@ -190,7 +190,83 @@ Response Rules: 010000:00;400000:51;310000:00
 Custom Response Fields: 43:Test Merchant;49:901
 ```
 
-### 5. Server Simulator 使用場景
+### 5. 新增 Bank Core Dual-Channel Server Simulator
+
+在 Thread Group 下新增：
+- **右鍵 > Add > Sampler > Bank Core Dual-Channel Server Simulator**
+
+這是模擬銀行核心系統雙連線伺服器的 Sampler，可用於：
+- 測試 FEP 與核心系統整合
+- 模擬各種回應碼場景
+- 測試 FEP ID 路由功能
+- 驗證電文欄位格式
+
+#### 設定參數
+
+**Server Settings:**
+| 參數 | 說明 | 預設值 |
+|------|------|--------|
+| Send Port | 接收 FEP 請求的埠號 | 9100 |
+| Receive Port | 發送回應給 FEP 的埠號 | 9101 |
+| Sample Interval | 統計取樣間隔（毫秒） | 1000 |
+
+**Response Settings:**
+| 參數 | 說明 | 預設值 |
+|------|------|--------|
+| Default Response Code | 預設回應碼 | 00 |
+| Response Delay | 模擬處理延遲（毫秒） | 0 |
+
+**Balance Settings:**
+| 參數 | 說明 | 預設值 |
+|------|------|--------|
+| Available Balance | 可用餘額（分） | 100000 |
+| Ledger Balance | 帳面餘額（分） | 150000 |
+
+**Validation Settings:**
+| 參數 | 說明 | 預設值 |
+|------|------|--------|
+| Enable Validation | 啟用電文驗證 | false |
+| Validation Error Code | 驗證失敗回傳碼 | 30 |
+| Validation Rules | 驗證規則 | - |
+
+**Routing Settings:**
+| 參數 | 說明 | 預設值 |
+|------|------|--------|
+| Enable FEP ID Routing | 依 FEP ID 路由回應 | true |
+| FEP ID Field | FEP ID 欄位 | 32 |
+
+**Advanced Settings:**
+| 參數 | 說明 |
+|------|------|
+| Response Rules (JSON) | JSON 格式的 MTI 回應規則 |
+| Custom Response Fields | 自訂回應欄位 |
+
+#### JSON 回應規則範例
+
+```json
+{
+  "defaultResponseCode": "12",
+  "handlers": [
+    {
+      "mti": "0200",
+      "rules": [
+        {"condition": {"field": 3, "value": "010000"}, "response": {"39": "00", "38": "AUTH01"}},
+        {"condition": {"field": 3, "value": "400000"}, "response": {"39": "51"}},
+        {"condition": "DEFAULT", "response": {"39": "00"}}
+      ]
+    },
+    {
+      "mti": "0800",
+      "rules": [
+        {"condition": {"field": 70, "value": "001"}, "response": {"39": "00"}},
+        {"condition": "DEFAULT", "response": {"39": "00"}}
+      ]
+    }
+  ]
+}
+```
+
+### 6. Server Simulator 使用場景
 
 #### 場景 A：作為獨立模擬伺服器
 1. 建立一個 Thread Group，設定執行緒數為 1
@@ -267,13 +343,23 @@ fep-jmeter-plugin/
 
 在 `examples/` 目錄下提供以下範例：
 
+### FISC 財金模擬器
+
 | 檔案 | 說明 |
 |------|------|
 | `FISC_DualChannel_Server_Simulator.jmx` | 雙連線伺服器模擬基本範本 |
 | `FISC_DualChannel_Test_Scenarios.jmx` | 多場景測試（成功/餘額不足/逾時/驗證） |
+| `FISC_MTI_Response_Rules_Demo.jmx` | MTI 回應規則引擎示範 |
 | `FISC_Test_Plan.jmx` | 完整測試計畫，包含各類交易和壓測 |
 | `FISC_Parameterized_Test.jmx` | 使用 CSV 參數化的測試計畫 |
 | `test_cards.csv` | 測試卡號資料檔案 |
+
+### BankCore 銀行核心系統模擬器
+
+| 檔案 | 說明 |
+|------|------|
+| `BankCore_Server_Simulator.jmx` | 銀行核心系統雙連線伺服器基本範本 |
+| `BankCore_Test_Scenarios.jmx` | 多場景測試（基本、驗證、路由、規則、餘額不足） |
 
 ### 雙連線模擬範例
 
