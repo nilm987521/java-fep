@@ -17,6 +17,7 @@ import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.netty.handler.codec.LengthFieldPrepender;
 import io.netty.handler.timeout.ReadTimeoutHandler;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.jmeter.samplers.AbstractSampler;
 import org.apache.jmeter.samplers.Entry;
 import org.apache.jmeter.samplers.SampleResult;
@@ -31,9 +32,12 @@ import org.slf4j.LoggerFactory;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Base64;
+import java.util.HexFormat;
 import java.util.Map;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * JMeter Sampler for simulating ATM transactions.
@@ -53,10 +57,10 @@ import java.util.concurrent.atomic.AtomicInteger;
  * <p>The ATM connects directly to FEP, and FEP routes the transaction
  * to the appropriate destination (FISC, Core Banking, etc.).
  */
+@Slf4j
 public class AtmSimulatorSampler extends AbstractSampler implements TestBean, TestStateListener {
 
     private static final long serialVersionUID = 1L;
-    private static final Logger log = LoggerFactory.getLogger(AtmSimulatorSampler.class);
 
     // Property names - Connection
     public static final String FEP_HOST = "fepHost";
@@ -85,38 +89,26 @@ public class AtmSimulatorSampler extends AbstractSampler implements TestBean, Te
     public static final String ENABLE_PIN_BLOCK = "enablePinBlock";
     public static final String PIN_BLOCK = "pinBlock";
 
-    // Transaction types (deprecated, use AtmTransactionType enum instead)
-    /** @deprecated Use {@link AtmTransactionType#WITHDRAWAL} instead */
-    @Deprecated
-    public static final String TXN_WITHDRAWAL = AtmTransactionType.WITHDRAWAL.name();
-    /** @deprecated Use {@link AtmTransactionType#BALANCE_INQUIRY} instead */
-    @Deprecated
-    public static final String TXN_BALANCE_INQUIRY = AtmTransactionType.BALANCE_INQUIRY.name();
-    /** @deprecated Use {@link AtmTransactionType#TRANSFER} instead */
-    @Deprecated
-    public static final String TXN_TRANSFER = AtmTransactionType.TRANSFER.name();
-    /** @deprecated Use {@link AtmTransactionType#DEPOSIT} instead */
-    @Deprecated
-    public static final String TXN_DEPOSIT = AtmTransactionType.DEPOSIT.name();
-    /** @deprecated Use {@link AtmTransactionType#PIN_CHANGE} instead */
-    @Deprecated
-    public static final String TXN_PIN_CHANGE = AtmTransactionType.PIN_CHANGE.name();
-    /** @deprecated Use {@link AtmTransactionType#MINI_STATEMENT} instead */
-    @Deprecated
-    public static final String TXN_MINI_STATEMENT = AtmTransactionType.MINI_STATEMENT.name();
-    /** @deprecated Use {@link AtmTransactionType#CARDLESS_WITHDRAWAL} instead */
-    @Deprecated
-    public static final String TXN_CARDLESS = AtmTransactionType.CARDLESS_WITHDRAWAL.name();
+    // Property names - Protocol Selection (RAW mode support)
+    public static final String PROTOCOL_TYPE = "protocolType";
+    public static final String RAW_MESSAGE_FORMAT = "rawMessageFormat";
+    public static final String RAW_MESSAGE_DATA = "rawMessageData";
+    public static final String LENGTH_HEADER_TYPE = "lengthHeaderType";
+    public static final String EXPECT_RESPONSE = "expectResponse";
+    public static final String RESPONSE_MATCH_PATTERN = "responseMatchPattern";
 
     // Static resources
     private static final Map<String, ChannelHolder> channelPool = new ConcurrentHashMap<>();
+    private static final Map<String, RawChannelHolder> rawChannelPool = new ConcurrentHashMap<>();
     private static final Object channelLock = new Object();
     private static EventLoopGroup workerGroup;
     private static final AtomicInteger stanCounter = new AtomicInteger(0);
+    private static final AtomicLong rawMessageCounter = new AtomicLong(0);
     private static final Iso8583MessageFactory messageFactory = new Iso8583MessageFactory();
     private static final FiscMessageAssembler messageAssembler = new FiscMessageAssembler();
     private static final FiscMessageParser messageParser = new FiscMessageParser();
     private static final ObjectMapper objectMapper = new ObjectMapper();
+    private static final HexFormat hexFormat = HexFormat.of();
 
     public AtmSimulatorSampler() {
         super();
@@ -129,6 +121,18 @@ public class AtmSimulatorSampler extends AbstractSampler implements TestBean, Te
         result.setSampleLabel(getName());
         result.setDataType(SampleResult.TEXT);
 
+        // Dispatch based on protocol type
+        AtmProtocolType protocolType = AtmProtocolType.fromString(getProtocolType());
+        return switch (protocolType) {
+            case ISO_8583 -> sampleIso8583Mode(result);
+            case RAW -> sampleRawMode(result);
+        };
+    }
+
+    /**
+     * Execute ISO 8583 mode sampling.
+     */
+    private SampleResult sampleIso8583Mode(SampleResult result) {
         String fepHost = getFepHost();
         int fepPort = getFepPort();
         String transactionType = getTransactionType();
@@ -199,6 +203,297 @@ public class AtmSimulatorSampler extends AbstractSampler implements TestBean, Te
         }
 
         return result;
+    }
+
+    /**
+     * Execute RAW mode sampling - sends arbitrary bytes.
+     */
+    private SampleResult sampleRawMode(SampleResult result) {
+        String fepHost = getFepHost();
+        int fepPort = getFepPort();
+
+        try {
+            // Get or create connection for RAW mode
+            RawChannelHolder holder = getOrCreateRawChannel(fepHost, fepPort);
+
+            // Build raw message
+            byte[] rawMessage = buildRawMessage();
+            String requestId = String.valueOf(rawMessageCounter.incrementAndGet());
+
+            // Format request for display
+            String requestDisplay = formatRawMessageForDisplay(rawMessage);
+            result.setSamplerData(requestDisplay);
+
+            boolean expectResponse = isExpectResponse();
+
+            if (expectResponse) {
+                // Create response future
+                CompletableFuture<byte[]> responseFuture = new CompletableFuture<>();
+                holder.pendingRequests.put(requestId, responseFuture);
+                holder.lastRequestId = requestId;
+            }
+
+            // Start timing
+            result.sampleStart();
+
+            // Send message (with or without length header based on configuration)
+            ByteBuf buf = prepareRawMessageBuffer(rawMessage);
+            holder.channel.writeAndFlush(buf).sync();
+
+            if (expectResponse) {
+                // Wait for response
+                CompletableFuture<byte[]> responseFuture = holder.pendingRequests.get(requestId);
+                byte[] response = responseFuture.get(getReadTimeout(), TimeUnit.MILLISECONDS);
+                holder.pendingRequests.remove(requestId);
+
+                // Stop timing
+                result.sampleEnd();
+
+                // Process response
+                String responseDisplay = formatRawMessageForDisplay(response);
+                result.setResponseData(responseDisplay, StandardCharsets.UTF_8.name());
+
+                // Check success based on pattern if configured
+                boolean success = validateRawResponse(response);
+                result.setSuccessful(success);
+                result.setResponseCode(success ? "OK" : "MISMATCH");
+                result.setResponseMessage(success ? "Response received" : "Response pattern mismatch");
+
+                // Store response variables
+                storeRawResponseVariables(response);
+
+                log.debug("RAW message sent and response received: {} bytes -> {} bytes",
+                    rawMessage.length, response.length);
+            } else {
+                // Fire and forget mode
+                result.sampleEnd();
+                result.setSuccessful(true);
+                result.setResponseCode("SENT");
+                result.setResponseMessage("Message sent (no response expected)");
+                result.setResponseData("Message sent successfully, no response expected",
+                    StandardCharsets.UTF_8.name());
+
+                log.debug("RAW message sent (fire-and-forget): {} bytes", rawMessage.length);
+            }
+
+        } catch (TimeoutException e) {
+            result.sampleEnd();
+            result.setSuccessful(false);
+            result.setResponseCode("TIMEOUT");
+            result.setResponseMessage("Response timeout");
+            result.setResponseData("Timeout waiting for response", StandardCharsets.UTF_8.name());
+            log.warn("RAW message timeout");
+        } catch (Exception e) {
+            result.sampleEnd();
+            result.setSuccessful(false);
+            result.setResponseCode("ERROR");
+            result.setResponseMessage(e.getMessage());
+            result.setResponseData(e.toString(), StandardCharsets.UTF_8.name());
+            log.error("RAW sampler error", e);
+        }
+
+        return result;
+    }
+
+    /**
+     * Build raw message bytes from configured data.
+     */
+    private byte[] buildRawMessage() {
+        String rawData = substituteVariables(getRawMessageData());
+        RawMessageFormat format = RawMessageFormat.fromString(getRawMessageFormat());
+
+        return switch (format) {
+            case HEX -> hexFormat.parseHex(rawData.replaceAll("\\s+", ""));
+            case BASE64 -> Base64.getDecoder().decode(rawData);
+            case TEXT -> rawData.getBytes(StandardCharsets.UTF_8);
+        };
+    }
+
+    /**
+     * Prepare ByteBuf with appropriate length header.
+     */
+    private ByteBuf prepareRawMessageBuffer(byte[] message) {
+        LengthHeaderType headerType = LengthHeaderType.fromString(getLengthHeaderType());
+        int headerSize = headerType.getHeaderSize();
+
+        ByteBuf buf = Unpooled.buffer(headerSize + message.length);
+
+        switch (headerType) {
+            case NONE -> {
+                // No header, just the message
+            }
+            case TWO_BYTES -> {
+                buf.writeShort(message.length);
+            }
+            case FOUR_BYTES -> {
+                buf.writeInt(message.length);
+            }
+            case TWO_BYTES_BCD -> {
+                // BCD encoding: 2 bytes can represent 0-9999
+                int len = message.length;
+                int bcd1 = ((len / 1000) << 4) | ((len / 100) % 10);
+                int bcd2 = (((len / 10) % 10) << 4) | (len % 10);
+                buf.writeByte(bcd1);
+                buf.writeByte(bcd2);
+            }
+            case ASCII_4 -> {
+                // 4-character ASCII decimal
+                String lenStr = String.format("%04d", message.length);
+                buf.writeBytes(lenStr.getBytes(StandardCharsets.US_ASCII));
+            }
+        }
+
+        buf.writeBytes(message);
+        return buf;
+    }
+
+    /**
+     * Format raw message for display.
+     */
+    private String formatRawMessageForDisplay(byte[] data) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("=== RAW Message ===\n");
+        sb.append("Length: ").append(data.length).append(" bytes\n\n");
+
+        // Hex dump
+        sb.append("Hex:\n");
+        sb.append(hexFormat.formatHex(data)).append("\n\n");
+
+        // Try to show as text (printable characters only)
+        sb.append("Text (printable):\n");
+        StringBuilder text = new StringBuilder();
+        for (byte b : data) {
+            char c = (char) (b & 0xFF);
+            if (c >= 32 && c < 127) {
+                text.append(c);
+            } else {
+                text.append('.');
+            }
+        }
+        sb.append(text).append("\n");
+
+        return sb.toString();
+    }
+
+    /**
+     * Validate raw response against configured pattern.
+     */
+    private boolean validateRawResponse(byte[] response) {
+        String pattern = getResponseMatchPattern();
+        if (pattern == null || pattern.isEmpty()) {
+            return true; // No pattern = always success
+        }
+
+        // Pattern format: "HEX:0200..." or "CONTAINS:OK" or "REGEX:..."
+        if (pattern.startsWith("HEX:")) {
+            String expectedHex = pattern.substring(4).replaceAll("\\s+", "");
+            String actualHex = hexFormat.formatHex(response);
+            return actualHex.toUpperCase().startsWith(expectedHex.toUpperCase());
+        } else if (pattern.startsWith("CONTAINS:")) {
+            String searchText = pattern.substring(9);
+            String responseText = new String(response, StandardCharsets.UTF_8);
+            return responseText.contains(searchText);
+        } else if (pattern.startsWith("REGEX:")) {
+            String regex = pattern.substring(6);
+            String responseText = new String(response, StandardCharsets.UTF_8);
+            return responseText.matches(regex);
+        } else if (pattern.startsWith("LENGTH:")) {
+            try {
+                int expectedLen = Integer.parseInt(pattern.substring(7).trim());
+                return response.length == expectedLen;
+            } catch (NumberFormatException e) {
+                return false;
+            }
+        }
+
+        // Default: treat as hex prefix match
+        String actualHex = hexFormat.formatHex(response);
+        return actualHex.toUpperCase().startsWith(pattern.toUpperCase());
+    }
+
+    /**
+     * Store raw response in JMeter variables.
+     */
+    private void storeRawResponseVariables(byte[] response) {
+        JMeterContext context = JMeterContextService.getContext();
+        if (context != null) {
+            JMeterVariables vars = context.getVariables();
+            if (vars != null) {
+                vars.put("RAW_RESPONSE_LENGTH", String.valueOf(response.length));
+                vars.put("RAW_RESPONSE_HEX", hexFormat.formatHex(response));
+                vars.put("RAW_RESPONSE_BASE64", Base64.getEncoder().encodeToString(response));
+                vars.put("RAW_RESPONSE_TEXT", new String(response, StandardCharsets.UTF_8));
+            }
+        }
+    }
+
+    /**
+     * Get or create RAW mode channel with configurable frame decoder.
+     */
+    private RawChannelHolder getOrCreateRawChannel(String host, int port) throws Exception {
+        LengthHeaderType headerType = LengthHeaderType.fromString(getLengthHeaderType());
+        String key = Thread.currentThread().getName() + "_RAW_" + host + "_" + port + "_" + headerType.name();
+
+        synchronized (channelLock) {
+            RawChannelHolder holder = rawChannelPool.get(key);
+
+            if (holder == null || !holder.channel.isActive()) {
+                // Initialize worker group if needed
+                if (workerGroup == null || workerGroup.isShutdown()) {
+                    workerGroup = new NioEventLoopGroup(2);
+                }
+
+                // Create new connection
+                Bootstrap bootstrap = new Bootstrap()
+                    .group(workerGroup)
+                    .channel(NioSocketChannel.class)
+                    .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, getConnectionTimeout())
+                    .option(ChannelOption.TCP_NODELAY, true)
+                    .option(ChannelOption.SO_KEEPALIVE, true);
+
+                holder = new RawChannelHolder();
+                RawChannelHolder finalHolder = holder;
+
+                bootstrap.handler(new ChannelInitializer<SocketChannel>() {
+                    @Override
+                    protected void initChannel(SocketChannel ch) {
+                        ChannelPipeline pipeline = ch.pipeline();
+
+                        // Configure frame decoder based on length header type
+                        switch (headerType) {
+                            case NONE -> {
+                                // No length framing - read whatever comes
+                                // This mode requires expectResponse=false or fixed-length responses
+                            }
+                            case TWO_BYTES -> {
+                                pipeline.addLast(new LengthFieldBasedFrameDecoder(65535, 0, 2, 0, 2));
+                                pipeline.addLast(new LengthFieldPrepender(2));
+                            }
+                            case FOUR_BYTES -> {
+                                pipeline.addLast(new LengthFieldBasedFrameDecoder(Integer.MAX_VALUE, 0, 4, 0, 4));
+                                pipeline.addLast(new LengthFieldPrepender(4));
+                            }
+                            case TWO_BYTES_BCD, ASCII_4 -> {
+                                // Custom decoder needed for BCD/ASCII length headers
+                                // For now, use 2-byte as fallback
+                                pipeline.addLast(new LengthFieldBasedFrameDecoder(65535, 0, 2, 0, 2));
+                            }
+                        }
+
+                        pipeline.addLast(new ReadTimeoutHandler(getReadTimeout(), TimeUnit.MILLISECONDS));
+                        pipeline.addLast(new RawResponseHandler(finalHolder));
+                    }
+                });
+
+                ChannelFuture connectFuture = bootstrap.connect(host, port).sync();
+                holder.channel = connectFuture.channel();
+                rawChannelPool.put(key, holder);
+
+                log.info("RAW mode connected to {}:{} with {} header", host, port, headerType);
+            }
+
+            return holder;
+        }
     }
 
     private ChannelHolder getOrCreateChannel(String host, int port) throws Exception {
@@ -608,6 +903,7 @@ public class AtmSimulatorSampler extends AbstractSampler implements TestBean, Te
     public void testEnded(String host) {
         log.info("ATM simulator test ended on {}, closing connections", host);
         synchronized (channelLock) {
+            // Close ISO 8583 channels
             channelPool.values().forEach(holder -> {
                 try {
                     if (holder.channel != null && holder.channel.isOpen()) {
@@ -618,6 +914,18 @@ public class AtmSimulatorSampler extends AbstractSampler implements TestBean, Te
                 }
             });
             channelPool.clear();
+
+            // Close RAW mode channels
+            rawChannelPool.values().forEach(holder -> {
+                try {
+                    if (holder.channel != null && holder.channel.isOpen()) {
+                        holder.channel.close().sync();
+                    }
+                } catch (Exception e) {
+                    log.warn("Error closing RAW channel", e);
+                }
+            });
+            rawChannelPool.clear();
         }
 
         if (workerGroup != null && !workerGroup.isShutdown()) {
@@ -763,6 +1071,56 @@ public class AtmSimulatorSampler extends AbstractSampler implements TestBean, Te
         setProperty(PIN_BLOCK, pinBlock);
     }
 
+    // ===== RAW Mode Getters and Setters =====
+
+    public String getProtocolType() {
+        return getPropertyAsString(PROTOCOL_TYPE, AtmProtocolType.ISO_8583.name());
+    }
+
+    public void setProtocolType(String type) {
+        setProperty(PROTOCOL_TYPE, type);
+    }
+
+    public String getRawMessageFormat() {
+        return getPropertyAsString(RAW_MESSAGE_FORMAT, RawMessageFormat.HEX.name());
+    }
+
+    public void setRawMessageFormat(String format) {
+        setProperty(RAW_MESSAGE_FORMAT, format);
+    }
+
+    public String getRawMessageData() {
+        return getPropertyAsString(RAW_MESSAGE_DATA, "");
+    }
+
+    public void setRawMessageData(String data) {
+        setProperty(RAW_MESSAGE_DATA, data);
+    }
+
+    public String getLengthHeaderType() {
+        return getPropertyAsString(LENGTH_HEADER_TYPE, LengthHeaderType.TWO_BYTES.name());
+    }
+
+    public void setLengthHeaderType(String type) {
+        setProperty(LENGTH_HEADER_TYPE, type);
+    }
+
+    public boolean isExpectResponse() {
+        return getPropertyAsBoolean(EXPECT_RESPONSE, true);
+    }
+
+    public void setExpectResponse(boolean expect) {
+        setProperty(EXPECT_RESPONSE, expect);
+    }
+
+    public String getResponseMatchPattern() {
+        return getPropertyAsString(RESPONSE_MATCH_PATTERN, "");
+    }
+
+    public void setResponseMatchPattern(String pattern) {
+        setProperty(RESPONSE_MATCH_PATTERN, pattern);
+    }
+
     /**
      * Holds channel and pending requests for response matching.
      */
@@ -807,6 +1165,54 @@ public class AtmSimulatorSampler extends AbstractSampler implements TestBean, Te
             log.error("ATM channel error", cause);
             // Complete all pending futures with exception
             holder.pendingRequests.forEach((stan, future) ->
+                future.completeExceptionally(cause));
+            holder.pendingRequests.clear();
+            ctx.close();
+        }
+    }
+
+    /**
+     * Holds channel and pending requests for RAW mode response matching.
+     */
+    private static class RawChannelHolder {
+        Channel channel;
+        String lastRequestId;
+        final Map<String, CompletableFuture<byte[]>> pendingRequests = new ConcurrentHashMap<>();
+    }
+
+    /**
+     * Handler for RAW mode responses.
+     */
+    private static class RawResponseHandler extends SimpleChannelInboundHandler<ByteBuf> {
+        private final RawChannelHolder holder;
+
+        RawResponseHandler(RawChannelHolder holder) {
+            this.holder = holder;
+        }
+
+        @Override
+        protected void channelRead0(ChannelHandlerContext ctx, ByteBuf msg) {
+            byte[] data = new byte[msg.readableBytes()];
+            msg.readBytes(data);
+
+            // For RAW mode, we complete the last pending request since there's no STAN matching
+            String requestId = holder.lastRequestId;
+            if (requestId != null) {
+                CompletableFuture<byte[]> future = holder.pendingRequests.get(requestId);
+                if (future != null) {
+                    future.complete(data);
+                    log.debug("RAW response received: {} bytes", data.length);
+                }
+            } else {
+                log.warn("Received RAW response with no pending request");
+            }
+        }
+
+        @Override
+        public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
+            log.error("RAW channel error", cause);
+            // Complete all pending futures with exception
+            holder.pendingRequests.forEach((id, future) ->
                 future.completeExceptionally(cause));
             holder.pendingRequests.clear();
             ctx.close();

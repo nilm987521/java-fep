@@ -21,14 +21,19 @@ public class AtmSimulatorSamplerBeanInfo extends BeanInfoSupport {
 
     // Property groups
     private static final String CONNECTION_GROUP = "connection";
+    private static final String PROTOCOL_GROUP = "protocol";
     private static final String TERMINAL_GROUP = "terminal";
     private static final String TRANSACTION_GROUP = "transaction";
     private static final String CARD_GROUP = "card";
     private static final String SECURITY_GROUP = "security";
     private static final String ADVANCED_GROUP = "advanced";
+    private static final String RAW_MODE_GROUP = "rawMode";
 
     // Transaction types
     private static final String[] TRANSACTION_TYPES = AtmTransactionType.names();
+    private static final String[] PROTOCOL_TYPES = AtmProtocolType.names();
+    private static final String[] RAW_MESSAGE_FORMATS = RawMessageFormat.names();
+    private static final String[] LENGTH_HEADER_TYPES = LengthHeaderType.names();
 
     public AtmSimulatorSamplerBeanInfo() {
         super(AtmSimulatorSampler.class);
@@ -39,6 +44,11 @@ public class AtmSimulatorSamplerBeanInfo extends BeanInfoSupport {
             AtmSimulatorSampler.FEP_PORT,
             AtmSimulatorSampler.CONNECTION_TIMEOUT,
             AtmSimulatorSampler.READ_TIMEOUT
+        });
+
+        createPropertyGroup(PROTOCOL_GROUP, new String[]{
+            AtmSimulatorSampler.PROTOCOL_TYPE,
+            AtmSimulatorSampler.LENGTH_HEADER_TYPE
         });
 
         createPropertyGroup(TERMINAL_GROUP, new String[]{
@@ -69,6 +79,13 @@ public class AtmSimulatorSamplerBeanInfo extends BeanInfoSupport {
             AtmSimulatorSampler.MESSAGE_TEMPLATE
         });
 
+        createPropertyGroup(RAW_MODE_GROUP, new String[]{
+            AtmSimulatorSampler.RAW_MESSAGE_FORMAT,
+            AtmSimulatorSampler.RAW_MESSAGE_DATA,
+            AtmSimulatorSampler.EXPECT_RESPONSE,
+            AtmSimulatorSampler.RESPONSE_MATCH_PATTERN
+        });
+
         // ===== Connection properties =====
         PropertyDescriptor fepHostProp = property(AtmSimulatorSampler.FEP_HOST);
         fepHostProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
@@ -93,6 +110,36 @@ public class AtmSimulatorSamplerBeanInfo extends BeanInfoSupport {
         readTimeoutProp.setValue(DEFAULT, 30000);
         readTimeoutProp.setDisplayName("Read Timeout (ms)");
         readTimeoutProp.setShortDescription("Maximum time to wait for response in milliseconds.");
+
+        // ===== Protocol properties =====
+        PropertyDescriptor protocolTypeProp = property(AtmSimulatorSampler.PROTOCOL_TYPE);
+        protocolTypeProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
+        protocolTypeProp.setValue(DEFAULT, AtmProtocolType.ISO_8583.name());
+        protocolTypeProp.setValue(NOT_EXPRESSION, Boolean.TRUE);
+        protocolTypeProp.setValue(NOT_OTHER, Boolean.TRUE);
+        protocolTypeProp.setValue(TAGS, PROTOCOL_TYPES);
+        protocolTypeProp.setDisplayName("Protocol Type");
+        protocolTypeProp.setShortDescription(
+            "Message protocol type.\n" +
+            "ISO_8583 - Standard ISO 8583 financial message format\n" +
+            "RAW - Send raw bytes (HEX, Base64, or Text encoded)"
+        );
+
+        PropertyDescriptor lengthHeaderTypeProp = property(AtmSimulatorSampler.LENGTH_HEADER_TYPE);
+        lengthHeaderTypeProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
+        lengthHeaderTypeProp.setValue(DEFAULT, LengthHeaderType.TWO_BYTES.name());
+        lengthHeaderTypeProp.setValue(NOT_EXPRESSION, Boolean.TRUE);
+        lengthHeaderTypeProp.setValue(NOT_OTHER, Boolean.TRUE);
+        lengthHeaderTypeProp.setValue(TAGS, LENGTH_HEADER_TYPES);
+        lengthHeaderTypeProp.setDisplayName("Length Header Type");
+        lengthHeaderTypeProp.setShortDescription(
+            "Message framing length header format.\n" +
+            "NONE - No length header (raw bytes)\n" +
+            "TWO_BYTES - 2-byte big-endian length prefix (most common)\n" +
+            "FOUR_BYTES - 4-byte big-endian length prefix\n" +
+            "TWO_BYTES_BCD - 2-byte BCD encoded length\n" +
+            "ASCII_4 - 4-character ASCII decimal length"
+        );
 
         // ===== Terminal properties =====
         PropertyDescriptor atmIdProp = property(AtmSimulatorSampler.ATM_ID);
@@ -235,6 +282,59 @@ public class AtmSimulatorSamplerBeanInfo extends BeanInfoSupport {
             "  }\n" +
             "}\n\n" +
             "Supports JMeter variables: ${varName}"
+        );
+
+        // ===== RAW Mode properties =====
+        PropertyDescriptor rawMessageFormatProp = property(AtmSimulatorSampler.RAW_MESSAGE_FORMAT);
+        rawMessageFormatProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
+        rawMessageFormatProp.setValue(DEFAULT, RawMessageFormat.HEX.name());
+        rawMessageFormatProp.setValue(NOT_EXPRESSION, Boolean.TRUE);
+        rawMessageFormatProp.setValue(NOT_OTHER, Boolean.TRUE);
+        rawMessageFormatProp.setValue(TAGS, RAW_MESSAGE_FORMATS);
+        rawMessageFormatProp.setDisplayName("RAW Message Format");
+        rawMessageFormatProp.setShortDescription(
+            "Encoding format for RAW message data (only used when Protocol Type = RAW).\n" +
+            "HEX - Hexadecimal encoding (e.g., 0200603800...)\n" +
+            "BASE64 - Base64 encoding\n" +
+            "TEXT - Plain text / UTF-8"
+        );
+
+        PropertyDescriptor rawMessageDataProp = property(AtmSimulatorSampler.RAW_MESSAGE_DATA);
+        rawMessageDataProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
+        rawMessageDataProp.setValue(DEFAULT, "");
+        rawMessageDataProp.setPropertyEditorClass(TextAreaEditor.class);
+        rawMessageDataProp.setDisplayName("RAW Message Data");
+        rawMessageDataProp.setShortDescription(
+            "Raw message data (only used when Protocol Type = RAW).\n" +
+            "Enter data in the format specified by 'RAW Message Format'.\n" +
+            "HEX example: 0200603800000000000002000000000010004111111111111111\n" +
+            "Supports JMeter variables: ${varName}"
+        );
+
+        PropertyDescriptor expectResponseProp = property(AtmSimulatorSampler.EXPECT_RESPONSE);
+        expectResponseProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
+        expectResponseProp.setValue(DEFAULT, Boolean.TRUE);
+        expectResponseProp.setValue(NOT_EXPRESSION, Boolean.TRUE);
+        expectResponseProp.setValue(NOT_OTHER, Boolean.TRUE);
+        expectResponseProp.setDisplayName("Expect Response");
+        expectResponseProp.setShortDescription(
+            "Wait for response after sending (RAW mode only).\n" +
+            "true - Wait for response (default)\n" +
+            "false - Fire and forget (no response expected)"
+        );
+
+        PropertyDescriptor responseMatchPatternProp = property(AtmSimulatorSampler.RESPONSE_MATCH_PATTERN);
+        responseMatchPatternProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
+        responseMatchPatternProp.setValue(DEFAULT, "");
+        responseMatchPatternProp.setDisplayName("Response Match Pattern");
+        responseMatchPatternProp.setShortDescription(
+            "Pattern to validate response success (RAW mode only).\n" +
+            "Leave empty to accept any response.\n" +
+            "Formats:\n" +
+            "  HEX:0210 - Response starts with hex 0210\n" +
+            "  CONTAINS:OK - Response text contains 'OK'\n" +
+            "  REGEX:.* - Response matches regex\n" +
+            "  LENGTH:100 - Response is exactly 100 bytes"
         );
     }
 }
