@@ -351,7 +351,24 @@ class FiscDualChannelServerSamplerIntegrationTest {
     @Test
     @Order(13)
     void testOperationModeConstants() {
-        // Verify operation mode constants are defined correctly
+        // Test OperationMode enum
+        assertEquals(3, OperationMode.values().length);
+        assertEquals("PASSIVE", OperationMode.PASSIVE.name());
+        assertEquals("ACTIVE", OperationMode.ACTIVE.name());
+        assertEquals("BIDIRECTIONAL", OperationMode.BIDIRECTIONAL.name());
+
+        // Test OperationMode.names() helper
+        assertArrayEquals(new String[]{"PASSIVE", "ACTIVE", "BIDIRECTIONAL"}, OperationMode.names());
+
+        // Test OperationMode.fromString() helper
+        assertEquals(OperationMode.PASSIVE, OperationMode.fromString("PASSIVE"));
+        assertEquals(OperationMode.ACTIVE, OperationMode.fromString("active"));
+        assertEquals(OperationMode.BIDIRECTIONAL, OperationMode.fromString("Bidirectional"));
+        assertEquals(OperationMode.PASSIVE, OperationMode.fromString(null));
+        assertEquals(OperationMode.PASSIVE, OperationMode.fromString(""));
+        assertEquals(OperationMode.PASSIVE, OperationMode.fromString("INVALID"));
+
+        // Verify deprecated constants still work for backwards compatibility
         assertEquals("PASSIVE", FiscDualChannelServerSampler.MODE_PASSIVE);
         assertEquals("ACTIVE", FiscDualChannelServerSampler.MODE_ACTIVE);
         assertEquals("BIDIRECTIONAL", FiscDualChannelServerSampler.MODE_BIDIRECTIONAL);
@@ -475,8 +492,8 @@ class FiscDualChannelServerSamplerIntegrationTest {
         FiscDualChannelServerSampler sampler = new FiscDualChannelServerSampler();
 
         // Test operation mode property
-        sampler.setOperationMode(FiscDualChannelServerSampler.MODE_BIDIRECTIONAL);
-        assertEquals(FiscDualChannelServerSampler.MODE_BIDIRECTIONAL, sampler.getOperationMode());
+        sampler.setOperationMode(OperationMode.BIDIRECTIONAL.name());
+        assertEquals(OperationMode.BIDIRECTIONAL.name(), sampler.getOperationMode());
 
         // Test active message type property
         sampler.setActiveMessageType(FiscDualChannelServerSampler.ACTIVE_TYPE_KEY_EXCHANGE);

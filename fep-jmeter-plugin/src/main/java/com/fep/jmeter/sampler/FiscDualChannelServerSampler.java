@@ -23,7 +23,6 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Function;
 
 /**
  * JMeter Sampler for simulating a FISC Dual-Channel Server.
@@ -69,10 +68,16 @@ public class FiscDualChannelServerSampler extends AbstractSampler implements Tes
     public static final String ACTIVE_CUSTOM_MTI = "activeCustomMti";
     public static final String ACTIVE_CUSTOM_FIELDS = "activeCustomFields";
 
-    // Operation mode constants
-    public static final String MODE_PASSIVE = "PASSIVE";
-    public static final String MODE_ACTIVE = "ACTIVE";
-    public static final String MODE_BIDIRECTIONAL = "BIDIRECTIONAL";
+    // Operation mode constants (deprecated - use OperationMode enum instead)
+    /** @deprecated Use {@link OperationMode#PASSIVE} instead */
+    @Deprecated
+    public static final String MODE_PASSIVE = OperationMode.PASSIVE.name();
+    /** @deprecated Use {@link OperationMode#ACTIVE} instead */
+    @Deprecated
+    public static final String MODE_ACTIVE = OperationMode.ACTIVE.name();
+    /** @deprecated Use {@link OperationMode#BIDIRECTIONAL} instead */
+    @Deprecated
+    public static final String MODE_BIDIRECTIONAL = OperationMode.BIDIRECTIONAL.name();
 
     // Active message type constants
     public static final String ACTIVE_TYPE_SIGN_ON = "SIGN_ON";
@@ -115,12 +120,11 @@ public class FiscDualChannelServerSampler extends AbstractSampler implements Tes
             ServerInstance instance = getOrCreateServer(instanceKey, receivePort, sendPort);
 
             // Dispatch based on operation mode
-            String mode = getOperationMode();
+            OperationMode mode = OperationMode.fromString(getOperationMode());
             switch (mode) {
-                case MODE_PASSIVE -> executePassiveMode(result, instance);
-                case MODE_ACTIVE -> executeActiveMode(result, instance);
-                case MODE_BIDIRECTIONAL -> executeBidirectionalMode(result, instance);
-                default -> executePassiveMode(result, instance);
+                case PASSIVE -> executePassiveMode(result, instance);
+                case ACTIVE -> executeActiveMode(result, instance);
+                case BIDIRECTIONAL -> executeBidirectionalMode(result, instance);
             }
 
             // Store statistics in JMeter variables
@@ -767,7 +771,7 @@ public class FiscDualChannelServerSampler extends AbstractSampler implements Tes
 
     // Operation mode getters and setters
     public String getOperationMode() {
-        return getPropertyAsString(OPERATION_MODE, MODE_PASSIVE);
+        return getPropertyAsString(OPERATION_MODE, OperationMode.PASSIVE.name());
     }
 
     public void setOperationMode(String mode) {

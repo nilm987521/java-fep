@@ -1,7 +1,8 @@
 package com.fep.jmeter.sampler;
 
 import org.apache.jmeter.testbeans.BeanInfoSupport;
-import org.apache.jmeter.testbeans.gui.TypeEditor;
+import org.apache.jmeter.testbeans.gui.GenericTestBeanCustomizer;
+import org.apache.jmeter.testbeans.gui.TextAreaEditor;
 
 import java.beans.PropertyDescriptor;
 
@@ -29,11 +30,7 @@ public class FiscDualChannelServerSamplerBeanInfo extends BeanInfoSupport {
     };
 
     // Operation modes
-    private static final String[] OPERATION_MODES = {
-        FiscDualChannelServerSampler.MODE_PASSIVE,
-        FiscDualChannelServerSampler.MODE_ACTIVE,
-        FiscDualChannelServerSampler.MODE_BIDIRECTIONAL
-    };
+    private static final String[] OPERATION_MODES = OperationMode.names();
 
     // Active message types
     private static final String[] ACTIVE_MESSAGE_TYPES = {
@@ -91,7 +88,7 @@ public class FiscDualChannelServerSamplerBeanInfo extends BeanInfoSupport {
         // Operation Mode property
         PropertyDescriptor operationModeProp = property(FiscDualChannelServerSampler.OPERATION_MODE);
         operationModeProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
-        operationModeProp.setValue(DEFAULT, FiscDualChannelServerSampler.MODE_PASSIVE);
+        operationModeProp.setValue(DEFAULT, OperationMode.PASSIVE.name());
         operationModeProp.setValue(NOT_EXPRESSION, Boolean.TRUE);
         operationModeProp.setValue(TAGS, OPERATION_MODES);
         operationModeProp.setDisplayName("Operation Mode");
@@ -159,7 +156,7 @@ public class FiscDualChannelServerSamplerBeanInfo extends BeanInfoSupport {
         PropertyDescriptor validationRulesProp = property(FiscDualChannelServerSampler.VALIDATION_RULES);
         validationRulesProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
         validationRulesProp.setValue(DEFAULT, "");
-        validationRulesProp.setValue(TypeEditor.class.getName(), TypeEditor.TextAreaEditor);
+        validationRulesProp.setPropertyEditorClass(TextAreaEditor.class);
         validationRulesProp.setDisplayName("Validation Rules");
         validationRulesProp.setShortDescription(
             "Validation rules configuration. Format:\n" +
@@ -188,31 +185,19 @@ public class FiscDualChannelServerSamplerBeanInfo extends BeanInfoSupport {
         PropertyDescriptor mtiRulesProp = property(FiscDualChannelServerSampler.MTI_RESPONSE_RULES);
         mtiRulesProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
         mtiRulesProp.setValue(DEFAULT, "");
-        mtiRulesProp.setValue(TypeEditor.class.getName(), TypeEditor.TextAreaEditor);
+        mtiRulesProp.setPropertyEditorClass(TextAreaEditor.class);
+        mtiRulesProp.setValue(GenericTestBeanCustomizer.TEXT_LANGUAGE, "json");
         mtiRulesProp.setDisplayName("MTI Response Rules (JSON)");
         mtiRulesProp.setShortDescription(
-            "JSON format MTI response rules. When configured, takes precedence over legacy Response Rules.\n" +
-            "Format:\n" +
-            "{\n" +
-            "  \"defaultResponseCode\": \"12\",\n" +
-            "  \"handlers\": [\n" +
-            "    {\n" +
-            "      \"mti\": \"0200\",\n" +
-            "      \"rules\": [\n" +
-            "        {\"condition\": {\"field\": 3, \"value\": \"010000\"}, \"response\": {\"39\": \"00\"}},\n" +
-            "        {\"condition\": \"DEFAULT\", \"response\": {\"39\": \"00\"}}\n" +
-            "      ]\n" +
-            "    }\n" +
-            "  ]\n" +
-            "}\n" +
-            "Supports variables: ${VAR}, ${Fnn}, ${STAN}, ${RRN}"
+            "JSON format MTI response rules.\n" +
+            "Variables: ${VAR}, ${Fnn}, ${STAN}, ${RRN}"
         );
 
         // Legacy Response Rules
         PropertyDescriptor responseRulesProp = property(FiscDualChannelServerSampler.RESPONSE_RULES);
         responseRulesProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
         responseRulesProp.setValue(DEFAULT, "");
-        responseRulesProp.setValue(TypeEditor.class.getName(), TypeEditor.TextAreaEditor);
+        responseRulesProp.setPropertyEditorClass(TextAreaEditor.class);
         responseRulesProp.setDisplayName("Response Rules");
         responseRulesProp.setShortDescription(
             "Response code rules by processing code.\n" +
@@ -223,7 +208,7 @@ public class FiscDualChannelServerSamplerBeanInfo extends BeanInfoSupport {
         PropertyDescriptor customFieldsProp = property(FiscDualChannelServerSampler.CUSTOM_RESPONSE_FIELDS);
         customFieldsProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
         customFieldsProp.setValue(DEFAULT, "");
-        customFieldsProp.setValue(TypeEditor.class.getName(), TypeEditor.TextAreaEditor);
+        customFieldsProp.setPropertyEditorClass(TextAreaEditor.class);
         customFieldsProp.setDisplayName("Custom Response Fields");
         customFieldsProp.setShortDescription(
             "Custom fields to add to responses.\n" +
@@ -268,7 +253,7 @@ public class FiscDualChannelServerSamplerBeanInfo extends BeanInfoSupport {
         PropertyDescriptor activeCustomFieldsProp = property(FiscDualChannelServerSampler.ACTIVE_CUSTOM_FIELDS);
         activeCustomFieldsProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
         activeCustomFieldsProp.setValue(DEFAULT, "");
-        activeCustomFieldsProp.setValue(TypeEditor.class.getName(), TypeEditor.TextAreaEditor);
+        activeCustomFieldsProp.setPropertyEditorClass(TextAreaEditor.class);
         activeCustomFieldsProp.setDisplayName("Custom Fields");
         activeCustomFieldsProp.setShortDescription(
             "Custom fields to add to the active message.\n" +
