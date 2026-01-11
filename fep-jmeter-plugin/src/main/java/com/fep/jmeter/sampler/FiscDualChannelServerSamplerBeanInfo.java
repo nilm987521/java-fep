@@ -90,6 +90,7 @@ public class FiscDualChannelServerSamplerBeanInfo extends BeanInfoSupport {
         operationModeProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
         operationModeProp.setValue(DEFAULT, OperationMode.PASSIVE.name());
         operationModeProp.setValue(NOT_EXPRESSION, Boolean.TRUE);
+        operationModeProp.setValue(NOT_OTHER, Boolean.TRUE);
         operationModeProp.setValue(TAGS, OPERATION_MODES);
         operationModeProp.setDisplayName("Operation Mode");
         operationModeProp.setShortDescription(
