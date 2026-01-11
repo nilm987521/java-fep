@@ -14,7 +14,11 @@ import org.apache.jmeter.threads.JMeterVariables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import java.nio.charset.StandardCharsets;
+import java.util.Collections;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -238,16 +242,8 @@ public class BankCoreServerSampler extends AbstractSampler implements TestBean, 
         String availableBalance = getAvailableBalance();
         String ledgerBalance = getLedgerBalance();
 
-        // Parse response rules: "processingCode:responseCode;..."
-        Map<String, String> parsedRules = new ConcurrentHashMap<>();
-        if (responseRules != null && !responseRules.isEmpty()) {
-            for (String rule : responseRules.split(";")) {
-                String[] parts = rule.split(":", 2);
-                if (parts.length == 2) {
-                    parsedRules.put(parts[0].trim(), parts[1].trim());
-                }
-            }
-        }
+        // Parse response rules from JSON: {"processingCode": "responseCode", ...}
+        Map<String, String> parsedRules = parseJsonResponseRules(responseRules);
 
         // Parse custom fields: "field:value;..."
         Map<Integer, String> parsedFields = new ConcurrentHashMap<>();
@@ -308,6 +304,19 @@ public class BankCoreServerSampler extends AbstractSampler implements TestBean, 
 
             return response;
         });
+    }
+
+    private Map<String, String> parseJsonResponseRules(String jsonRules) {
+        if (jsonRules == null || jsonRules.trim().isEmpty()) {
+            return Collections.emptyMap();
+        }
+        try {
+            ObjectMapper mapper = new ObjectMapper();
+            return mapper.readValue(jsonRules, new TypeReference<Map<String, String>>() {});
+        } catch (Exception e) {
+            log.warn("Failed to parse response rules JSON: {}", e.getMessage());
+            return Collections.emptyMap();
+        }
     }
 
     private void storeVariables(BankCoreSimulatorEngine engine) {

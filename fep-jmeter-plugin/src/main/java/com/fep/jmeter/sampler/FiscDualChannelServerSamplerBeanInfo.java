@@ -198,16 +198,17 @@ public class FiscDualChannelServerSamplerBeanInfo extends BeanInfoSupport {
             "Variables: ${VAR}, ${Fnn}, ${STAN}, ${RRN}"
         );
 
-        // Legacy Response Rules
+        // Response Rules (JSON)
         PropertyDescriptor responseRulesProp = property(FiscDualChannelServerSampler.RESPONSE_RULES);
         responseRulesProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
         responseRulesProp.setValue(DEFAULT, "");
         responseRulesProp.setPropertyEditorClass(TextAreaEditor.class);
-        responseRulesProp.setDisplayName("Response Rules");
+        responseRulesProp.setValue(GenericTestBeanCustomizer.TEXT_LANGUAGE, "json");
+        responseRulesProp.setDisplayName("Response Rules (JSON)");
         responseRulesProp.setShortDescription(
-            "Response code rules by processing code.\n" +
-            "Format: processingCode:responseCode;...\n" +
-            "Example: 010000:00;400000:51;310000:00"
+            "JSON response rules by processing code.\n\n" +
+            "Example:\n" +
+            "{\"010000\": \"00\", \"400000\": \"51\", \"310000\": \"00\"}"
         );
 
         PropertyDescriptor customFieldsProp = property(FiscDualChannelServerSampler.CUSTOM_RESPONSE_FIELDS);

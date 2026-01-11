@@ -1,6 +1,7 @@
 package com.fep.jmeter.sampler;
 
 import org.apache.jmeter.testbeans.BeanInfoSupport;
+import org.apache.jmeter.testbeans.gui.GenericTestBeanCustomizer;
 import org.apache.jmeter.testbeans.gui.TextAreaEditor;
 import org.apache.jmeter.testbeans.gui.TypeEditor;
 
@@ -132,15 +133,20 @@ public class BankCoreServerSamplerBeanInfo extends BeanInfoSupport {
         validationRulesProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
         validationRulesProp.setValue(DEFAULT, "");
         validationRulesProp.setPropertyEditorClass(TextAreaEditor.class);
-        validationRulesProp.setDisplayName("Validation Rules");
+        validationRulesProp.setValue(GenericTestBeanCustomizer.TEXT_LANGUAGE, "json");
+        validationRulesProp.setDisplayName("Validation Rules (JSON)");
         validationRulesProp.setShortDescription(
-            "Validation rules configuration. Format:\n" +
-            "REQUIRED:2,3,4,11,41,42\n" +
-            "FORMAT:2=N(13-19);3=N(6)\n" +
-            "VALUE:3=010000|400000|310000\n" +
-            "LENGTH:4=12;11=6\n" +
-            "PATTERN:37=^[A-Z0-9]{12}$\n" +
-            "MTI:0200=REQUIRED:2,3,4,11"
+            "JSON validation rules configuration.\n\n" +
+            "Example:\n" +
+            "{\n" +
+            "  \"globalRules\": {\n" +
+            "    \"required\": [2, 3, 4, 11],\n" +
+            "    \"format\": {\"2\": \"N(13-19)\", \"3\": \"N(6)\"},\n" +
+            "    \"value\": {\"3\": [\"010000\", \"400000\"]},\n" +
+            "    \"length\": {\"4\": 12},\n" +
+            "    \"pattern\": {\"37\": \"^[A-Z0-9]{12}$\"}\n" +
+            "  }\n" +
+            "}"
         );
 
         // Routing properties
@@ -161,11 +167,12 @@ public class BankCoreServerSamplerBeanInfo extends BeanInfoSupport {
         responseRulesProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
         responseRulesProp.setValue(DEFAULT, "");
         responseRulesProp.setPropertyEditorClass(TextAreaEditor.class);
-        responseRulesProp.setDisplayName("Response Rules");
+        responseRulesProp.setValue(GenericTestBeanCustomizer.TEXT_LANGUAGE, "json");
+        responseRulesProp.setDisplayName("Response Rules (JSON)");
         responseRulesProp.setShortDescription(
-            "Response code rules by processing code.\n" +
-            "Format: processingCode:responseCode;...\n" +
-            "Example: 010000:00;400000:51;310000:00"
+            "JSON response rules by processing code.\n\n" +
+            "Example:\n" +
+            "{\"010000\": \"00\", \"400000\": \"51\", \"310000\": \"00\"}"
         );
 
         PropertyDescriptor customFieldsProp = property(BankCoreServerSampler.CUSTOM_RESPONSE_FIELDS);

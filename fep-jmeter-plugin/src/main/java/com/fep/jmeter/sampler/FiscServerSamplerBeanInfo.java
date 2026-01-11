@@ -1,6 +1,7 @@
 package com.fep.jmeter.sampler;
 
 import org.apache.jmeter.testbeans.BeanInfoSupport;
+import org.apache.jmeter.testbeans.gui.GenericTestBeanCustomizer;
 import org.apache.jmeter.testbeans.gui.TextAreaEditor;
 
 import java.beans.PropertyDescriptor;
@@ -111,10 +112,12 @@ public class FiscServerSamplerBeanInfo extends BeanInfoSupport {
         responseRulesProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
         responseRulesProp.setValue(DEFAULT, "");
         responseRulesProp.setPropertyEditorClass(TextAreaEditor.class);
-        responseRulesProp.setDisplayName("Response Rules");
+        responseRulesProp.setValue(GenericTestBeanCustomizer.TEXT_LANGUAGE, "json");
+        responseRulesProp.setDisplayName("Response Rules (JSON)");
         responseRulesProp.setShortDescription(
-            "Custom response rules by processing code. Format: processingCode:responseCode;...\n" +
-            "Example: 010000:00;400000:51;310000:00\n" +
+            "JSON response rules by processing code.\n\n" +
+            "Example:\n" +
+            "{\"010000\": \"00\", \"400000\": \"51\", \"310000\": \"00\"}\n\n" +
             "This allows different response codes for withdrawal (010000), transfer (400000), balance (310000)."
         );
 

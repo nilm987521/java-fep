@@ -38,7 +38,7 @@
           <stringProp name="validationRules">{"globalRules": {"required": [2, 3, 4, 11, 41], "format": {"2": "N(13-19)", "3": "N(6)", "4": "N(12)", "11": "N(6)"}, "value": {"3": ["010000", "400000", "310000", "300000"]}}}</stringProp>
           <boolProp name="enableBankIdRouting">true</boolProp>
           <intProp name="bankIdField">32</intProp>
-          <stringProp name="responseRules">010000:00;400000:00;310000:00;300000:00</stringProp>
+          <stringProp name="responseRules">{"010000": "00", "400000": "00", "310000": "00", "300000": "00"}</stringProp>
           <stringProp name="customResponseFields">43:FISC SIMULATOR;49:901</stringProp>
         </com.fep.jmeter.sampler.FiscDualChannelServerSampler>
         <hashTree/>

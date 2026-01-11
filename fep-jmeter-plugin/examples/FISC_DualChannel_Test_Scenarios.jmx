@@ -43,7 +43,7 @@
           <boolProp name="enableBankIdRouting">true</boolProp>
           <intProp name="bankIdField">32</intProp>
           <!-- 所有交易類型都回傳 00 (成功) -->
-          <stringProp name="responseRules">010000:00;400000:00;310000:00;300000:00</stringProp>
+          <stringProp name="responseRules">{"010000": "00", "400000": "00", "310000": "00", "300000": "00"}</stringProp>
           <stringProp name="customResponseFields">43:SUCCESS TEST MERCHANT;49:901</stringProp>
         </com.fep.jmeter.sampler.FiscDualChannelServerSampler>
         <hashTree/>
@@ -79,7 +79,7 @@
           <boolProp name="enableBankIdRouting">true</boolProp>
           <intProp name="bankIdField">32</intProp>
           <!-- 提款成功，但轉帳回傳 51 (餘額不足) -->
-          <stringProp name="responseRules">010000:00;400000:51;310000:00;300000:00</stringProp>
+          <stringProp name="responseRules">{"010000": "00", "400000": "51", "310000": "00", "300000": "00"}</stringProp>
           <stringProp name="customResponseFields">43:INSUFFICIENT FUNDS TEST;49:901</stringProp>
         </com.fep.jmeter.sampler.FiscDualChannelServerSampler>
         <hashTree/>
@@ -115,7 +115,7 @@
           <stringProp name="validationRules"></stringProp>
           <boolProp name="enableBankIdRouting">true</boolProp>
           <intProp name="bankIdField">32</intProp>
-          <stringProp name="responseRules">010000:00;400000:00;310000:00;300000:00</stringProp>
+          <stringProp name="responseRules">{"010000": "00", "400000": "00", "310000": "00", "300000": "00"}</stringProp>
           <stringProp name="customResponseFields">43:SLOW RESPONSE TEST;49:901</stringProp>
         </com.fep.jmeter.sampler.FiscDualChannelServerSampler>
         <hashTree/>
@@ -152,7 +152,7 @@
           <boolProp name="enableBankIdRouting">true</boolProp>
           <intProp name="bankIdField">32</intProp>
           <!-- 所有交易都回傳 96 -->
-          <stringProp name="responseRules">010000:96;400000:96;310000:96;300000:96</stringProp>
+          <stringProp name="responseRules">{"010000": "96", "400000": "96", "310000": "96", "300000": "96"}</stringProp>
           <stringProp name="customResponseFields">43:SYSTEM ERROR TEST;49:901</stringProp>
         </com.fep.jmeter.sampler.FiscDualChannelServerSampler>
         <hashTree/>
@@ -200,7 +200,7 @@
 }</stringProp>
           <boolProp name="enableBankIdRouting">true</boolProp>
           <intProp name="bankIdField">32</intProp>
-          <stringProp name="responseRules">010000:00;400000:00;310000:00;300000:00</stringProp>
+          <stringProp name="responseRules">{"010000": "00", "400000": "00", "310000": "00", "300000": "00"}</stringProp>
           <stringProp name="customResponseFields">43:STRICT VALIDATION TEST;49:901</stringProp>
         </com.fep.jmeter.sampler.FiscDualChannelServerSampler>
         <hashTree/>

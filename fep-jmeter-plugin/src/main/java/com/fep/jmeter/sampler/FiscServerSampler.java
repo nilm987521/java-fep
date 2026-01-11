@@ -22,8 +22,12 @@ import org.apache.jmeter.threads.JMeterVariables;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -334,21 +338,19 @@ public class FiscServerSampler extends AbstractSampler implements TestBean, Test
             this.parsedRules = parseRules(responseRules);
         }
 
-        private Map<String, String> parseRules(String rules) {
-            Map<String, String> result = new ConcurrentHashMap<>();
-            if (rules == null || rules.isEmpty()) {
-                return result;
+        private Map<String, String> parseRules(String jsonRules) {
+            if (jsonRules == null || jsonRules.trim().isEmpty()) {
+                return Collections.emptyMap();
             }
-            // Format: "processingCode:responseCode;processingCode:responseCode"
-            // Example: "010000:00;400000:51;310000:00"
-            String[] pairs = rules.split(";");
-            for (String pair : pairs) {
-                String[] kv = pair.split(":", 2);
-                if (kv.length == 2) {
-                    result.put(kv[0].trim(), kv[1].trim());
-                }
+            // JSON format: {"processingCode": "responseCode", ...}
+            // Example: {"010000": "00", "400000": "51", "310000": "00"}
+            try {
+                ObjectMapper mapper = new ObjectMapper();
+                return mapper.readValue(jsonRules, new TypeReference<Map<String, String>>() {});
+            } catch (Exception e) {
+                log.warn("Failed to parse response rules JSON: {}", e.getMessage());
+                return Collections.emptyMap();
             }
-            return result;
         }
 
         public void start() throws Exception {
