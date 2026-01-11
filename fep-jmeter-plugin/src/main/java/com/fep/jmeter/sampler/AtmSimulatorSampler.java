@@ -1,5 +1,7 @@
 package com.fep.jmeter.sampler;
 
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fep.message.iso8583.Iso8583Message;
 import com.fep.message.iso8583.Iso8583MessageFactory;
 import com.fep.message.iso8583.MessageType;
@@ -56,19 +58,32 @@ public class AtmSimulatorSampler extends AbstractSampler implements TestBean, Te
     private static final long serialVersionUID = 1L;
     private static final Logger log = LoggerFactory.getLogger(AtmSimulatorSampler.class);
 
-    // Property names
+    // Property names - Connection
     public static final String FEP_HOST = "fepHost";
     public static final String FEP_PORT = "fepPort";
     public static final String CONNECTION_TIMEOUT = "connectionTimeout";
     public static final String READ_TIMEOUT = "readTimeout";
+
+    // Property names - Transaction
     public static final String TRANSACTION_TYPE = "transactionType";
+    public static final String MTI_OVERRIDE = "mtiOverride";
+    public static final String PROCESSING_CODE_OVERRIDE = "processingCodeOverride";
+
+    // Property names - ATM Info
     public static final String ATM_ID = "atmId";
     public static final String ATM_LOCATION = "atmLocation";
+    public static final String BANK_CODE = "bankCode";
+
+    // Property names - Card & Account
     public static final String CARD_NUMBER = "cardNumber";
     public static final String AMOUNT = "amount";
     public static final String DESTINATION_ACCOUNT = "destinationAccount";
-    public static final String BANK_CODE = "bankCode";
+
+    // Property names - Advanced Customization
     public static final String CUSTOM_FIELDS = "customFields";
+    public static final String MESSAGE_TEMPLATE = "messageTemplate";
+    public static final String ENABLE_PIN_BLOCK = "enablePinBlock";
+    public static final String PIN_BLOCK = "pinBlock";
 
     // Transaction types (deprecated, use AtmTransactionType enum instead)
     /** @deprecated Use {@link AtmTransactionType#WITHDRAWAL} instead */
@@ -101,6 +116,7 @@ public class AtmSimulatorSampler extends AbstractSampler implements TestBean, Te
     private static final Iso8583MessageFactory messageFactory = new Iso8583MessageFactory();
     private static final FiscMessageAssembler messageAssembler = new FiscMessageAssembler();
     private static final FiscMessageParser messageParser = new FiscMessageParser();
+    private static final ObjectMapper objectMapper = new ObjectMapper();
 
     public AtmSimulatorSampler() {
         super();
@@ -232,46 +248,145 @@ public class AtmSimulatorSampler extends AbstractSampler implements TestBean, Te
     }
 
     private Iso8583Message buildAtmTransaction(String transactionTypeStr) {
-        Iso8583Message message = messageFactory.createMessage(MessageType.FINANCIAL_REQUEST);
+        AtmTransactionType transactionType = AtmTransactionType.fromString(transactionTypeStr);
 
-        // Set common ATM fields
+        // Determine MTI - use override if provided, otherwise use transaction type default
+        String mti = getMtiOverride();
+        if (mti == null || mti.isEmpty()) {
+            mti = transactionType.getDefaultMti();
+        }
+
+        // Create message with appropriate MTI
+        MessageType messageType = switch (mti) {
+            case "0100" -> MessageType.AUTH_REQUEST;
+            case "0200" -> MessageType.FINANCIAL_REQUEST;
+            case "0400" -> MessageType.REVERSAL_REQUEST;
+            case "0800" -> MessageType.NETWORK_MANAGEMENT_REQUEST;
+            default -> MessageType.FINANCIAL_REQUEST;
+        };
+        Iso8583Message message = messageFactory.createMessage(messageType);
+
+        // If CUSTOM type with JSON template, apply template first
+        if (transactionType.isCustom()) {
+            applyMessageTemplate(message);
+        }
+
+        // Set common ATM fields (may be overridden by template)
         setCommonAtmFields(message);
 
-        // Set transaction-specific fields
-        AtmTransactionType transactionType = AtmTransactionType.fromString(transactionTypeStr);
+        // Determine processing code
+        String processingCode = getProcessingCodeOverride();
+        if (processingCode == null || processingCode.isEmpty()) {
+            processingCode = transactionType.getDefaultProcessingCode();
+        }
+
+        // Set transaction-specific fields based on type
         switch (transactionType) {
             case WITHDRAWAL -> {
-                message.setField(3, "010000"); // Cash withdrawal
+                message.setField(3, processingCode);
                 setAmountField(message);
             }
             case BALANCE_INQUIRY -> {
-                message.setField(3, "310000"); // Balance inquiry
+                message.setField(3, processingCode);
             }
             case TRANSFER -> {
-                message.setField(3, "400000"); // Fund transfer
+                message.setField(3, processingCode);
                 setAmountField(message);
                 setTransferFields(message);
             }
             case DEPOSIT -> {
-                message.setField(3, "210000"); // Cash deposit
+                message.setField(3, processingCode);
                 setAmountField(message);
             }
             case PIN_CHANGE -> {
-                message.setField(3, "920000"); // PIN change
+                message.setField(3, processingCode);
             }
             case MINI_STATEMENT -> {
-                message.setField(3, "380000"); // Mini statement
+                message.setField(3, processingCode);
             }
             case CARDLESS_WITHDRAWAL -> {
-                message.setField(3, "011000"); // Cardless withdrawal
+                message.setField(3, processingCode);
+                setAmountField(message);
+            }
+            case BILL_PAYMENT -> {
+                message.setField(3, processingCode);
+                setAmountField(message);
+            }
+            case AUTHORIZATION -> {
+                message.setField(3, processingCode);
+                setAmountField(message);
+            }
+            case REVERSAL -> {
+                message.setField(3, processingCode);
+                setAmountField(message);
+            }
+            case SIGN_ON -> {
+                message.setField(70, "001"); // Sign-on network code
+            }
+            case SIGN_OFF -> {
+                message.setField(70, "002"); // Sign-off network code
+            }
+            case ECHO_TEST -> {
+                message.setField(70, "301"); // Echo test network code
+            }
+            case KEY_EXCHANGE -> {
+                message.setField(70, "101"); // Key exchange network code
+            }
+            case CUSTOM -> {
+                // Processing code already set by template or override
+                if (processingCode != null && !processingCode.isEmpty()) {
+                    message.setField(3, processingCode);
+                }
                 setAmountField(message);
             }
         }
 
-        // Apply custom fields
+        // Apply PIN block if enabled
+        if (isEnablePinBlock()) {
+            String pinBlock = getPinBlock();
+            if (pinBlock != null && !pinBlock.isEmpty()) {
+                message.setField(52, pinBlock);
+            }
+        }
+
+        // Apply custom fields (highest priority, can override anything)
         applyCustomFields(message);
 
         return message;
+    }
+
+    /**
+     * Applies JSON message template to the message.
+     * Template format: {"mti": "0200", "fields": {"2": "4111...", "3": "010000", ...}}
+     */
+    private void applyMessageTemplate(Iso8583Message message) {
+        String template = getMessageTemplate();
+        if (template == null || template.trim().isEmpty()) {
+            return;
+        }
+
+        try {
+            Map<String, Object> templateMap = objectMapper.readValue(
+                template, new TypeReference<Map<String, Object>>() {});
+
+            // Apply fields from template
+            Object fieldsObj = templateMap.get("fields");
+            if (fieldsObj instanceof Map) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> fields = (Map<String, Object>) fieldsObj;
+                for (Map.Entry<String, Object> entry : fields.entrySet()) {
+                    try {
+                        int fieldNum = Integer.parseInt(entry.getKey());
+                        String value = substituteVariables(String.valueOf(entry.getValue()));
+                        message.setField(fieldNum, value);
+                    } catch (NumberFormatException e) {
+                        log.warn("Invalid field number in template: {}", entry.getKey());
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.error("Error parsing message template JSON: {}", e.getMessage());
+        }
     }
 
     private void setCommonAtmFields(Iso8583Message message) {
@@ -606,6 +721,46 @@ public class AtmSimulatorSampler extends AbstractSampler implements TestBean, Te
 
     public void setCustomFields(String fields) {
         setProperty(CUSTOM_FIELDS, fields);
+    }
+
+    public String getMtiOverride() {
+        return getPropertyAsString(MTI_OVERRIDE, "");
+    }
+
+    public void setMtiOverride(String mti) {
+        setProperty(MTI_OVERRIDE, mti);
+    }
+
+    public String getProcessingCodeOverride() {
+        return getPropertyAsString(PROCESSING_CODE_OVERRIDE, "");
+    }
+
+    public void setProcessingCodeOverride(String code) {
+        setProperty(PROCESSING_CODE_OVERRIDE, code);
+    }
+
+    public String getMessageTemplate() {
+        return getPropertyAsString(MESSAGE_TEMPLATE, "");
+    }
+
+    public void setMessageTemplate(String template) {
+        setProperty(MESSAGE_TEMPLATE, template);
+    }
+
+    public boolean isEnablePinBlock() {
+        return getPropertyAsBoolean(ENABLE_PIN_BLOCK, false);
+    }
+
+    public void setEnablePinBlock(boolean enable) {
+        setProperty(ENABLE_PIN_BLOCK, enable);
+    }
+
+    public String getPinBlock() {
+        return getPropertyAsString(PIN_BLOCK, "");
+    }
+
+    public void setPinBlock(String pinBlock) {
+        setProperty(PIN_BLOCK, pinBlock);
     }
 
     /**

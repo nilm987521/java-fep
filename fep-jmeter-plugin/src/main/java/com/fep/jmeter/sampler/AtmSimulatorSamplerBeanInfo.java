@@ -9,6 +9,13 @@ import java.beans.PropertyDescriptor;
  * BeanInfo for AtmSimulatorSampler.
  *
  * <p>Defines the GUI elements for configuring the ATM Simulator.
+ * Supports high customization through:
+ * <ul>
+ *   <li>Predefined transaction types with sensible defaults</li>
+ *   <li>MTI and Processing Code override for custom transactions</li>
+ *   <li>JSON message template for full field control</li>
+ *   <li>Custom fields for additional ISO 8583 fields</li>
+ * </ul>
  */
 public class AtmSimulatorSamplerBeanInfo extends BeanInfoSupport {
 
@@ -17,6 +24,7 @@ public class AtmSimulatorSamplerBeanInfo extends BeanInfoSupport {
     private static final String TERMINAL_GROUP = "terminal";
     private static final String TRANSACTION_GROUP = "transaction";
     private static final String CARD_GROUP = "card";
+    private static final String SECURITY_GROUP = "security";
     private static final String ADVANCED_GROUP = "advanced";
 
     // Transaction types
@@ -41,6 +49,8 @@ public class AtmSimulatorSamplerBeanInfo extends BeanInfoSupport {
 
         createPropertyGroup(TRANSACTION_GROUP, new String[]{
             AtmSimulatorSampler.TRANSACTION_TYPE,
+            AtmSimulatorSampler.MTI_OVERRIDE,
+            AtmSimulatorSampler.PROCESSING_CODE_OVERRIDE,
             AtmSimulatorSampler.AMOUNT,
             AtmSimulatorSampler.DESTINATION_ACCOUNT
         });
@@ -49,11 +59,17 @@ public class AtmSimulatorSamplerBeanInfo extends BeanInfoSupport {
             AtmSimulatorSampler.CARD_NUMBER
         });
 
-        createPropertyGroup(ADVANCED_GROUP, new String[]{
-            AtmSimulatorSampler.CUSTOM_FIELDS
+        createPropertyGroup(SECURITY_GROUP, new String[]{
+            AtmSimulatorSampler.ENABLE_PIN_BLOCK,
+            AtmSimulatorSampler.PIN_BLOCK
         });
 
-        // Connection properties
+        createPropertyGroup(ADVANCED_GROUP, new String[]{
+            AtmSimulatorSampler.CUSTOM_FIELDS,
+            AtmSimulatorSampler.MESSAGE_TEMPLATE
+        });
+
+        // ===== Connection properties =====
         PropertyDescriptor fepHostProp = property(AtmSimulatorSampler.FEP_HOST);
         fepHostProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
         fepHostProp.setValue(DEFAULT, "localhost");
@@ -78,7 +94,7 @@ public class AtmSimulatorSamplerBeanInfo extends BeanInfoSupport {
         readTimeoutProp.setDisplayName("Read Timeout (ms)");
         readTimeoutProp.setShortDescription("Maximum time to wait for response in milliseconds.");
 
-        // Terminal properties
+        // ===== Terminal properties =====
         PropertyDescriptor atmIdProp = property(AtmSimulatorSampler.ATM_ID);
         atmIdProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
         atmIdProp.setValue(DEFAULT, "");
@@ -97,7 +113,7 @@ public class AtmSimulatorSamplerBeanInfo extends BeanInfoSupport {
         bankCodeProp.setDisplayName("Bank Code");
         bankCodeProp.setShortDescription("Acquiring institution ID (Field 32). Example: '012' for Taipei Fubon.");
 
-        // Transaction properties
+        // ===== Transaction properties =====
         PropertyDescriptor txnTypeProp = property(AtmSimulatorSampler.TRANSACTION_TYPE);
         txnTypeProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
         txnTypeProp.setValue(DEFAULT, AtmTransactionType.BALANCE_INQUIRY.name());
@@ -106,14 +122,39 @@ public class AtmSimulatorSamplerBeanInfo extends BeanInfoSupport {
         txnTypeProp.setValue(TAGS, TRANSACTION_TYPES);
         txnTypeProp.setDisplayName("Transaction Type");
         txnTypeProp.setShortDescription(
-            "Type of ATM transaction:\n" +
+            "Type of ATM transaction. Use CUSTOM for full field control with JSON template.\n" +
             "WITHDRAWAL - Cash withdrawal (提款)\n" +
             "BALANCE_INQUIRY - Balance inquiry (餘額查詢)\n" +
             "TRANSFER - Fund transfer (轉帳)\n" +
             "DEPOSIT - Cash deposit (存款)\n" +
+            "BILL_PAYMENT - Bill payment (繳費)\n" +
             "PIN_CHANGE - PIN change (密碼變更)\n" +
             "MINI_STATEMENT - Transaction history (交易明細)\n" +
-            "CARDLESS_WITHDRAWAL - Cardless withdrawal (無卡提款)"
+            "CARDLESS_WITHDRAWAL - Cardless withdrawal (無卡提款)\n" +
+            "AUTHORIZATION - Pre-authorization (授權)\n" +
+            "REVERSAL - Transaction reversal (沖正)\n" +
+            "SIGN_ON/SIGN_OFF/ECHO_TEST - Network management\n" +
+            "CUSTOM - Custom message with JSON template"
+        );
+
+        PropertyDescriptor mtiOverrideProp = property(AtmSimulatorSampler.MTI_OVERRIDE);
+        mtiOverrideProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
+        mtiOverrideProp.setValue(DEFAULT, "");
+        mtiOverrideProp.setDisplayName("MTI Override");
+        mtiOverrideProp.setShortDescription(
+            "Override the default MTI for this transaction type.\n" +
+            "Leave empty to use the default MTI.\n" +
+            "Examples: 0100, 0200, 0400, 0800"
+        );
+
+        PropertyDescriptor processingCodeProp = property(AtmSimulatorSampler.PROCESSING_CODE_OVERRIDE);
+        processingCodeProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
+        processingCodeProp.setValue(DEFAULT, "");
+        processingCodeProp.setDisplayName("Processing Code Override");
+        processingCodeProp.setShortDescription(
+            "Override the default Processing Code (Field 3).\n" +
+            "Leave empty to use the default for transaction type.\n" +
+            "Examples: 010000 (withdrawal), 310000 (balance), 400000 (transfer)"
         );
 
         PropertyDescriptor amountProp = property(AtmSimulatorSampler.AMOUNT);
@@ -122,7 +163,8 @@ public class AtmSimulatorSamplerBeanInfo extends BeanInfoSupport {
         amountProp.setDisplayName("Amount");
         amountProp.setShortDescription(
             "Transaction amount in cents (Field 4).\n" +
-            "Example: 100000 = $1,000.00"
+            "Example: 100000 = $1,000.00\n" +
+            "Supports JMeter variables: ${amount}"
         );
 
         PropertyDescriptor destAccountProp = property(AtmSimulatorSampler.DESTINATION_ACCOUNT);
@@ -131,23 +173,65 @@ public class AtmSimulatorSamplerBeanInfo extends BeanInfoSupport {
         destAccountProp.setDisplayName("Destination Account");
         destAccountProp.setShortDescription("Destination account number for transfer transactions (Field 103).");
 
-        // Card properties
+        // ===== Card properties =====
         PropertyDescriptor cardNumberProp = property(AtmSimulatorSampler.CARD_NUMBER);
         cardNumberProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
         cardNumberProp.setValue(DEFAULT, "");
         cardNumberProp.setDisplayName("Card Number");
-        cardNumberProp.setShortDescription("Primary Account Number (Field 2). Example: 4716********1234.");
+        cardNumberProp.setShortDescription(
+            "Primary Account Number (Field 2).\n" +
+            "Example: 4716123456781234\n" +
+            "Supports JMeter variables: ${cardNumber}"
+        );
 
-        // Advanced properties
+        // ===== Security properties =====
+        PropertyDescriptor enablePinBlockProp = property(AtmSimulatorSampler.ENABLE_PIN_BLOCK);
+        enablePinBlockProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
+        enablePinBlockProp.setValue(DEFAULT, Boolean.FALSE);
+        enablePinBlockProp.setDisplayName("Enable PIN Block");
+        enablePinBlockProp.setShortDescription("Enable PIN Block field (Field 52) in the transaction.");
+
+        PropertyDescriptor pinBlockProp = property(AtmSimulatorSampler.PIN_BLOCK);
+        pinBlockProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
+        pinBlockProp.setValue(DEFAULT, "");
+        pinBlockProp.setDisplayName("PIN Block");
+        pinBlockProp.setShortDescription(
+            "Encrypted PIN Block (Field 52).\n" +
+            "16 hex characters. Example: 1234567890ABCDEF\n" +
+            "Supports JMeter variables: ${pinBlock}"
+        );
+
+        // ===== Advanced properties =====
         PropertyDescriptor customFieldsProp = property(AtmSimulatorSampler.CUSTOM_FIELDS);
         customFieldsProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
         customFieldsProp.setValue(DEFAULT, "");
-        customFieldsProp.setPropertyEditorClass(TypeEditor.class);
+        customFieldsProp.setValue(TypeEditor.class.getName(), TypeEditor.TextAreaEditor);
         customFieldsProp.setDisplayName("Custom Fields");
         customFieldsProp.setShortDescription(
-            "Additional ISO 8583 fields to set.\n" +
+            "Additional ISO 8583 fields (highest priority, overrides all).\n" +
             "Format: field:value;field:value\n" +
-            "Example: 14:2512;35:4716...1234=2512\n" +
+            "Example: 14:2512;35:4716...1234=2512;48:Custom Data\n" +
+            "Supports JMeter variables: ${varName}"
+        );
+
+        PropertyDescriptor messageTemplateProp = property(AtmSimulatorSampler.MESSAGE_TEMPLATE);
+        messageTemplateProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
+        messageTemplateProp.setValue(DEFAULT, "");
+        messageTemplateProp.setValue(TypeEditor.class.getName(), TypeEditor.TextAreaEditor);
+        messageTemplateProp.setDisplayName("Message Template (JSON)");
+        messageTemplateProp.setShortDescription(
+            "JSON template for CUSTOM transaction type.\n" +
+            "Provides full control over all ISO 8583 fields.\n\n" +
+            "Format:\n" +
+            "{\n" +
+            "  \"fields\": {\n" +
+            "    \"2\": \"4111111111111111\",\n" +
+            "    \"3\": \"010000\",\n" +
+            "    \"4\": \"000000100000\",\n" +
+            "    \"22\": \"051\",\n" +
+            "    \"...\": \"...\"\n" +
+            "  }\n" +
+            "}\n\n" +
             "Supports JMeter variables: ${varName}"
         );
     }
