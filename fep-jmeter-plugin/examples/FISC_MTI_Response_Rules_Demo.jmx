@@ -1,0 +1,251 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<jmeterTestPlan version="1.2" properties="5.0" jmeter="5.5">
+  <hashTree>
+    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="FISC MTI Response Rules Demo" enabled="true">
+      <stringProp name="TestPlan.comments">展示 MTI Response Rule Engine 的 JSON 配置功能
+支援多種 MTI 類型、條件式回應、變數替換</stringProp>
+      <boolProp name="TestPlan.functional_mode">false</boolProp>
+      <boolProp name="TestPlan.tearDown_on_shutdown">true</boolProp>
+      <boolProp name="TestPlan.serialize_threadgroups">false</boolProp>
+      <elementProp name="TestPlan.user_defined_variables" elementType="Arguments" guiclass="ArgumentsPanel" testclass="Arguments" testname="User Defined Variables" enabled="true">
+        <collectionProp name="Arguments.arguments">
+          <elementProp name="BALANCE" elementType="Argument">
+            <stringProp name="Argument.name">BALANCE</stringProp>
+            <stringProp name="Argument.value">000000050000</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+          <elementProp name="MERCHANT_NAME" elementType="Argument">
+            <stringProp name="Argument.name">MERCHANT_NAME</stringProp>
+            <stringProp name="Argument.value">FISC TEST MERCHANT</stringProp>
+            <stringProp name="Argument.metadata">=</stringProp>
+          </elementProp>
+        </collectionProp>
+      </elementProp>
+      <stringProp name="TestPlan.user_define_classpath"></stringProp>
+    </TestPlan>
+    <hashTree>
+      <!-- FISC Server with MTI Response Rules -->
+      <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="FISC Server (MTI Rules)" enabled="true">
+        <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
+        <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller" enabled="true">
+          <boolProp name="LoopController.continue_forever">false</boolProp>
+          <intProp name="LoopController.loops">-1</intProp>
+        </elementProp>
+        <stringProp name="ThreadGroup.num_threads">1</stringProp>
+        <stringProp name="ThreadGroup.ramp_time">0</stringProp>
+        <boolProp name="ThreadGroup.scheduler">false</boolProp>
+        <stringProp name="ThreadGroup.duration"></stringProp>
+        <stringProp name="ThreadGroup.delay"></stringProp>
+        <boolProp name="ThreadGroup.same_user_on_next_iteration">true</boolProp>
+      </ThreadGroup>
+      <hashTree>
+        <com.fep.jmeter.sampler.FiscDualChannelServerSampler guiclass="TestBeanGUI" testclass="com.fep.jmeter.sampler.FiscDualChannelServerSampler" testname="FISC Server with MTI Rules" enabled="true">
+          <stringProp name="operationMode">PASSIVE</stringProp>
+          <intProp name="sendPort">9000</intProp>
+          <intProp name="receivePort">9001</intProp>
+          <intProp name="sampleInterval">30000</intProp>
+          <stringProp name="defaultResponseCode">00</stringProp>
+          <intProp name="responseDelay">100</intProp>
+          <stringProp name="balanceAmount"></stringProp>
+          <boolProp name="enableValidation">true</boolProp>
+          <stringProp name="validationErrorCode">30</stringProp>
+          <stringProp name="validationRules">{
+  "globalRules": {
+    "required": [2, 3, 4, 11, 41],
+    "format": {"2": "N(13-19)", "3": "N(6)", "4": "N(12)", "11": "N(6)"},
+    "value": {"3": ["010000", "400000", "310000", "300000", "000000"]}
+  }
+}</stringProp>
+          <boolProp name="enableBankIdRouting">true</boolProp>
+          <intProp name="bankIdField">32</intProp>
+          <stringProp name="mtiResponseRules">{
+  "defaultResponseCode": "12",
+  "handlers": [
+    {
+      "mti": "0200",
+      "rules": [
+        {
+          "condition": {"field": 3, "value": "010000"},
+          "response": {
+            "39": "00",
+            "38": "AUTH${STAN}",
+            "43": "${MERCHANT_NAME}"
+          }
+        },
+        {
+          "condition": {"field": 3, "value": "400000"},
+          "response": {
+            "39": "51",
+            "44": "INSUFFICIENT FUNDS"
+          }
+        },
+        {
+          "condition": {"field": 3, "value": "310000"},
+          "response": {
+            "39": "00",
+            "54": "${BALANCE}"
+          }
+        },
+        {
+          "condition": {"field": 3, "value": "300000"},
+          "response": {
+            "39": "00",
+            "38": "TXN${STAN}"
+          }
+        },
+        {
+          "condition": "DEFAULT",
+          "response": {"39": "00"}
+        }
+      ]
+    },
+    {
+      "mti": "0100",
+      "rules": [
+        {
+          "condition": {"field": 3, "value": "300000"},
+          "response": {
+            "39": "00",
+            "38": "PRE${STAN}"
+          }
+        },
+        {
+          "condition": "DEFAULT",
+          "response": {"39": "00"}
+        }
+      ]
+    },
+    {
+      "mti": "0800",
+      "rules": [
+        {
+          "condition": {"field": 70, "value": "001"},
+          "response": {"39": "00", "70": "001"}
+        },
+        {
+          "condition": {"field": 70, "value": "002"},
+          "response": {"39": "00", "70": "002"}
+        },
+        {
+          "condition": {"field": 70, "value": "301"},
+          "response": {"39": "00", "70": "301"}
+        },
+        {
+          "condition": "DEFAULT",
+          "response": {"39": "00"}
+        }
+      ]
+    },
+    {
+      "mti": "0400",
+      "rules": [
+        {
+          "condition": "DEFAULT",
+          "response": {
+            "39": "00",
+            "38": "REV${STAN}"
+          }
+        }
+      ]
+    },
+    {
+      "mti": "0420",
+      "rules": [
+        {
+          "condition": "DEFAULT",
+          "response": {"39": "00"}
+        }
+      ]
+    }
+  ]
+}</stringProp>
+          <stringProp name="responseRules"></stringProp>
+          <stringProp name="customResponseFields"></stringProp>
+          <stringProp name="activeMessageType">ECHO_TEST</stringProp>
+          <stringProp name="activeTargetBankId"></stringProp>
+          <stringProp name="activeCustomMti">0800</stringProp>
+          <stringProp name="activeCustomFields"></stringProp>
+        </com.fep.jmeter.sampler.FiscDualChannelServerSampler>
+        <hashTree/>
+      </hashTree>
+
+      <!-- View Results -->
+      <ResultCollector guiclass="ViewResultsFullVisualizer" testclass="ResultCollector" testname="View Results Tree" enabled="true">
+        <boolProp name="ResultCollector.error_logging">false</boolProp>
+        <objProp>
+          <name>saveConfig</name>
+          <value class="SampleSaveConfiguration">
+            <time>true</time>
+            <latency>true</latency>
+            <timestamp>true</timestamp>
+            <success>true</success>
+            <label>true</label>
+            <code>true</code>
+            <message>true</message>
+            <threadName>true</threadName>
+            <dataType>true</dataType>
+            <encoding>false</encoding>
+            <assertions>true</assertions>
+            <subresults>true</subresults>
+            <responseData>true</responseData>
+            <samplerData>true</samplerData>
+            <xml>false</xml>
+            <fieldNames>true</fieldNames>
+            <responseHeaders>false</responseHeaders>
+            <requestHeaders>false</requestHeaders>
+            <responseDataOnError>false</responseDataOnError>
+            <saveAssertionResultsFailureMessage>true</saveAssertionResultsFailureMessage>
+            <assertionsResultsToSave>0</assertionsResultsToSave>
+            <bytes>true</bytes>
+            <sentBytes>true</sentBytes>
+            <url>true</url>
+            <threadCounts>true</threadCounts>
+            <idleTime>true</idleTime>
+            <connectTime>true</connectTime>
+          </value>
+        </objProp>
+        <stringProp name="filename"></stringProp>
+      </ResultCollector>
+      <hashTree/>
+
+      <!-- Summary Report -->
+      <ResultCollector guiclass="SummaryReport" testclass="ResultCollector" testname="Summary Report" enabled="true">
+        <boolProp name="ResultCollector.error_logging">false</boolProp>
+        <objProp>
+          <name>saveConfig</name>
+          <value class="SampleSaveConfiguration">
+            <time>true</time>
+            <latency>true</latency>
+            <timestamp>true</timestamp>
+            <success>true</success>
+            <label>true</label>
+            <code>true</code>
+            <message>true</message>
+            <threadName>true</threadName>
+            <dataType>true</dataType>
+            <encoding>false</encoding>
+            <assertions>true</assertions>
+            <subresults>true</subresults>
+            <responseData>false</responseData>
+            <samplerData>false</samplerData>
+            <xml>false</xml>
+            <fieldNames>true</fieldNames>
+            <responseHeaders>false</responseHeaders>
+            <requestHeaders>false</requestHeaders>
+            <responseDataOnError>false</responseDataOnError>
+            <saveAssertionResultsFailureMessage>true</saveAssertionResultsFailureMessage>
+            <assertionsResultsToSave>0</assertionsResultsToSave>
+            <bytes>true</bytes>
+            <sentBytes>true</sentBytes>
+            <url>true</url>
+            <threadCounts>true</threadCounts>
+            <idleTime>true</idleTime>
+            <connectTime>true</connectTime>
+          </value>
+        </objProp>
+        <stringProp name="filename"></stringProp>
+      </ResultCollector>
+      <hashTree/>
+    </hashTree>
+  </hashTree>
+</jmeterTestPlan>
