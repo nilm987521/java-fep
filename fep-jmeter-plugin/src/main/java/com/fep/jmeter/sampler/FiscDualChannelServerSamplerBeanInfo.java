@@ -156,7 +156,10 @@ public class FiscDualChannelServerSamplerBeanInfo extends BeanInfoSupport {
         validationRulesProp.setPropertyEditorClass(TextAreaEditor.class);
         validationRulesProp.setDisplayName("Validation Rules");
         validationRulesProp.setShortDescription(
-            "Validation rules configuration. Format:\n" +
+            "Validation rules (JSON or Text format - auto-detected).\n\n" +
+            "JSON format (recommended):\n" +
+            "{\"globalRules\": {\"required\": [2,3,4], \"format\": {\"2\": \"N(13-19)\"}}}\n\n" +
+            "Text format:\n" +
             "REQUIRED:2,3,4,11,41,42\n" +
             "FORMAT:2=N(13-19);3=N(6)\n" +
             "VALUE:3=010000|400000|310000\n" +
