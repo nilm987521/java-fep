@@ -51,10 +51,16 @@ public class TransactionTemplateConfig extends ConfigTestElement implements Test
     public static final String AUTO_GENERATE_STAN = "autoGenerateStan";
     public static final String AUTO_GENERATE_TIMESTAMP = "autoGenerateTimestamp";
 
-    // Template source options
-    public static final String SOURCE_FILE = "FILE";
-    public static final String SOURCE_INLINE = "INLINE";
-    public static final String SOURCE_COMMON = "COMMON";
+    // Template source options (deprecated, use TemplateSource enum instead)
+    /** @deprecated Use {@link TemplateSource#FILE} instead */
+    @Deprecated
+    public static final String SOURCE_FILE = TemplateSource.FILE.name();
+    /** @deprecated Use {@link TemplateSource#INLINE} instead */
+    @Deprecated
+    public static final String SOURCE_INLINE = TemplateSource.INLINE.name();
+    /** @deprecated Use {@link TemplateSource#COMMON} instead */
+    @Deprecated
+    public static final String SOURCE_COMMON = TemplateSource.COMMON.name();
 
     // Loaded templates cache
     private static final Map<String, List<TransactionTemplate>> templateCache = new ConcurrentHashMap<>();
@@ -161,11 +167,11 @@ public class TransactionTemplateConfig extends ConfigTestElement implements Test
     private List<TransactionTemplate> loadTemplates() {
         List<TransactionTemplate> templates = new ArrayList<>();
 
-        String source = getTemplateSource();
+        TemplateSource source = TemplateSource.fromString(getTemplateSource());
 
         try {
             switch (source) {
-                case SOURCE_FILE -> {
+                case FILE -> {
                     String filePath = getTemplateFile();
                     if (filePath != null && !filePath.isEmpty()) {
                         Path path = Paths.get(filePath);
@@ -173,7 +179,7 @@ public class TransactionTemplateConfig extends ConfigTestElement implements Test
                         log.info("Loaded {} templates from file: {}", templates.size(), filePath);
                     }
                 }
-                case SOURCE_INLINE -> {
+                case INLINE -> {
                     String json = getInlineTemplates();
                     if (json != null && !json.isEmpty()) {
                         // Check if it's a single template or array
@@ -186,14 +192,14 @@ public class TransactionTemplateConfig extends ConfigTestElement implements Test
                         log.info("Loaded {} inline templates", templates.size());
                     }
                 }
-                case SOURCE_COMMON -> {
+                case COMMON -> {
                     templates.addAll(TransactionTemplate.CommonTemplates.all());
                     log.info("Loaded {} common templates", templates.size());
                 }
             }
 
             // Optionally add common templates
-            if (isUseCommonTemplates() && !SOURCE_COMMON.equals(source)) {
+            if (isUseCommonTemplates() && source != TemplateSource.COMMON) {
                 // Only add common templates that don't already exist
                 Set<String> existingNames = new HashSet<>();
                 templates.forEach(t -> existingNames.add(t.getName()));
@@ -237,7 +243,7 @@ public class TransactionTemplateConfig extends ConfigTestElement implements Test
 
     // Getters and Setters for TestBean properties
     public String getTemplateSource() {
-        return getPropertyAsString(TEMPLATE_SOURCE, SOURCE_COMMON);
+        return getPropertyAsString(TEMPLATE_SOURCE, TemplateSource.COMMON.name());
     }
 
     public void setTemplateSource(String source) {

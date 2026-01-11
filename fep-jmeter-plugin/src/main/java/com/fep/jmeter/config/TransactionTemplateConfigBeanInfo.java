@@ -17,11 +17,7 @@ public class TransactionTemplateConfigBeanInfo extends BeanInfoSupport {
     private static final String OPTIONS_GROUP = "options";
 
     // Template source options
-    private static final String[] TEMPLATE_SOURCES = {
-        TransactionTemplateConfig.SOURCE_COMMON,
-        TransactionTemplateConfig.SOURCE_FILE,
-        TransactionTemplateConfig.SOURCE_INLINE
-    };
+    private static final String[] TEMPLATE_SOURCES = TemplateSource.names();
 
     public TransactionTemplateConfigBeanInfo() {
         super(TransactionTemplateConfig.class);
@@ -42,7 +38,7 @@ public class TransactionTemplateConfigBeanInfo extends BeanInfoSupport {
         // Template source property
         PropertyDescriptor sourceProp = property(TransactionTemplateConfig.TEMPLATE_SOURCE);
         sourceProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
-        sourceProp.setValue(DEFAULT, TransactionTemplateConfig.SOURCE_COMMON);
+        sourceProp.setValue(DEFAULT, TemplateSource.COMMON.name());
         sourceProp.setValue(NOT_EXPRESSION, Boolean.TRUE);
         sourceProp.setValue(NOT_OTHER, Boolean.TRUE);
         sourceProp.setValue(TAGS, TEMPLATE_SOURCES);

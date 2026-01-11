@@ -50,14 +50,28 @@ public class BankCoreMessageSenderSampler extends AbstractSampler implements Tes
     public static final String SETTLEMENT_DATE = "settlementDate";
     public static final String ACCOUNT_NUMBER = "accountNumber";
 
-    // Message type options
-    public static final String TYPE_RECONCILIATION = "RECONCILIATION_NOTIFY";
-    public static final String TYPE_ACCOUNT_UPDATE = "ACCOUNT_UPDATE";
-    public static final String TYPE_SYSTEM_STATUS = "SYSTEM_STATUS";
-    public static final String TYPE_ECHO_TEST = "ECHO_TEST";
-    public static final String TYPE_SIGN_ON = "SIGN_ON_NOTIFY";
-    public static final String TYPE_SIGN_OFF = "SIGN_OFF_NOTIFY";
-    public static final String TYPE_CUSTOM = "CUSTOM";
+    // Message type options (deprecated, use BankCoreMessageType enum instead)
+    /** @deprecated Use {@link BankCoreMessageType#RECONCILIATION_NOTIFY} instead */
+    @Deprecated
+    public static final String TYPE_RECONCILIATION = BankCoreMessageType.RECONCILIATION_NOTIFY.name();
+    /** @deprecated Use {@link BankCoreMessageType#ACCOUNT_UPDATE} instead */
+    @Deprecated
+    public static final String TYPE_ACCOUNT_UPDATE = BankCoreMessageType.ACCOUNT_UPDATE.name();
+    /** @deprecated Use {@link BankCoreMessageType#SYSTEM_STATUS} instead */
+    @Deprecated
+    public static final String TYPE_SYSTEM_STATUS = BankCoreMessageType.SYSTEM_STATUS.name();
+    /** @deprecated Use {@link BankCoreMessageType#ECHO_TEST} instead */
+    @Deprecated
+    public static final String TYPE_ECHO_TEST = BankCoreMessageType.ECHO_TEST.name();
+    /** @deprecated Use {@link BankCoreMessageType#SIGN_ON_NOTIFY} instead */
+    @Deprecated
+    public static final String TYPE_SIGN_ON = BankCoreMessageType.SIGN_ON_NOTIFY.name();
+    /** @deprecated Use {@link BankCoreMessageType#SIGN_OFF_NOTIFY} instead */
+    @Deprecated
+    public static final String TYPE_SIGN_OFF = BankCoreMessageType.SIGN_OFF_NOTIFY.name();
+    /** @deprecated Use {@link BankCoreMessageType#CUSTOM} instead */
+    @Deprecated
+    public static final String TYPE_CUSTOM = BankCoreMessageType.CUSTOM.name();
 
     // STAN counter for unique message identification
     private static final AtomicInteger stanCounter = new AtomicInteger(0);
@@ -159,65 +173,66 @@ public class BankCoreMessageSenderSampler extends AbstractSampler implements Tes
     }
 
     private Iso8583Message buildMessage() {
-        String messageType = getMessageType();
-        Iso8583Message message;
+        BankCoreMessageType messageType = BankCoreMessageType.fromString(getMessageType());
 
-        switch (messageType) {
-            case TYPE_RECONCILIATION -> {
+        Iso8583Message message = switch (messageType) {
+            case RECONCILIATION_NOTIFY -> {
                 // Settlement/Reconciliation notification
-                message = new Iso8583Message("0820"); // Network Management Advice
-                message.setField(70, "201"); // Reconciliation notification
+                Iso8583Message msg = new Iso8583Message("0820"); // Network Management Advice
+                msg.setField(70, "201"); // Reconciliation notification
 
                 // Add settlement date
                 String settlementDate = getSettlementDate();
                 if (settlementDate != null && !settlementDate.isEmpty()) {
-                    message.setField(15, settlementDate); // Settlement date
+                    msg.setField(15, settlementDate); // Settlement date
                 } else {
-                    message.setField(15, LocalDateTime.now().format(DateTimeFormatter.ofPattern("MMdd")));
+                    msg.setField(15, LocalDateTime.now().format(DateTimeFormatter.ofPattern("MMdd")));
                 }
-                message.setField(48, "RECONCILIATION_READY");
+                msg.setField(48, "RECONCILIATION_READY");
+                yield msg;
             }
-            case TYPE_ACCOUNT_UPDATE -> {
+            case ACCOUNT_UPDATE -> {
                 // Account update notification
-                message = new Iso8583Message("0620"); // Financial Advice
-                message.setField(70, "301"); // Account update
+                Iso8583Message msg = new Iso8583Message("0620"); // Financial Advice
+                msg.setField(70, "301"); // Account update
 
                 // Add account number if provided
                 String accountNumber = getAccountNumber();
                 if (accountNumber != null && !accountNumber.isEmpty()) {
-                    message.setField(102, accountNumber); // Account identification
+                    msg.setField(102, accountNumber); // Account identification
                 }
-                message.setField(48, "ACCOUNT_BALANCE_UPDATED");
+                msg.setField(48, "ACCOUNT_BALANCE_UPDATED");
+                yield msg;
             }
-            case TYPE_SYSTEM_STATUS -> {
-                message = new Iso8583Message("0820"); // Network Management Advice
-                message.setField(70, "001"); // System status
-                message.setField(48, "CORE_SYSTEM_STATUS");
+            case SYSTEM_STATUS -> {
+                Iso8583Message msg = new Iso8583Message("0820"); // Network Management Advice
+                msg.setField(70, "001"); // System status
+                msg.setField(48, "CORE_SYSTEM_STATUS");
+                yield msg;
             }
-            case TYPE_ECHO_TEST -> {
-                message = new Iso8583Message(MessageType.NETWORK_MANAGEMENT_REQUEST);
-                message.setField(70, "301"); // Echo test
+            case ECHO_TEST -> {
+                Iso8583Message msg = new Iso8583Message(MessageType.NETWORK_MANAGEMENT_REQUEST);
+                msg.setField(70, "301"); // Echo test
+                yield msg;
             }
-            case TYPE_SIGN_ON -> {
-                message = new Iso8583Message(MessageType.NETWORK_MANAGEMENT_REQUEST);
-                message.setField(70, "001"); // Sign-on
+            case SIGN_ON_NOTIFY -> {
+                Iso8583Message msg = new Iso8583Message(MessageType.NETWORK_MANAGEMENT_REQUEST);
+                msg.setField(70, "001"); // Sign-on
+                yield msg;
             }
-            case TYPE_SIGN_OFF -> {
-                message = new Iso8583Message(MessageType.NETWORK_MANAGEMENT_REQUEST);
-                message.setField(70, "002"); // Sign-off
+            case SIGN_OFF_NOTIFY -> {
+                Iso8583Message msg = new Iso8583Message(MessageType.NETWORK_MANAGEMENT_REQUEST);
+                msg.setField(70, "002"); // Sign-off
+                yield msg;
             }
-            case TYPE_CUSTOM -> {
+            case CUSTOM -> {
                 String customMti = getCustomMti();
                 if (customMti == null || customMti.isEmpty()) {
                     customMti = "0800";
                 }
-                message = new Iso8583Message(customMti);
+                yield new Iso8583Message(customMti);
             }
-            default -> {
-                message = new Iso8583Message(MessageType.NETWORK_MANAGEMENT_REQUEST);
-                message.setField(70, "301");
-            }
-        }
+        };
 
         // Set common fields
         String stan = String.format("%06d", stanCounter.incrementAndGet() % 1000000);
@@ -248,7 +263,7 @@ public class BankCoreMessageSenderSampler extends AbstractSampler implements Tes
 
     // Getters and Setters
     public String getMessageType() {
-        return getPropertyAsString(MESSAGE_TYPE, TYPE_ECHO_TEST);
+        return getPropertyAsString(MESSAGE_TYPE, BankCoreMessageType.ECHO_TEST.name());
     }
 
     public void setMessageType(String type) {

@@ -20,15 +20,7 @@ public class AtmSimulatorSamplerBeanInfo extends BeanInfoSupport {
     private static final String ADVANCED_GROUP = "advanced";
 
     // Transaction types
-    private static final String[] TRANSACTION_TYPES = {
-        AtmSimulatorSampler.TXN_WITHDRAWAL,
-        AtmSimulatorSampler.TXN_BALANCE_INQUIRY,
-        AtmSimulatorSampler.TXN_TRANSFER,
-        AtmSimulatorSampler.TXN_DEPOSIT,
-        AtmSimulatorSampler.TXN_PIN_CHANGE,
-        AtmSimulatorSampler.TXN_MINI_STATEMENT,
-        AtmSimulatorSampler.TXN_CARDLESS
-    };
+    private static final String[] TRANSACTION_TYPES = AtmTransactionType.names();
 
     public AtmSimulatorSamplerBeanInfo() {
         super(AtmSimulatorSampler.class);
@@ -108,7 +100,7 @@ public class AtmSimulatorSamplerBeanInfo extends BeanInfoSupport {
         // Transaction properties
         PropertyDescriptor txnTypeProp = property(AtmSimulatorSampler.TRANSACTION_TYPE);
         txnTypeProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
-        txnTypeProp.setValue(DEFAULT, AtmSimulatorSampler.TXN_BALANCE_INQUIRY);
+        txnTypeProp.setValue(DEFAULT, AtmTransactionType.BALANCE_INQUIRY.name());
         txnTypeProp.setValue(NOT_EXPRESSION, Boolean.TRUE);
         txnTypeProp.setValue(NOT_OTHER, Boolean.TRUE);
         txnTypeProp.setValue(TAGS, TRANSACTION_TYPES);

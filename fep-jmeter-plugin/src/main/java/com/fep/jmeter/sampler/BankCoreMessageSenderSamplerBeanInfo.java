@@ -19,15 +19,7 @@ public class BankCoreMessageSenderSamplerBeanInfo extends BeanInfoSupport {
     private static final String ADVANCED_GROUP = "advanced";
 
     // Message type options
-    private static final String[] MESSAGE_TYPES = {
-        BankCoreMessageSenderSampler.TYPE_ECHO_TEST,
-        BankCoreMessageSenderSampler.TYPE_RECONCILIATION,
-        BankCoreMessageSenderSampler.TYPE_ACCOUNT_UPDATE,
-        BankCoreMessageSenderSampler.TYPE_SYSTEM_STATUS,
-        BankCoreMessageSenderSampler.TYPE_SIGN_ON,
-        BankCoreMessageSenderSampler.TYPE_SIGN_OFF,
-        BankCoreMessageSenderSampler.TYPE_CUSTOM
-    };
+    private static final String[] MESSAGE_TYPES = BankCoreMessageType.names();
 
     public BankCoreMessageSenderSamplerBeanInfo() {
         super(BankCoreMessageSenderSampler.class);
@@ -56,7 +48,7 @@ public class BankCoreMessageSenderSamplerBeanInfo extends BeanInfoSupport {
         // Message properties
         PropertyDescriptor messageTypeProp = property(BankCoreMessageSenderSampler.MESSAGE_TYPE);
         messageTypeProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
-        messageTypeProp.setValue(DEFAULT, BankCoreMessageSenderSampler.TYPE_ECHO_TEST);
+        messageTypeProp.setValue(DEFAULT, BankCoreMessageType.ECHO_TEST.name());
         messageTypeProp.setValue(NOT_EXPRESSION, Boolean.TRUE);
         messageTypeProp.setValue(NOT_OTHER, Boolean.TRUE);
         messageTypeProp.setValue(TAGS, MESSAGE_TYPES);

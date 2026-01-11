@@ -20,15 +20,7 @@ public class FiscSamplerBeanInfo extends BeanInfoSupport {
     private static final String MESSAGE_GROUP = "message";
 
     // Transaction type options
-    private static final String[] TRANSACTION_TYPES = {
-        FiscSampler.TXN_ECHO_TEST,
-        FiscSampler.TXN_SIGN_ON,
-        FiscSampler.TXN_SIGN_OFF,
-        FiscSampler.TXN_WITHDRAWAL,
-        FiscSampler.TXN_TRANSFER,
-        FiscSampler.TXN_BALANCE_INQUIRY,
-        FiscSampler.TXN_BILL_PAYMENT
-    };
+    private static final String[] TRANSACTION_TYPES = FiscTransactionType.names();
 
     public FiscSamplerBeanInfo() {
         super(FiscSampler.class);
@@ -82,7 +74,7 @@ public class FiscSamplerBeanInfo extends BeanInfoSupport {
         // Transaction properties
         PropertyDescriptor txnTypeProp = property(FiscSampler.TRANSACTION_TYPE);
         txnTypeProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
-        txnTypeProp.setValue(DEFAULT, FiscSampler.TXN_ECHO_TEST);
+        txnTypeProp.setValue(DEFAULT, FiscTransactionType.ECHO_TEST.name());
         txnTypeProp.setValue(NOT_EXPRESSION, Boolean.TRUE);
         txnTypeProp.setValue(NOT_OTHER, Boolean.TRUE);
         txnTypeProp.setValue(TAGS, TRANSACTION_TYPES);

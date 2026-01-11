@@ -47,13 +47,25 @@ public class FiscMessageSenderSampler extends AbstractSampler implements TestBea
     public static final String SEND_PORT = "sendPort";
     public static final String RECEIVE_PORT = "receivePort";
 
-    // Message type options
-    public static final String TYPE_ECHO_TEST = "ECHO_TEST";
-    public static final String TYPE_KEY_CHANGE = "KEY_CHANGE_NOTIFY";
-    public static final String TYPE_SYSTEM_STATUS = "SYSTEM_STATUS";
-    public static final String TYPE_SIGN_ON = "SIGN_ON_NOTIFY";
-    public static final String TYPE_SIGN_OFF = "SIGN_OFF_NOTIFY";
-    public static final String TYPE_CUSTOM = "CUSTOM";
+    // Message type options (deprecated, use FiscMessageType enum instead)
+    /** @deprecated Use {@link FiscMessageType#ECHO_TEST} instead */
+    @Deprecated
+    public static final String TYPE_ECHO_TEST = FiscMessageType.ECHO_TEST.name();
+    /** @deprecated Use {@link FiscMessageType#KEY_CHANGE_NOTIFY} instead */
+    @Deprecated
+    public static final String TYPE_KEY_CHANGE = FiscMessageType.KEY_CHANGE_NOTIFY.name();
+    /** @deprecated Use {@link FiscMessageType#SYSTEM_STATUS} instead */
+    @Deprecated
+    public static final String TYPE_SYSTEM_STATUS = FiscMessageType.SYSTEM_STATUS.name();
+    /** @deprecated Use {@link FiscMessageType#SIGN_ON_NOTIFY} instead */
+    @Deprecated
+    public static final String TYPE_SIGN_ON = FiscMessageType.SIGN_ON_NOTIFY.name();
+    /** @deprecated Use {@link FiscMessageType#SIGN_OFF_NOTIFY} instead */
+    @Deprecated
+    public static final String TYPE_SIGN_OFF = FiscMessageType.SIGN_OFF_NOTIFY.name();
+    /** @deprecated Use {@link FiscMessageType#CUSTOM} instead */
+    @Deprecated
+    public static final String TYPE_CUSTOM = FiscMessageType.CUSTOM.name();
 
     // STAN counter for unique message identification
     private static final AtomicInteger stanCounter = new AtomicInteger(0);
@@ -155,44 +167,44 @@ public class FiscMessageSenderSampler extends AbstractSampler implements TestBea
     }
 
     private Iso8583Message buildMessage() {
-        String messageType = getMessageType();
-        Iso8583Message message;
+        FiscMessageType messageType = FiscMessageType.fromString(getMessageType());
 
-        switch (messageType) {
-            case TYPE_ECHO_TEST -> {
-                message = new Iso8583Message(MessageType.NETWORK_MANAGEMENT_REQUEST);
-                message.setField(70, "301"); // Echo test
+        Iso8583Message message = switch (messageType) {
+            case ECHO_TEST -> {
+                Iso8583Message msg = new Iso8583Message(MessageType.NETWORK_MANAGEMENT_REQUEST);
+                msg.setField(70, "301"); // Echo test
+                yield msg;
             }
-            case TYPE_KEY_CHANGE -> {
-                message = new Iso8583Message(MessageType.NETWORK_MANAGEMENT_REQUEST);
-                message.setField(70, "161"); // Key change
-                message.setField(48, "KEY_CHANGE_REQUIRED");
+            case KEY_CHANGE_NOTIFY -> {
+                Iso8583Message msg = new Iso8583Message(MessageType.NETWORK_MANAGEMENT_REQUEST);
+                msg.setField(70, "161"); // Key change
+                msg.setField(48, "KEY_CHANGE_REQUIRED");
+                yield msg;
             }
-            case TYPE_SYSTEM_STATUS -> {
-                message = new Iso8583Message("0820"); // Network Management Advice
-                message.setField(70, "001"); // Logon/System status
-                message.setField(48, "SYSTEM_STATUS_UPDATE");
+            case SYSTEM_STATUS -> {
+                Iso8583Message msg = new Iso8583Message("0820"); // Network Management Advice
+                msg.setField(70, "001"); // Logon/System status
+                msg.setField(48, "SYSTEM_STATUS_UPDATE");
+                yield msg;
             }
-            case TYPE_SIGN_ON -> {
-                message = new Iso8583Message(MessageType.NETWORK_MANAGEMENT_REQUEST);
-                message.setField(70, "001"); // Sign-on
+            case SIGN_ON_NOTIFY -> {
+                Iso8583Message msg = new Iso8583Message(MessageType.NETWORK_MANAGEMENT_REQUEST);
+                msg.setField(70, "001"); // Sign-on
+                yield msg;
             }
-            case TYPE_SIGN_OFF -> {
-                message = new Iso8583Message(MessageType.NETWORK_MANAGEMENT_REQUEST);
-                message.setField(70, "002"); // Sign-off
+            case SIGN_OFF_NOTIFY -> {
+                Iso8583Message msg = new Iso8583Message(MessageType.NETWORK_MANAGEMENT_REQUEST);
+                msg.setField(70, "002"); // Sign-off
+                yield msg;
             }
-            case TYPE_CUSTOM -> {
+            case CUSTOM -> {
                 String customMti = getCustomMti();
                 if (customMti == null || customMti.isEmpty()) {
                     customMti = "0800";
                 }
-                message = new Iso8583Message(customMti);
+                yield new Iso8583Message(customMti);
             }
-            default -> {
-                message = new Iso8583Message(MessageType.NETWORK_MANAGEMENT_REQUEST);
-                message.setField(70, "301");
-            }
-        }
+        };
 
         // Set common fields
         String stan = String.format("%06d", stanCounter.incrementAndGet() % 1000000);
@@ -223,7 +235,7 @@ public class FiscMessageSenderSampler extends AbstractSampler implements TestBea
 
     // Getters and Setters
     public String getMessageType() {
-        return getPropertyAsString(MESSAGE_TYPE, TYPE_ECHO_TEST);
+        return getPropertyAsString(MESSAGE_TYPE, FiscMessageType.ECHO_TEST.name());
     }
 
     public void setMessageType(String type) {

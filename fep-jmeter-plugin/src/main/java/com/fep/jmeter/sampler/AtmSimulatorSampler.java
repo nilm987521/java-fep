@@ -70,14 +70,28 @@ public class AtmSimulatorSampler extends AbstractSampler implements TestBean, Te
     public static final String BANK_CODE = "bankCode";
     public static final String CUSTOM_FIELDS = "customFields";
 
-    // Transaction types
-    public static final String TXN_WITHDRAWAL = "WITHDRAWAL";
-    public static final String TXN_BALANCE_INQUIRY = "BALANCE_INQUIRY";
-    public static final String TXN_TRANSFER = "TRANSFER";
-    public static final String TXN_DEPOSIT = "DEPOSIT";
-    public static final String TXN_PIN_CHANGE = "PIN_CHANGE";
-    public static final String TXN_MINI_STATEMENT = "MINI_STATEMENT";
-    public static final String TXN_CARDLESS = "CARDLESS_WITHDRAWAL";
+    // Transaction types (deprecated, use AtmTransactionType enum instead)
+    /** @deprecated Use {@link AtmTransactionType#WITHDRAWAL} instead */
+    @Deprecated
+    public static final String TXN_WITHDRAWAL = AtmTransactionType.WITHDRAWAL.name();
+    /** @deprecated Use {@link AtmTransactionType#BALANCE_INQUIRY} instead */
+    @Deprecated
+    public static final String TXN_BALANCE_INQUIRY = AtmTransactionType.BALANCE_INQUIRY.name();
+    /** @deprecated Use {@link AtmTransactionType#TRANSFER} instead */
+    @Deprecated
+    public static final String TXN_TRANSFER = AtmTransactionType.TRANSFER.name();
+    /** @deprecated Use {@link AtmTransactionType#DEPOSIT} instead */
+    @Deprecated
+    public static final String TXN_DEPOSIT = AtmTransactionType.DEPOSIT.name();
+    /** @deprecated Use {@link AtmTransactionType#PIN_CHANGE} instead */
+    @Deprecated
+    public static final String TXN_PIN_CHANGE = AtmTransactionType.PIN_CHANGE.name();
+    /** @deprecated Use {@link AtmTransactionType#MINI_STATEMENT} instead */
+    @Deprecated
+    public static final String TXN_MINI_STATEMENT = AtmTransactionType.MINI_STATEMENT.name();
+    /** @deprecated Use {@link AtmTransactionType#CARDLESS_WITHDRAWAL} instead */
+    @Deprecated
+    public static final String TXN_CARDLESS = AtmTransactionType.CARDLESS_WITHDRAWAL.name();
 
     // Static resources
     private static final Map<String, ChannelHolder> channelPool = new ConcurrentHashMap<>();
@@ -217,42 +231,40 @@ public class AtmSimulatorSampler extends AbstractSampler implements TestBean, Te
         }
     }
 
-    private Iso8583Message buildAtmTransaction(String transactionType) {
+    private Iso8583Message buildAtmTransaction(String transactionTypeStr) {
         Iso8583Message message = messageFactory.createMessage(MessageType.FINANCIAL_REQUEST);
 
         // Set common ATM fields
         setCommonAtmFields(message);
 
         // Set transaction-specific fields
+        AtmTransactionType transactionType = AtmTransactionType.fromString(transactionTypeStr);
         switch (transactionType) {
-            case TXN_WITHDRAWAL -> {
+            case WITHDRAWAL -> {
                 message.setField(3, "010000"); // Cash withdrawal
                 setAmountField(message);
             }
-            case TXN_BALANCE_INQUIRY -> {
+            case BALANCE_INQUIRY -> {
                 message.setField(3, "310000"); // Balance inquiry
             }
-            case TXN_TRANSFER -> {
+            case TRANSFER -> {
                 message.setField(3, "400000"); // Fund transfer
                 setAmountField(message);
                 setTransferFields(message);
             }
-            case TXN_DEPOSIT -> {
+            case DEPOSIT -> {
                 message.setField(3, "210000"); // Cash deposit
                 setAmountField(message);
             }
-            case TXN_PIN_CHANGE -> {
+            case PIN_CHANGE -> {
                 message.setField(3, "920000"); // PIN change
             }
-            case TXN_MINI_STATEMENT -> {
+            case MINI_STATEMENT -> {
                 message.setField(3, "380000"); // Mini statement
             }
-            case TXN_CARDLESS -> {
+            case CARDLESS_WITHDRAWAL -> {
                 message.setField(3, "011000"); // Cardless withdrawal
                 setAmountField(message);
-            }
-            default -> {
-                message.setField(3, "000000");
             }
         }
 
@@ -533,7 +545,7 @@ public class AtmSimulatorSampler extends AbstractSampler implements TestBean, Te
     }
 
     public String getTransactionType() {
-        return getPropertyAsString(TRANSACTION_TYPE, TXN_BALANCE_INQUIRY);
+        return getPropertyAsString(TRANSACTION_TYPE, AtmTransactionType.BALANCE_INQUIRY.name());
     }
 
     public void setTransactionType(String type) {

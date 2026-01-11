@@ -18,14 +18,7 @@ public class FiscMessageSenderSamplerBeanInfo extends BeanInfoSupport {
     private static final String ADVANCED_GROUP = "advanced";
 
     // Message type options
-    private static final String[] MESSAGE_TYPES = {
-        FiscMessageSenderSampler.TYPE_ECHO_TEST,
-        FiscMessageSenderSampler.TYPE_KEY_CHANGE,
-        FiscMessageSenderSampler.TYPE_SYSTEM_STATUS,
-        FiscMessageSenderSampler.TYPE_SIGN_ON,
-        FiscMessageSenderSampler.TYPE_SIGN_OFF,
-        FiscMessageSenderSampler.TYPE_CUSTOM
-    };
+    private static final String[] MESSAGE_TYPES = FiscMessageType.names();
 
     public FiscMessageSenderSamplerBeanInfo() {
         super(FiscMessageSenderSampler.class);
@@ -49,7 +42,7 @@ public class FiscMessageSenderSamplerBeanInfo extends BeanInfoSupport {
         // Message properties
         PropertyDescriptor messageTypeProp = property(FiscMessageSenderSampler.MESSAGE_TYPE);
         messageTypeProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
-        messageTypeProp.setValue(DEFAULT, FiscMessageSenderSampler.TYPE_ECHO_TEST);
+        messageTypeProp.setValue(DEFAULT, FiscMessageType.ECHO_TEST.name());
         messageTypeProp.setValue(NOT_EXPRESSION, Boolean.TRUE);
         messageTypeProp.setValue(NOT_OTHER, Boolean.TRUE);
         messageTypeProp.setValue(TAGS, MESSAGE_TYPES);

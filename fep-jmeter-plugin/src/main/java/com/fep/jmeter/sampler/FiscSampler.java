@@ -56,14 +56,28 @@ public class FiscSampler extends AbstractSampler implements TestBean, TestStateL
     public static final String TERMINAL_ID = "terminalId";
     public static final String CUSTOM_FIELDS = "customFields";
 
-    // Transaction type constants
-    public static final String TXN_WITHDRAWAL = "WITHDRAWAL";
-    public static final String TXN_TRANSFER = "TRANSFER";
-    public static final String TXN_BALANCE_INQUIRY = "BALANCE_INQUIRY";
-    public static final String TXN_BILL_PAYMENT = "BILL_PAYMENT";
-    public static final String TXN_SIGN_ON = "SIGN_ON";
-    public static final String TXN_SIGN_OFF = "SIGN_OFF";
-    public static final String TXN_ECHO_TEST = "ECHO_TEST";
+    // Transaction type constants (deprecated, use FiscTransactionType enum instead)
+    /** @deprecated Use {@link FiscTransactionType#WITHDRAWAL} instead */
+    @Deprecated
+    public static final String TXN_WITHDRAWAL = FiscTransactionType.WITHDRAWAL.name();
+    /** @deprecated Use {@link FiscTransactionType#TRANSFER} instead */
+    @Deprecated
+    public static final String TXN_TRANSFER = FiscTransactionType.TRANSFER.name();
+    /** @deprecated Use {@link FiscTransactionType#BALANCE_INQUIRY} instead */
+    @Deprecated
+    public static final String TXN_BALANCE_INQUIRY = FiscTransactionType.BALANCE_INQUIRY.name();
+    /** @deprecated Use {@link FiscTransactionType#BILL_PAYMENT} instead */
+    @Deprecated
+    public static final String TXN_BILL_PAYMENT = FiscTransactionType.BILL_PAYMENT.name();
+    /** @deprecated Use {@link FiscTransactionType#SIGN_ON} instead */
+    @Deprecated
+    public static final String TXN_SIGN_ON = FiscTransactionType.SIGN_ON.name();
+    /** @deprecated Use {@link FiscTransactionType#SIGN_OFF} instead */
+    @Deprecated
+    public static final String TXN_SIGN_OFF = FiscTransactionType.SIGN_OFF.name();
+    /** @deprecated Use {@link FiscTransactionType#ECHO_TEST} instead */
+    @Deprecated
+    public static final String TXN_ECHO_TEST = FiscTransactionType.ECHO_TEST.name();
 
     // Thread-local client management
     private static final Map<String, FiscClient> clientPool = new ConcurrentHashMap<>();
@@ -166,19 +180,22 @@ public class FiscSampler extends AbstractSampler implements TestBean, TestStateL
     /**
      * Builds an ISO 8583 message based on transaction type.
      */
-    private Iso8583Message buildMessage(String transactionType) {
-        Iso8583Message message;
+    private Iso8583Message buildMessage(String transactionTypeStr) {
+        FiscTransactionType transactionType = FiscTransactionType.fromString(transactionTypeStr);
 
-        switch (transactionType) {
-            case TXN_SIGN_ON:
-                return messageFactory.createSignOnMessage();
-            case TXN_SIGN_OFF:
-                return messageFactory.createSignOffMessage();
-            case TXN_ECHO_TEST:
-                return messageFactory.createEchoTestMessage();
-            default:
-                message = messageFactory.createMessage(MessageType.FINANCIAL_REQUEST);
-                break;
+        Iso8583Message message = switch (transactionType) {
+            case SIGN_ON -> messageFactory.createSignOnMessage();
+            case SIGN_OFF -> messageFactory.createSignOffMessage();
+            case ECHO_TEST -> messageFactory.createEchoTestMessage();
+            case WITHDRAWAL, TRANSFER, BALANCE_INQUIRY, BILL_PAYMENT ->
+                messageFactory.createMessage(MessageType.FINANCIAL_REQUEST);
+        };
+
+        // For network management messages, return early
+        if (transactionType == FiscTransactionType.SIGN_ON ||
+            transactionType == FiscTransactionType.SIGN_OFF ||
+            transactionType == FiscTransactionType.ECHO_TEST) {
+            return message;
         }
 
         // Set common fields
@@ -191,7 +208,7 @@ public class FiscSampler extends AbstractSampler implements TestBean, TestStateL
         }
 
         // Set Processing Code (Field 3) based on transaction type
-        String processingCode = getProcessingCodeForType(transactionType);
+        String processingCode = getProcessingCodeForType(transactionTypeStr);
         message.setField(3, processingCode);
 
         // Set Amount (Field 4)
@@ -223,7 +240,7 @@ public class FiscSampler extends AbstractSampler implements TestBean, TestStateL
     /**
      * Gets the processing code for the transaction type.
      */
-    private String getProcessingCodeForType(String transactionType) {
+    private String getProcessingCodeForType(String transactionTypeStr) {
         // Check if user specified a custom processing code
         String customCode = getProcessingCode();
         if (customCode != null && !customCode.isEmpty()) {
@@ -231,12 +248,13 @@ public class FiscSampler extends AbstractSampler implements TestBean, TestStateL
         }
 
         // Default processing codes
+        FiscTransactionType transactionType = FiscTransactionType.fromString(transactionTypeStr);
         return switch (transactionType) {
-            case TXN_WITHDRAWAL -> "010000";        // Cash withdrawal
-            case TXN_TRANSFER -> "400000";          // Transfer
-            case TXN_BALANCE_INQUIRY -> "310000";   // Balance inquiry
-            case TXN_BILL_PAYMENT -> "500000";      // Bill payment
-            default -> "000000";
+            case WITHDRAWAL -> "010000";        // Cash withdrawal
+            case TRANSFER -> "400000";          // Transfer
+            case BALANCE_INQUIRY -> "310000";   // Balance inquiry
+            case BILL_PAYMENT -> "500000";      // Bill payment
+            case SIGN_ON, SIGN_OFF, ECHO_TEST -> "000000";
         };
     }
 
@@ -449,7 +467,7 @@ public class FiscSampler extends AbstractSampler implements TestBean, TestStateL
     }
 
     public String getTransactionType() {
-        return getPropertyAsString(TRANSACTION_TYPE, TXN_ECHO_TEST);
+        return getPropertyAsString(TRANSACTION_TYPE, FiscTransactionType.ECHO_TEST.name());
     }
 
     public void setTransactionType(String type) {
