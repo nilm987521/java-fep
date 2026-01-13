@@ -288,15 +288,101 @@ public class AtmSimulatorSampler extends AbstractSampler implements TestStateLis
      */
     private String formatMessageForDisplay(GenericMessage message, byte[] bytes) {
         StringBuilder sb = new StringBuilder();
+        MessageSchema schema = message.getSchema();
+
         sb.append("=== ATM Message (Generic Schema) ===\n");
-        sb.append("Schema: ").append(message.getSchema().getName()).append("\n");
+        sb.append("Schema: ").append(schema.getName()).append("\n");
         sb.append("Length: ").append(bytes.length).append(" bytes\n\n");
+
+        // Display header configuration
+        MessageSchema.HeaderSection header = schema.getHeader();
+        if (header != null) {
+            sb.append("Header Configuration:\n");
+            sb.append("  Include Length: ").append(header.isIncludeLength()).append("\n");
+            if (header.isIncludeLength()) {
+                sb.append("  Length Bytes: ").append(header.getLengthBytes()).append("\n");
+                sb.append("  Length Encoding: ").append(header.getLengthEncoding()).append("\n");
+                sb.append("  Length Includes Header: ").append(header.isLengthIncludesHeader()).append("\n");
+
+                // Display actual length value from bytes
+                if (bytes.length >= header.getLengthBytes()) {
+                    sb.append("  Length Value: ");
+                    sb.append(formatLengthValue(bytes, header.getLengthBytes(), header.getLengthEncoding()));
+                    sb.append("\n");
+                }
+            }
+
+            // Display header fields if any
+            if (header.getFields() != null && !header.getFields().isEmpty()) {
+                sb.append("  Header Fields:\n");
+                for (var fieldSchema : header.getFields()) {
+                    String fieldId = fieldSchema.getId();
+                    Object value = message.getField(fieldId);
+                    if (value == null) {
+                        value = fieldSchema.getDefaultValue();
+                    }
+                    sb.append("    ").append(fieldId).append("=");
+                    if (fieldSchema.isSensitive()) {
+                        sb.append("****");
+                    } else {
+                        sb.append(value != null ? value : "(not set)");
+                    }
+                    sb.append("\n");
+                }
+            }
+            sb.append("\n");
+        }
 
         sb.append("Fields:\n");
         sb.append(message.toString(true)).append("\n\n");  // Include default values
 
         sb.append("Hex:\n");
         sb.append(hexFormat.formatHex(bytes)).append("\n");
+
+        return sb.toString();
+    }
+
+    /**
+     * Format the length value from the message bytes based on encoding.
+     */
+    private String formatLengthValue(byte[] bytes, int lengthBytes, String encoding) {
+        if (bytes.length < lengthBytes) {
+            return "(insufficient bytes)";
+        }
+
+        StringBuilder sb = new StringBuilder();
+
+        if ("BCD".equalsIgnoreCase(encoding)) {
+            // BCD: each byte represents 2 decimal digits
+            int value = 0;
+            for (int i = 0; i < lengthBytes; i++) {
+                int high = (bytes[i] & 0xF0) >> 4;
+                int low = bytes[i] & 0x0F;
+                value = value * 100 + high * 10 + low;
+            }
+            sb.append(value);
+            sb.append(" (BCD: ");
+            for (int i = 0; i < lengthBytes; i++) {
+                sb.append(String.format("%02X", bytes[i] & 0xFF));
+            }
+            sb.append(")");
+        } else if ("BINARY".equalsIgnoreCase(encoding)) {
+            // Binary: big-endian
+            int value = 0;
+            for (int i = 0; i < lengthBytes; i++) {
+                value = (value << 8) | (bytes[i] & 0xFF);
+            }
+            sb.append(value);
+            sb.append(" (BINARY: ");
+            for (int i = 0; i < lengthBytes; i++) {
+                sb.append(String.format("%02X", bytes[i] & 0xFF));
+            }
+            sb.append(")");
+        } else {
+            // ASCII: each byte is a digit character
+            sb.append(new String(bytes, 0, lengthBytes, java.nio.charset.StandardCharsets.US_ASCII));
+            sb.append(" (ASCII)");
+        }
 
         return sb.toString();
     }
