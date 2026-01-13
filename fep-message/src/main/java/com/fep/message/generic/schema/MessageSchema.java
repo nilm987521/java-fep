@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.fasterxml.jackson.annotation.JsonValue;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -38,21 +39,25 @@ public class MessageSchema {
      */
     @JsonProperty(required = true)
     @JsonPropertyDescription("Protocol name (e.g., NCR NDC Protocol)")
+    @Schema(example = "FISC ATM Protocol")
     private String name;
 
     /**
      * Schema version.
      */
+    @Schema(example = "1.0.0")
     private String version;
 
     /**
      * Vendor name (e.g., "NCR", "Diebold", "Wincor").
      */
+    @Schema(example = "NCR")
     private String vendor;
 
     /**
      * Protocol description.
      */
+    @Schema(example = "FISC interbank ATM transaction protocol")
     private String description;
 
     /**

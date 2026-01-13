@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonPropertyDescription;
 import com.fasterxml.jackson.annotation.JsonValue;
+import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -28,18 +29,21 @@ public class FieldSchema {
      */
     @JsonProperty(required = true)
     @JsonPropertyDescription("Unique identifier for the field")
+    @Schema(example = "terminalId")
     private String id;
 
     /**
      * Human-readable field name for display.
      */
     @JsonPropertyDescription("name of the field")
+    @Schema(example = "Terminal ID")
     private String name;
 
     /**
      * Field description.
      */
     @JsonPropertyDescription("description of the field")
+    @Schema(example = "ATM terminal identifier")
     private String description;
 
     /**
@@ -54,6 +58,7 @@ public class FieldSchema {
      */
     @JsonProperty(required = true)
     @JsonPropertyDescription("Fixed length or maximum length for variable-length fields")
+    @Schema(example = "8")
     private int length;
 
     /**
@@ -68,6 +73,7 @@ public class FieldSchema {
      */
     @Builder.Default
     @JsonPropertyDescription("encoding of the field")
+    @Schema(example = "ASCII")
     private String encoding = "ASCII";
 
     /**
@@ -76,6 +82,7 @@ public class FieldSchema {
     @JsonProperty("lengthEncoding")
     @Builder.Default
     @JsonPropertyDescription("length prefix encoding for variable-length fields")
+    @Schema(example = "BCD")
     private String lengthEncoding = "BCD";
 
     /**
@@ -103,6 +110,7 @@ public class FieldSchema {
      */
     @JsonPropertyDescription("default value for the field")
     @JsonProperty("defaultValue")
+    @Schema(example = "00000000")
     private String defaultValue;
 
     /**

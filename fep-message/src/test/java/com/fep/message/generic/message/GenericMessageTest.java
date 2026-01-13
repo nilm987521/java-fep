@@ -12,6 +12,7 @@ import com.github.victools.jsonschema.generator.SchemaGeneratorConfigBuilder;
 import com.github.victools.jsonschema.generator.SchemaVersion;
 import com.github.victools.jsonschema.module.jackson.JacksonModule;
 import com.github.victools.jsonschema.module.jackson.JacksonOption;
+import com.github.victools.jsonschema.module.swagger2.Swagger2Module;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -192,11 +193,24 @@ class GenericMessageTest {
                 JacksonOption.RESPECT_JSONPROPERTY_REQUIRED  // 讀取 @JsonProperty 的 required 屬性
         );
 
+        // 建立 Swagger2Module 以支援 @Schema 基本屬性
+        Swagger2Module swagger2Module = new Swagger2Module();
+
         SchemaGeneratorConfigBuilder configBuilder = new SchemaGeneratorConfigBuilder(
                 SchemaVersion.DRAFT_2020_12, OptionPreset.PLAIN_JSON
         )
-                .with(jacksonModule)  // 加入 Jackson module
+                .with(jacksonModule)     // 加入 Jackson module
+                .with(swagger2Module)    // 加入 Swagger2 module
                 .with(Option.DEFINITIONS_FOR_ALL_OBJECTS);  // 使用 $defs 定義共用類型
+
+        // 自定義處理 @Schema example 屬性
+        configBuilder.forFields().withInstanceAttributeOverride((node, field, context) -> {
+            io.swagger.v3.oas.annotations.media.Schema schemaAnnotation =
+                    field.getAnnotation(io.swagger.v3.oas.annotations.media.Schema.class);
+            if (schemaAnnotation != null && !schemaAnnotation.example().isEmpty()) {
+                node.putArray("examples").add(schemaAnnotation.example());
+            }
+        });
 
         SchemaGenerator generator = new SchemaGenerator(configBuilder.build());
         JsonNode jsonSchema = generator.generateSchema(MessageSchema.class);
@@ -204,7 +218,8 @@ class GenericMessageTest {
         String schemaAsString = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(jsonSchema);
         System.out.println(schemaAsString);
 
-        // 驗證 description 有被正確生成
+        // 驗證 description 和 examples 有被正確生成
         assertTrue(schemaAsString.contains("description"), "JSON Schema should contain description");
+        assertTrue(schemaAsString.contains("examples"), "JSON Schema should contain examples");
     }
 }
