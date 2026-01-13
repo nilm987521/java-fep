@@ -1,8 +1,17 @@
 package com.fep.message.generic.message;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fep.message.generic.schema.FieldSchema;
 import com.fep.message.generic.schema.JsonSchemaLoader;
 import com.fep.message.generic.schema.MessageSchema;
+import com.github.victools.jsonschema.generator.Option;
+import com.github.victools.jsonschema.generator.OptionPreset;
+import com.github.victools.jsonschema.generator.SchemaGenerator;
+import com.github.victools.jsonschema.generator.SchemaGeneratorConfigBuilder;
+import com.github.victools.jsonschema.generator.SchemaVersion;
+import com.github.victools.jsonschema.module.jackson.JacksonModule;
+import com.github.victools.jsonschema.module.jackson.JacksonOption;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -174,5 +183,28 @@ class GenericMessageTest {
         assertTrue(str.contains("ATM12345"));
         assertTrue(str.contains("****"));  // cardNumber should be masked
         assertFalse(str.contains("4111111111111111"));
+    }
+
+    @Test
+    void javaPojo2JsonSchema() throws Exception {
+        // 建立 JacksonModule 以支援 @JsonPropertyDescription 等 annotation
+        JacksonModule jacksonModule = new JacksonModule(
+                JacksonOption.RESPECT_JSONPROPERTY_REQUIRED  // 讀取 @JsonProperty 的 required 屬性
+        );
+
+        SchemaGeneratorConfigBuilder configBuilder = new SchemaGeneratorConfigBuilder(
+                SchemaVersion.DRAFT_2020_12, OptionPreset.PLAIN_JSON
+        )
+                .with(jacksonModule)  // 加入 Jackson module
+                .with(Option.DEFINITIONS_FOR_ALL_OBJECTS);  // 使用 $defs 定義共用類型
+
+        SchemaGenerator generator = new SchemaGenerator(configBuilder.build());
+        JsonNode jsonSchema = generator.generateSchema(MessageSchema.class);
+        ObjectMapper objectMapper = new ObjectMapper();
+        String schemaAsString = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(jsonSchema);
+        System.out.println(schemaAsString);
+
+        // 驗證 description 有被正確生成
+        assertTrue(schemaAsString.contains("description"), "JSON Schema should contain description");
     }
 }

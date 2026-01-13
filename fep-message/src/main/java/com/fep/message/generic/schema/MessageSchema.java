@@ -1,6 +1,10 @@
 package com.fep.message.generic.schema;
 
+import com.fasterxml.jackson.annotation.JsonClassDescription;
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonPropertyDescription;
+import com.fasterxml.jackson.annotation.JsonValue;
 import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -19,6 +23,7 @@ import java.util.Optional;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@JsonClassDescription("Schema definition for a complete message format")
 public class MessageSchema {
 
     /**
@@ -31,6 +36,8 @@ public class MessageSchema {
     /**
      * Protocol name (e.g., "NCR NDC Protocol").
      */
+    @JsonProperty(required = true)
+    @JsonPropertyDescription("Protocol name (e.g., NCR NDC Protocol)")
     private String name;
 
     /**
@@ -172,13 +179,81 @@ public class MessageSchema {
          * BCD packing mode (LEFT_JUSTIFIED, RIGHT_JUSTIFIED).
          */
         @Builder.Default
-        private String bcdPacking = "RIGHT_JUSTIFIED";
+        private BcdPacking bcdPacking = BcdPacking.RIGHT_JUSTIFIED;
 
         /**
          * Byte order (BIG_ENDIAN, LITTLE_ENDIAN).
          */
         @Builder.Default
-        private String endianness = "BIG_ENDIAN";
+        private Endianness endianness = Endianness.BIG_ENDIAN;
+    }
+
+    /**
+     * BCD packing mode enum.
+     * Determines how odd-length BCD values are padded.
+     */
+    public enum BcdPacking {
+        LEFT_JUSTIFIED("LEFT_JUSTIFIED"),
+        RIGHT_JUSTIFIED("RIGHT_JUSTIFIED");
+
+        private final String value;
+
+        BcdPacking(String value) {
+            this.value = value;
+        }
+
+        @JsonValue
+        public String getValue() {
+            return value;
+        }
+
+        @JsonCreator
+        public static BcdPacking fromString(String value) {
+            if (value == null) {
+                return RIGHT_JUSTIFIED;
+            }
+            String normalized = value.toUpperCase().replace("-", "_");
+            for (BcdPacking packing : values()) {
+                if (packing.value.equals(normalized) || packing.name().equals(normalized)) {
+                    return packing;
+                }
+            }
+            return RIGHT_JUSTIFIED;
+        }
+    }
+
+    /**
+     * Byte order enum.
+     * Determines how multi-byte values are serialized.
+     */
+    public enum Endianness {
+        BIG_ENDIAN("BIG_ENDIAN"),
+        LITTLE_ENDIAN("LITTLE_ENDIAN");
+
+        private final String value;
+
+        Endianness(String value) {
+            this.value = value;
+        }
+
+        @JsonValue
+        public String getValue() {
+            return value;
+        }
+
+        @JsonCreator
+        public static Endianness fromString(String value) {
+            if (value == null) {
+                return BIG_ENDIAN;
+            }
+            String normalized = value.toUpperCase().replace("-", "_");
+            for (Endianness endian : values()) {
+                if (endian.value.equals(normalized) || endian.name().equals(normalized)) {
+                    return endian;
+                }
+            }
+            return BIG_ENDIAN;
+        }
     }
 
     /**
