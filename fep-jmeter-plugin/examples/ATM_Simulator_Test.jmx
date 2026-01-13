@@ -73,7 +73,7 @@ Amount: $1,000.00
 Uses default MTI 0200 and Processing Code 010000.</stringProp>
       </ThreadGroup>
       <hashTree>
-        <com.fep.jmeter.sampler.AtmSimulatorSampler guiclass="TestBeanGUI" testclass="com.fep.jmeter.sampler.AtmSimulatorSampler" testname="ATM Withdrawal" enabled="true">
+        <com.fep.jmeter.sampler.AtmSimulatorSampler guiclass="com.fep.jmeter.gui.AtmSimulatorSamplerGui" testclass="com.fep.jmeter.sampler.AtmSimulatorSampler" testname="ATM Withdrawal" enabled="true">
           <stringProp name="fepHost">localhost</stringProp>
           <intProp name="fepPort">9000</intProp>
           <intProp name="connectionTimeout">10000</intProp>
@@ -91,6 +91,274 @@ Uses default MTI 0200 and Processing Code 010000.</stringProp>
           <stringProp name="pinBlock"></stringProp>
           <stringProp name="customFields"></stringProp>
           <stringProp name="messageTemplate"></stringProp>
+          <boolProp name="expectResponse">true</boolProp>
+          <stringProp name="schemaSource">PRESET</stringProp>
+          <stringProp name="presetSchema">FISC_ATM</stringProp>
+          <stringProp name="schemaFile"></stringProp>
+          <stringProp name="schemaContent">{
+  &quot;$schema&quot;: &quot;fep-message-schema-v1&quot;,
+  &quot;name&quot;: &quot;FISC ATM Format&quot;,
+  &quot;version&quot;: &quot;1.0&quot;,
+  &quot;vendor&quot;: &quot;FISC&quot;,
+  &quot;description&quot;: &quot;Taiwan FISC ATM message format (simplified)&quot;,
+
+  &quot;header&quot;: {
+    &quot;includeLength&quot;: true,
+    &quot;lengthBytes&quot;: 4,
+    &quot;lengthEncoding&quot;: &quot;ASCII&quot;,
+    &quot;lengthIncludesHeader&quot;: false
+  },
+
+  &quot;fields&quot;: [
+    {
+      &quot;id&quot;: &quot;mti&quot;,
+      &quot;name&quot;: &quot;Message Type Indicator&quot;,
+      &quot;description&quot;: &quot;ISO 8583 Message Type&quot;,
+      &quot;type&quot;: &quot;NUMERIC&quot;,
+      &quot;length&quot;: 4,
+      &quot;encoding&quot;: &quot;ASCII&quot;,
+      &quot;required&quot;: true
+    },
+    {
+      &quot;id&quot;: &quot;bitmap&quot;,
+      &quot;name&quot;: &quot;Primary Bitmap&quot;,
+      &quot;description&quot;: &quot;Primary bitmap (64 bits)&quot;,
+      &quot;type&quot;: &quot;BITMAP&quot;,
+      &quot;length&quot;: 8,
+      &quot;encoding&quot;: &quot;BINARY&quot;,
+      &quot;controls&quot;: [&quot;pan&quot;, &quot;processingCode&quot;, &quot;amount&quot;, &quot;stan&quot;, &quot;localTime&quot;, &quot;localDate&quot;, &quot;expiryDate&quot;, &quot;posEntryMode&quot;, &quot;cardSequence&quot;, &quot;functionCode&quot;, &quot;posConditionCode&quot;, &quot;acquiringInstitution&quot;, &quot;rrn&quot;, &quot;authCode&quot;, &quot;responseCode&quot;, &quot;terminalId&quot;, &quot;merchantId&quot;, &quot;cardAcceptorName&quot;, &quot;currencyCode&quot;, &quot;pinBlock&quot;, &quot;additionalData&quot;, &quot;sourceAccount&quot;, &quot;destAccount&quot;]
+    },
+    {
+      &quot;id&quot;: &quot;pan&quot;,
+      &quot;name&quot;: &quot;Primary Account Number&quot;,
+      &quot;description&quot;: &quot;Card number (Field 2)&quot;,
+      &quot;type&quot;: &quot;NUMERIC&quot;,
+      &quot;length&quot;: 19,
+      &quot;lengthType&quot;: &quot;LLVAR&quot;,
+      &quot;encoding&quot;: &quot;BCD&quot;,
+      &quot;lengthEncoding&quot;: &quot;BCD&quot;,
+      &quot;sensitive&quot;: true
+    },
+    {
+      &quot;id&quot;: &quot;processingCode&quot;,
+      &quot;name&quot;: &quot;Processing Code&quot;,
+      &quot;description&quot;: &quot;Transaction type (Field 3)&quot;,
+      &quot;type&quot;: &quot;NUMERIC&quot;,
+      &quot;length&quot;: 6,
+      &quot;encoding&quot;: &quot;ASCII&quot;,
+      &quot;required&quot;: true
+    },
+    {
+      &quot;id&quot;: &quot;amount&quot;,
+      &quot;name&quot;: &quot;Transaction Amount&quot;,
+      &quot;description&quot;: &quot;Amount (Field 4)&quot;,
+      &quot;type&quot;: &quot;NUMERIC&quot;,
+      &quot;length&quot;: 12,
+      &quot;encoding&quot;: &quot;ASCII&quot;,
+      &quot;padding&quot;: {
+        &quot;char&quot;: &quot;0&quot;,
+        &quot;direction&quot;: &quot;left&quot;
+      }
+    },
+    {
+      &quot;id&quot;: &quot;stan&quot;,
+      &quot;name&quot;: &quot;System Trace Audit Number&quot;,
+      &quot;description&quot;: &quot;STAN (Field 11)&quot;,
+      &quot;type&quot;: &quot;NUMERIC&quot;,
+      &quot;length&quot;: 6,
+      &quot;encoding&quot;: &quot;ASCII&quot;,
+      &quot;required&quot;: true,
+      &quot;defaultValue&quot;: &quot;${stan}&quot;
+    },
+    {
+      &quot;id&quot;: &quot;localTime&quot;,
+      &quot;name&quot;: &quot;Local Time&quot;,
+      &quot;description&quot;: &quot;Transaction time HHmmss (Field 12)&quot;,
+      &quot;type&quot;: &quot;NUMERIC&quot;,
+      &quot;length&quot;: 6,
+      &quot;encoding&quot;: &quot;BCD&quot;,
+      &quot;defaultValue&quot;: &quot;${time}&quot;
+    },
+    {
+      &quot;id&quot;: &quot;localDate&quot;,
+      &quot;name&quot;: &quot;Local Date&quot;,
+      &quot;description&quot;: &quot;Transaction date MMdd (Field 13)&quot;,
+      &quot;type&quot;: &quot;NUMERIC&quot;,
+      &quot;length&quot;: 4,
+      &quot;encoding&quot;: &quot;BCD&quot;,
+      &quot;defaultValue&quot;: &quot;${date}&quot;
+    },
+    {
+      &quot;id&quot;: &quot;posEntryMode&quot;,
+      &quot;name&quot;: &quot;POS Entry Mode&quot;,
+      &quot;description&quot;: &quot;Entry mode (Field 22)&quot;,
+      &quot;type&quot;: &quot;NUMERIC&quot;,
+      &quot;length&quot;: 3,
+      &quot;encoding&quot;: &quot;BCD&quot;,
+      &quot;defaultValue&quot;: &quot;051&quot;
+    },
+    {
+      &quot;id&quot;: &quot;cardSequence&quot;,
+      &quot;name&quot;: &quot;Card Sequence Number&quot;,
+      &quot;description&quot;: &quot;Card sequence (Field 23)&quot;,
+      &quot;type&quot;: &quot;NUMERIC&quot;,
+      &quot;length&quot;: 3,
+      &quot;encoding&quot;: &quot;BCD&quot;
+    },
+    {
+      &quot;id&quot;: &quot;functionCode&quot;,
+      &quot;name&quot;: &quot;Function Code&quot;,
+      &quot;description&quot;: &quot;Function code (Field 24)&quot;,
+      &quot;type&quot;: &quot;NUMERIC&quot;,
+      &quot;length&quot;: 3,
+      &quot;encoding&quot;: &quot;BCD&quot;
+    },
+    {
+      &quot;id&quot;: &quot;posConditionCode&quot;,
+      &quot;name&quot;: &quot;POS Condition Code&quot;,
+      &quot;description&quot;: &quot;Condition code (Field 25)&quot;,
+      &quot;type&quot;: &quot;NUMERIC&quot;,
+      &quot;length&quot;: 2,
+      &quot;encoding&quot;: &quot;BCD&quot;,
+      &quot;defaultValue&quot;: &quot;00&quot;
+    },
+    {
+      &quot;id&quot;: &quot;acquiringInstitution&quot;,
+      &quot;name&quot;: &quot;Acquiring Institution ID&quot;,
+      &quot;description&quot;: &quot;Bank code (Field 32)&quot;,
+      &quot;type&quot;: &quot;NUMERIC&quot;,
+      &quot;length&quot;: 11,
+      &quot;lengthType&quot;: &quot;LLVAR&quot;,
+      &quot;encoding&quot;: &quot;BCD&quot;,
+      &quot;lengthEncoding&quot;: &quot;BCD&quot;
+    },
+    {
+      &quot;id&quot;: &quot;rrn&quot;,
+      &quot;name&quot;: &quot;Retrieval Reference Number&quot;,
+      &quot;description&quot;: &quot;RRN (Field 37)&quot;,
+      &quot;type&quot;: &quot;ALPHANUMERIC&quot;,
+      &quot;length&quot;: 12,
+      &quot;encoding&quot;: &quot;ASCII&quot;,
+      &quot;defaultValue&quot;: &quot;${rrn}&quot;
+    },
+    {
+      &quot;id&quot;: &quot;authCode&quot;,
+      &quot;name&quot;: &quot;Authorization Code&quot;,
+      &quot;description&quot;: &quot;Auth code (Field 38)&quot;,
+      &quot;type&quot;: &quot;ALPHANUMERIC&quot;,
+      &quot;length&quot;: 6,
+      &quot;encoding&quot;: &quot;ASCII&quot;
+    },
+    {
+      &quot;id&quot;: &quot;responseCode&quot;,
+      &quot;name&quot;: &quot;Response Code&quot;,
+      &quot;description&quot;: &quot;Response code (Field 39)&quot;,
+      &quot;type&quot;: &quot;ALPHANUMERIC&quot;,
+      &quot;length&quot;: 2,
+      &quot;encoding&quot;: &quot;ASCII&quot;
+    },
+    {
+      &quot;id&quot;: &quot;terminalId&quot;,
+      &quot;name&quot;: &quot;Terminal ID&quot;,
+      &quot;description&quot;: &quot;ATM ID (Field 41)&quot;,
+      &quot;type&quot;: &quot;ALPHANUMERIC&quot;,
+      &quot;length&quot;: 8,
+      &quot;encoding&quot;: &quot;ASCII&quot;,
+      &quot;required&quot;: true,
+      &quot;defaultValue&quot;: &quot;${terminalId}&quot;
+    },
+    {
+      &quot;id&quot;: &quot;merchantId&quot;,
+      &quot;name&quot;: &quot;Merchant ID&quot;,
+      &quot;description&quot;: &quot;Merchant ID (Field 42)&quot;,
+      &quot;type&quot;: &quot;ALPHANUMERIC&quot;,
+      &quot;length&quot;: 15,
+      &quot;encoding&quot;: &quot;ASCII&quot;,
+      &quot;padding&quot;: {
+        &quot;char&quot;: &quot; &quot;,
+        &quot;direction&quot;: &quot;right&quot;
+      }
+    },
+    {
+      &quot;id&quot;: &quot;cardAcceptorName&quot;,
+      &quot;name&quot;: &quot;Card Acceptor Name/Location&quot;,
+      &quot;description&quot;: &quot;ATM location (Field 43)&quot;,
+      &quot;type&quot;: &quot;ALPHANUMERIC&quot;,
+      &quot;length&quot;: 40,
+      &quot;encoding&quot;: &quot;ASCII&quot;,
+      &quot;padding&quot;: {
+        &quot;char&quot;: &quot; &quot;,
+        &quot;direction&quot;: &quot;right&quot;
+      },
+      &quot;defaultValue&quot;: &quot;${atmLocation}&quot;
+    },
+    {
+      &quot;id&quot;: &quot;currencyCode&quot;,
+      &quot;name&quot;: &quot;Currency Code&quot;,
+      &quot;description&quot;: &quot;Currency (Field 49)&quot;,
+      &quot;type&quot;: &quot;NUMERIC&quot;,
+      &quot;length&quot;: 3,
+      &quot;encoding&quot;: &quot;BCD&quot;,
+      &quot;defaultValue&quot;: &quot;901&quot;
+    },
+    {
+      &quot;id&quot;: &quot;pinBlock&quot;,
+      &quot;name&quot;: &quot;PIN Block&quot;,
+      &quot;description&quot;: &quot;Encrypted PIN (Field 52)&quot;,
+      &quot;type&quot;: &quot;BINARY&quot;,
+      &quot;length&quot;: 8,
+      &quot;encoding&quot;: &quot;HEX&quot;,
+      &quot;sensitive&quot;: true
+    },
+    {
+      &quot;id&quot;: &quot;additionalData&quot;,
+      &quot;name&quot;: &quot;Additional Data&quot;,
+      &quot;description&quot;: &quot;Additional data (Field 48)&quot;,
+      &quot;type&quot;: &quot;ALPHANUMERIC&quot;,
+      &quot;length&quot;: 999,
+      &quot;lengthType&quot;: &quot;LLLVAR&quot;,
+      &quot;encoding&quot;: &quot;ASCII&quot;,
+      &quot;lengthEncoding&quot;: &quot;BCD&quot;
+    },
+    {
+      &quot;id&quot;: &quot;sourceAccount&quot;,
+      &quot;name&quot;: &quot;Source Account&quot;,
+      &quot;description&quot;: &quot;From account (Field 102)&quot;,
+      &quot;type&quot;: &quot;ALPHANUMERIC&quot;,
+      &quot;length&quot;: 28,
+      &quot;lengthType&quot;: &quot;LLVAR&quot;,
+      &quot;encoding&quot;: &quot;ASCII&quot;,
+      &quot;lengthEncoding&quot;: &quot;BCD&quot;
+    },
+    {
+      &quot;id&quot;: &quot;destAccount&quot;,
+      &quot;name&quot;: &quot;Destination Account&quot;,
+      &quot;description&quot;: &quot;To account (Field 103)&quot;,
+      &quot;type&quot;: &quot;ALPHANUMERIC&quot;,
+      &quot;length&quot;: 28,
+      &quot;lengthType&quot;: &quot;LLVAR&quot;,
+      &quot;encoding&quot;: &quot;ASCII&quot;,
+      &quot;lengthEncoding&quot;: &quot;BCD&quot;
+    }
+  ],
+
+  &quot;encoding&quot;: {
+    &quot;defaultCharset&quot;: &quot;ASCII&quot;,
+    &quot;bcdPacking&quot;: &quot;RIGHT_JUSTIFIED&quot;,
+    &quot;endianness&quot;: &quot;BIG_ENDIAN&quot;
+  },
+
+  &quot;validation&quot;: {
+    &quot;rules&quot;: [
+      {
+        &quot;type&quot;: &quot;required&quot;,
+        &quot;fields&quot;: [&quot;mti&quot;, &quot;processingCode&quot;, &quot;stan&quot;, &quot;terminalId&quot;]
+      }
+    ]
+  }
+}
+</stringProp>
+          <stringProp name="fieldValues">{&quot;mti&quot;: &quot;0200&quot;, &quot;processingCode&quot;: &quot;010000&quot;, &quot;amount&quot;: &quot;000000000001&quot;, &quot;terminalId&quot;: &quot;00000000&quot;, &quot;stan&quot;: &quot;123456&quot;}</stringProp>
         </com.fep.jmeter.sampler.AtmSimulatorSampler>
         <hashTree/>
         <ResultCollector guiclass="ViewResultsFullVisualizer" testclass="ResultCollector" testname="View Results Tree" enabled="true">
@@ -148,9 +416,9 @@ Processing Code: 310000
 No amount required.</stringProp>
       </ThreadGroup>
       <hashTree>
-        <com.fep.jmeter.sampler.AtmSimulatorSampler guiclass="TestBeanGUI" testclass="com.fep.jmeter.sampler.AtmSimulatorSampler" testname="ATM Balance Inquiry" enabled="true">
+        <com.fep.jmeter.sampler.AtmSimulatorSampler guiclass="com.fep.jmeter.gui.AtmSimulatorSamplerGui" testclass="com.fep.jmeter.sampler.AtmSimulatorSampler" testname="ATM Balance Inquiry" enabled="true">
           <stringProp name="fepHost">${FEP_HOST}</stringProp>
-          <stringProp name="fepPort">${FEP_PORT}</stringProp>
+          <intProp name="fepPort">8080</intProp>
           <intProp name="connectionTimeout">10000</intProp>
           <intProp name="readTimeout">30000</intProp>
           <stringProp name="transactionType">BALANCE_INQUIRY</stringProp>
@@ -166,6 +434,12 @@ No amount required.</stringProp>
           <stringProp name="pinBlock"></stringProp>
           <stringProp name="customFields"></stringProp>
           <stringProp name="messageTemplate"></stringProp>
+          <boolProp name="expectResponse">true</boolProp>
+          <stringProp name="schemaSource">PRESET</stringProp>
+          <stringProp name="presetSchema">FISC_ATM</stringProp>
+          <stringProp name="schemaFile"></stringProp>
+          <stringProp name="schemaContent"></stringProp>
+          <stringProp name="fieldValues"></stringProp>
         </com.fep.jmeter.sampler.AtmSimulatorSampler>
         <hashTree/>
         <ResultCollector guiclass="ViewResultsFullVisualizer" testclass="ResultCollector" testname="View Results Tree" enabled="true">
@@ -223,9 +497,9 @@ Processing Code: 400000
 Requires destination account.</stringProp>
       </ThreadGroup>
       <hashTree>
-        <com.fep.jmeter.sampler.AtmSimulatorSampler guiclass="TestBeanGUI" testclass="com.fep.jmeter.sampler.AtmSimulatorSampler" testname="ATM Transfer" enabled="true">
+        <com.fep.jmeter.sampler.AtmSimulatorSampler guiclass="com.fep.jmeter.gui.AtmSimulatorSamplerGui" testclass="com.fep.jmeter.sampler.AtmSimulatorSampler" testname="ATM Transfer" enabled="true">
           <stringProp name="fepHost">${FEP_HOST}</stringProp>
-          <stringProp name="fepPort">${FEP_PORT}</stringProp>
+          <intProp name="fepPort">8080</intProp>
           <intProp name="connectionTimeout">10000</intProp>
           <intProp name="readTimeout">30000</intProp>
           <stringProp name="transactionType">TRANSFER</stringProp>
@@ -241,6 +515,12 @@ Requires destination account.</stringProp>
           <stringProp name="pinBlock"></stringProp>
           <stringProp name="customFields"></stringProp>
           <stringProp name="messageTemplate"></stringProp>
+          <boolProp name="expectResponse">true</boolProp>
+          <stringProp name="schemaSource">PRESET</stringProp>
+          <stringProp name="presetSchema">FISC_ATM</stringProp>
+          <stringProp name="schemaFile"></stringProp>
+          <stringProp name="schemaContent"></stringProp>
+          <stringProp name="fieldValues"></stringProp>
         </com.fep.jmeter.sampler.AtmSimulatorSampler>
         <hashTree/>
         <ResultCollector guiclass="ViewResultsFullVisualizer" testclass="ResultCollector" testname="View Results Tree" enabled="true">
@@ -298,9 +578,9 @@ All ISO 8583 fields can be specified in the JSON template.
 Supports JMeter variable substitution.</stringProp>
       </ThreadGroup>
       <hashTree>
-        <com.fep.jmeter.sampler.AtmSimulatorSampler guiclass="TestBeanGUI" testclass="com.fep.jmeter.sampler.AtmSimulatorSampler" testname="ATM Custom Message" enabled="true">
+        <com.fep.jmeter.sampler.AtmSimulatorSampler guiclass="com.fep.jmeter.gui.AtmSimulatorSamplerGui" testclass="com.fep.jmeter.sampler.AtmSimulatorSampler" testname="ATM Custom Message" enabled="true">
           <stringProp name="fepHost">${FEP_HOST}</stringProp>
-          <stringProp name="fepPort">${FEP_PORT}</stringProp>
+          <intProp name="fepPort">8080</intProp>
           <intProp name="connectionTimeout">10000</intProp>
           <intProp name="readTimeout">30000</intProp>
           <stringProp name="transactionType">CUSTOM</stringProp>
@@ -325,6 +605,12 @@ Supports JMeter variable substitution.</stringProp>
     &quot;26&quot;: &quot;12&quot;
   }
 }</stringProp>
+          <boolProp name="expectResponse">true</boolProp>
+          <stringProp name="schemaSource">PRESET</stringProp>
+          <stringProp name="presetSchema">FISC_ATM</stringProp>
+          <stringProp name="schemaFile"></stringProp>
+          <stringProp name="schemaContent"></stringProp>
+          <stringProp name="fieldValues"></stringProp>
         </com.fep.jmeter.sampler.AtmSimulatorSampler>
         <hashTree/>
         <ResultCollector guiclass="ViewResultsFullVisualizer" testclass="ResultCollector" testname="View Results Tree" enabled="true">
@@ -382,9 +668,9 @@ The PIN Block is encrypted using 3DES or AES.
 In real scenarios, the PIN Block would be generated by HSM.</stringProp>
       </ThreadGroup>
       <hashTree>
-        <com.fep.jmeter.sampler.AtmSimulatorSampler guiclass="TestBeanGUI" testclass="com.fep.jmeter.sampler.AtmSimulatorSampler" testname="ATM Withdrawal with PIN" enabled="true">
+        <com.fep.jmeter.sampler.AtmSimulatorSampler guiclass="com.fep.jmeter.gui.AtmSimulatorSamplerGui" testclass="com.fep.jmeter.sampler.AtmSimulatorSampler" testname="ATM Withdrawal with PIN" enabled="true">
           <stringProp name="fepHost">${FEP_HOST}</stringProp>
-          <stringProp name="fepPort">${FEP_PORT}</stringProp>
+          <intProp name="fepPort">8080</intProp>
           <intProp name="connectionTimeout">10000</intProp>
           <intProp name="readTimeout">30000</intProp>
           <stringProp name="transactionType">WITHDRAWAL</stringProp>
@@ -400,6 +686,12 @@ In real scenarios, the PIN Block would be generated by HSM.</stringProp>
           <stringProp name="pinBlock">0411123456789ABC</stringProp>
           <stringProp name="customFields"></stringProp>
           <stringProp name="messageTemplate"></stringProp>
+          <boolProp name="expectResponse">true</boolProp>
+          <stringProp name="schemaSource">PRESET</stringProp>
+          <stringProp name="presetSchema">FISC_ATM</stringProp>
+          <stringProp name="schemaFile"></stringProp>
+          <stringProp name="schemaContent"></stringProp>
+          <stringProp name="fieldValues"></stringProp>
         </com.fep.jmeter.sampler.AtmSimulatorSampler>
         <hashTree/>
         <ResultCollector guiclass="ViewResultsFullVisualizer" testclass="ResultCollector" testname="View Results Tree" enabled="true">
@@ -457,9 +749,9 @@ Uses PRESET schema source to load built-in NCR NDC format.
 Command Code 11 = Transaction Request (with PIN and amount).</stringProp>
       </ThreadGroup>
       <hashTree>
-        <com.fep.jmeter.sampler.AtmSimulatorSampler guiclass="TestBeanGUI" testclass="com.fep.jmeter.sampler.AtmSimulatorSampler" testname="NCR NDC Transaction Request" enabled="true">
+        <com.fep.jmeter.sampler.AtmSimulatorSampler guiclass="com.fep.jmeter.gui.AtmSimulatorSamplerGui" testclass="com.fep.jmeter.sampler.AtmSimulatorSampler" testname="NCR NDC Transaction Request" enabled="true">
           <stringProp name="fepHost">${FEP_HOST}</stringProp>
-          <stringProp name="fepPort">${FEP_PORT}</stringProp>
+          <intProp name="fepPort">8080</intProp>
           <intProp name="connectionTimeout">10000</intProp>
           <intProp name="readTimeout">30000</intProp>
           <stringProp name="protocolType">GENERIC_SCHEMA</stringProp>
@@ -491,6 +783,7 @@ Command Code 11 = Transaction Request (with PIN and amount).</stringProp>
           <stringProp name="messageTemplate"></stringProp>
           <stringProp name="mtiOverride"></stringProp>
           <stringProp name="processingCodeOverride"></stringProp>
+          <boolProp name="expectResponse">true</boolProp>
         </com.fep.jmeter.sampler.AtmSimulatorSampler>
         <hashTree/>
         <ResultCollector guiclass="ViewResultsFullVisualizer" testclass="ResultCollector" testname="View Results Tree" enabled="true">
@@ -548,9 +841,9 @@ Uses PRESET schema source to load built-in FISC ATM format.
 Similar to ISO 8583 but with BCD encoding for numeric fields.</stringProp>
       </ThreadGroup>
       <hashTree>
-        <com.fep.jmeter.sampler.AtmSimulatorSampler guiclass="TestBeanGUI" testclass="com.fep.jmeter.sampler.AtmSimulatorSampler" testname="FISC ATM Withdrawal" enabled="true">
+        <com.fep.jmeter.sampler.AtmSimulatorSampler guiclass="com.fep.jmeter.gui.AtmSimulatorSamplerGui" testclass="com.fep.jmeter.sampler.AtmSimulatorSampler" testname="FISC ATM Withdrawal" enabled="true">
           <stringProp name="fepHost">${FEP_HOST}</stringProp>
-          <stringProp name="fepPort">${FEP_PORT}</stringProp>
+          <intProp name="fepPort">8080</intProp>
           <intProp name="connectionTimeout">10000</intProp>
           <intProp name="readTimeout">30000</intProp>
           <stringProp name="protocolType">GENERIC_SCHEMA</stringProp>
@@ -583,6 +876,7 @@ Similar to ISO 8583 but with BCD encoding for numeric fields.</stringProp>
           <stringProp name="messageTemplate"></stringProp>
           <stringProp name="mtiOverride"></stringProp>
           <stringProp name="processingCodeOverride"></stringProp>
+          <boolProp name="expectResponse">true</boolProp>
         </com.fep.jmeter.sampler.AtmSimulatorSampler>
         <hashTree/>
         <ResultCollector guiclass="ViewResultsFullVisualizer" testclass="ResultCollector" testname="View Results Tree" enabled="true">
@@ -640,14 +934,14 @@ This allows complete flexibility to define any message format.
 Example shows a simple proprietary ATM protocol with mixed encodings.</stringProp>
       </ThreadGroup>
       <hashTree>
-        <com.fep.jmeter.sampler.AtmSimulatorSampler guiclass="TestBeanGUI" testclass="com.fep.jmeter.sampler.AtmSimulatorSampler" testname="Custom Protocol Message" enabled="true">
+        <com.fep.jmeter.sampler.AtmSimulatorSampler guiclass="com.fep.jmeter.gui.AtmSimulatorSamplerGui" testclass="com.fep.jmeter.sampler.AtmSimulatorSampler" testname="Custom Protocol Message" enabled="true">
           <stringProp name="fepHost">${FEP_HOST}</stringProp>
-          <stringProp name="fepPort">${FEP_PORT}</stringProp>
+          <intProp name="fepPort">8080</intProp>
           <intProp name="connectionTimeout">10000</intProp>
           <intProp name="readTimeout">30000</intProp>
           <stringProp name="protocolType">GENERIC_SCHEMA</stringProp>
           <stringProp name="schemaSource">INLINE</stringProp>
-          <stringProp name="presetSchema"></stringProp>
+          <stringProp name="presetSchema">FISC_ATM</stringProp>
           <stringProp name="schemaFile"></stringProp>
           <stringProp name="schemaContent">{
   &quot;name&quot;: &quot;Custom ATM Protocol&quot;,
@@ -690,6 +984,7 @@ Example shows a simple proprietary ATM protocol with mixed encodings.</stringPro
           <stringProp name="messageTemplate"></stringProp>
           <stringProp name="mtiOverride"></stringProp>
           <stringProp name="processingCodeOverride"></stringProp>
+          <boolProp name="expectResponse">true</boolProp>
         </com.fep.jmeter.sampler.AtmSimulatorSampler>
         <hashTree/>
         <ResultCollector guiclass="ViewResultsFullVisualizer" testclass="ResultCollector" testname="View Results Tree" enabled="true">
@@ -784,9 +1079,9 @@ For 2000 ATM simulation:
           <stringProp name="variableNames">CARD_NUMBER,CARD_EXPIRY,TRACK2_DATA,PIN_BLOCK,ACCOUNT_NUMBER</stringProp>
         </CSVDataSet>
         <hashTree/>
-        <com.fep.jmeter.sampler.AtmSimulatorSampler guiclass="TestBeanGUI" testclass="com.fep.jmeter.sampler.AtmSimulatorSampler" testname="Multi-ATM Withdrawal (ISO 8583)" enabled="true">
+        <com.fep.jmeter.sampler.AtmSimulatorSampler guiclass="com.fep.jmeter.gui.AtmSimulatorSamplerGui" testclass="com.fep.jmeter.sampler.AtmSimulatorSampler" testname="Multi-ATM Withdrawal (ISO 8583)" enabled="true">
           <stringProp name="fepHost">${FEP_HOST}</stringProp>
-          <stringProp name="fepPort">${FEP_PORT}</stringProp>
+          <intProp name="fepPort">8080</intProp>
           <intProp name="connectionTimeout">10000</intProp>
           <intProp name="readTimeout">30000</intProp>
           <stringProp name="protocolType">ISO_8583</stringProp>
@@ -803,11 +1098,17 @@ For 2000 ATM simulation:
           <stringProp name="pinBlock">${PIN_BLOCK}</stringProp>
           <stringProp name="customFields"></stringProp>
           <stringProp name="messageTemplate"></stringProp>
+          <boolProp name="expectResponse">true</boolProp>
+          <stringProp name="schemaSource">PRESET</stringProp>
+          <stringProp name="presetSchema">FISC_ATM</stringProp>
+          <stringProp name="schemaFile"></stringProp>
+          <stringProp name="schemaContent"></stringProp>
+          <stringProp name="fieldValues"></stringProp>
         </com.fep.jmeter.sampler.AtmSimulatorSampler>
         <hashTree/>
-        <com.fep.jmeter.sampler.AtmSimulatorSampler guiclass="TestBeanGUI" testclass="com.fep.jmeter.sampler.AtmSimulatorSampler" testname="Multi-ATM Withdrawal (GENERIC_SCHEMA)" enabled="false">
+        <com.fep.jmeter.sampler.AtmSimulatorSampler guiclass="com.fep.jmeter.gui.AtmSimulatorSamplerGui" testclass="com.fep.jmeter.sampler.AtmSimulatorSampler" testname="Multi-ATM Withdrawal (GENERIC_SCHEMA)" enabled="false">
           <stringProp name="fepHost">${FEP_HOST}</stringProp>
-          <stringProp name="fepPort">${FEP_PORT}</stringProp>
+          <intProp name="fepPort">8080</intProp>
           <intProp name="connectionTimeout">10000</intProp>
           <intProp name="readTimeout">30000</intProp>
           <stringProp name="protocolType">GENERIC_SCHEMA</stringProp>
@@ -840,6 +1141,7 @@ For 2000 ATM simulation:
           <stringProp name="messageTemplate"></stringProp>
           <stringProp name="mtiOverride"></stringProp>
           <stringProp name="processingCodeOverride"></stringProp>
+          <boolProp name="expectResponse">true</boolProp>
         </com.fep.jmeter.sampler.AtmSimulatorSampler>
         <hashTree/>
         <ResultCollector guiclass="SummaryReport" testclass="ResultCollector" testname="Summary Report" enabled="true">

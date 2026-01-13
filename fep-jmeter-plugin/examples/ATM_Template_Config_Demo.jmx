@@ -102,7 +102,7 @@
       </ThreadGroup>
       <hashTree>
         <!-- Sign On -->
-        <com.fep.jmeter.sampler.AtmSimulatorSampler guiclass="TestBeanGUI" testclass="com.fep.jmeter.sampler.AtmSimulatorSampler" testname="Sign On" enabled="true">
+        <com.fep.jmeter.sampler.AtmSimulatorSampler guiclass="com.fep.jmeter.gui.AtmSimulatorSamplerGui" testclass="com.fep.jmeter.sampler.AtmSimulatorSampler" testname="Sign On" enabled="true">
           <stringProp name="fepHost">${FEP_HOST}</stringProp>
           <intProp name="fepPort">${FEP_PORT}</intProp>
           <intProp name="connectionTimeout">10000</intProp>
@@ -128,7 +128,7 @@
         <hashTree/>
 
         <!-- Echo Test -->
-        <com.fep.jmeter.sampler.AtmSimulatorSampler guiclass="TestBeanGUI" testclass="com.fep.jmeter.sampler.AtmSimulatorSampler" testname="Echo Test" enabled="true">
+        <com.fep.jmeter.sampler.AtmSimulatorSampler guiclass="com.fep.jmeter.gui.AtmSimulatorSamplerGui" testclass="com.fep.jmeter.sampler.AtmSimulatorSampler" testname="Echo Test" enabled="true">
           <stringProp name="fepHost">${FEP_HOST}</stringProp>
           <intProp name="fepPort">${FEP_PORT}</intProp>
           <intProp name="connectionTimeout">10000</intProp>
@@ -170,7 +170,7 @@
       </ThreadGroup>
       <hashTree>
         <!-- Balance Inquiry -->
-        <com.fep.jmeter.sampler.AtmSimulatorSampler guiclass="TestBeanGUI" testclass="com.fep.jmeter.sampler.AtmSimulatorSampler" testname="Balance Inquiry" enabled="true">
+        <com.fep.jmeter.sampler.AtmSimulatorSampler guiclass="com.fep.jmeter.gui.AtmSimulatorSamplerGui" testclass="com.fep.jmeter.sampler.AtmSimulatorSampler" testname="Balance Inquiry" enabled="true">
           <stringProp name="fepHost">${FEP_HOST}</stringProp>
           <intProp name="fepPort">${FEP_PORT}</intProp>
           <intProp name="connectionTimeout">10000</intProp>
@@ -207,7 +207,7 @@
         </hashTree>
 
         <!-- Withdrawal - $1,000 -->
-        <com.fep.jmeter.sampler.AtmSimulatorSampler guiclass="TestBeanGUI" testclass="com.fep.jmeter.sampler.AtmSimulatorSampler" testname="Withdrawal - $1,000" enabled="true">
+        <com.fep.jmeter.sampler.AtmSimulatorSampler guiclass="com.fep.jmeter.gui.AtmSimulatorSamplerGui" testclass="com.fep.jmeter.sampler.AtmSimulatorSampler" testname="Withdrawal - $1,000" enabled="true">
           <stringProp name="fepHost">${FEP_HOST}</stringProp>
           <intProp name="fepPort">${FEP_PORT}</intProp>
           <intProp name="connectionTimeout">10000</intProp>
@@ -233,7 +233,7 @@
         <hashTree/>
 
         <!-- Transfer - $5,000 -->
-        <com.fep.jmeter.sampler.AtmSimulatorSampler guiclass="TestBeanGUI" testclass="com.fep.jmeter.sampler.AtmSimulatorSampler" testname="Transfer - $5,000" enabled="true">
+        <com.fep.jmeter.sampler.AtmSimulatorSampler guiclass="com.fep.jmeter.gui.AtmSimulatorSamplerGui" testclass="com.fep.jmeter.sampler.AtmSimulatorSampler" testname="Transfer - $5,000" enabled="true">
           <stringProp name="fepHost">${FEP_HOST}</stringProp>
           <intProp name="fepPort">${FEP_PORT}</intProp>
           <intProp name="connectionTimeout">10000</intProp>
@@ -259,7 +259,7 @@
         <hashTree/>
 
         <!-- Bill Payment -->
-        <com.fep.jmeter.sampler.AtmSimulatorSampler guiclass="TestBeanGUI" testclass="com.fep.jmeter.sampler.AtmSimulatorSampler" testname="Bill Payment - Water" enabled="true">
+        <com.fep.jmeter.sampler.AtmSimulatorSampler guiclass="com.fep.jmeter.gui.AtmSimulatorSamplerGui" testclass="com.fep.jmeter.sampler.AtmSimulatorSampler" testname="Bill Payment - Water" enabled="true">
           <stringProp name="fepHost">${FEP_HOST}</stringProp>
           <intProp name="fepPort">${FEP_PORT}</intProp>
           <intProp name="connectionTimeout">10000</intProp>
@@ -328,7 +328,7 @@
         </SwitchController>
         <hashTree>
           <!-- Case 1: Balance Inquiry -->
-          <com.fep.jmeter.sampler.AtmSimulatorSampler guiclass="TestBeanGUI" testclass="com.fep.jmeter.sampler.AtmSimulatorSampler" testname="Random - Balance Inquiry" enabled="true">
+          <com.fep.jmeter.sampler.AtmSimulatorSampler guiclass="com.fep.jmeter.gui.AtmSimulatorSamplerGui" testclass="com.fep.jmeter.sampler.AtmSimulatorSampler" testname="Random - Balance Inquiry" enabled="true">
             <stringProp name="fepHost">${FEP_HOST}</stringProp>
             <intProp name="fepPort">${FEP_PORT}</intProp>
             <intProp name="connectionTimeout">10000</intProp>
@@ -354,7 +354,7 @@
           <hashTree/>
 
           <!-- Case 2: Withdrawal -->
-          <com.fep.jmeter.sampler.AtmSimulatorSampler guiclass="TestBeanGUI" testclass="com.fep.jmeter.sampler.AtmSimulatorSampler" testname="Random - Withdrawal" enabled="true">
+          <com.fep.jmeter.sampler.AtmSimulatorSampler guiclass="com.fep.jmeter.gui.AtmSimulatorSamplerGui" testclass="com.fep.jmeter.sampler.AtmSimulatorSampler" testname="Random - Withdrawal" enabled="true">
             <stringProp name="fepHost">${FEP_HOST}</stringProp>
             <intProp name="fepPort">${FEP_PORT}</intProp>
             <intProp name="connectionTimeout">10000</intProp>
@@ -380,7 +380,7 @@
           <hashTree/>
 
           <!-- Case 3: Transfer -->
-          <com.fep.jmeter.sampler.AtmSimulatorSampler guiclass="TestBeanGUI" testclass="com.fep.jmeter.sampler.AtmSimulatorSampler" testname="Random - Transfer" enabled="true">
+          <com.fep.jmeter.sampler.AtmSimulatorSampler guiclass="com.fep.jmeter.gui.AtmSimulatorSamplerGui" testclass="com.fep.jmeter.sampler.AtmSimulatorSampler" testname="Random - Transfer" enabled="true">
             <stringProp name="fepHost">${FEP_HOST}</stringProp>
             <intProp name="fepPort">${FEP_PORT}</intProp>
             <intProp name="connectionTimeout">10000</intProp>
@@ -406,7 +406,7 @@
           <hashTree/>
 
           <!-- Case 4: Bill Payment -->
-          <com.fep.jmeter.sampler.AtmSimulatorSampler guiclass="TestBeanGUI" testclass="com.fep.jmeter.sampler.AtmSimulatorSampler" testname="Random - Bill Payment" enabled="true">
+          <com.fep.jmeter.sampler.AtmSimulatorSampler guiclass="com.fep.jmeter.gui.AtmSimulatorSamplerGui" testclass="com.fep.jmeter.sampler.AtmSimulatorSampler" testname="Random - Bill Payment" enabled="true">
             <stringProp name="fepHost">${FEP_HOST}</stringProp>
             <intProp name="fepPort">${FEP_PORT}</intProp>
             <intProp name="connectionTimeout">10000</intProp>
@@ -449,7 +449,7 @@
       </ThreadGroup>
       <hashTree>
         <!-- Sign Off -->
-        <com.fep.jmeter.sampler.AtmSimulatorSampler guiclass="TestBeanGUI" testclass="com.fep.jmeter.sampler.AtmSimulatorSampler" testname="Sign Off" enabled="true">
+        <com.fep.jmeter.sampler.AtmSimulatorSampler guiclass="com.fep.jmeter.gui.AtmSimulatorSamplerGui" testclass="com.fep.jmeter.sampler.AtmSimulatorSampler" testname="Sign Off" enabled="true">
           <stringProp name="fepHost">${FEP_HOST}</stringProp>
           <intProp name="fepPort">${FEP_PORT}</intProp>
           <intProp name="connectionTimeout">10000</intProp>

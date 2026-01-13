@@ -7,8 +7,8 @@
 
   "header": {
     "includeLength": true,
-    "lengthBytes": 2,
-    "lengthEncoding": "BCD",
+    "lengthBytes": 4,
+    "lengthEncoding": "ASCII",
     "lengthIncludesHeader": false
   },
 
@@ -19,7 +19,7 @@
       "description": "ISO 8583 Message Type",
       "type": "NUMERIC",
       "length": 4,
-      "encoding": "BCD",
+      "encoding": "ASCII",
       "required": true
     },
     {
@@ -37,7 +37,7 @@
       "description": "Card number (Field 2)",
       "type": "NUMERIC",
       "length": 19,
-      "lengthType": "LLVAR",
+      "lengthType": "FIXED",
       "encoding": "BCD",
       "lengthEncoding": "BCD",
       "sensitive": true
@@ -48,7 +48,7 @@
       "description": "Transaction type (Field 3)",
       "type": "NUMERIC",
       "length": 6,
-      "encoding": "BCD",
+      "encoding": "ASCII",
       "required": true
     },
     {
@@ -57,7 +57,7 @@
       "description": "Amount (Field 4)",
       "type": "NUMERIC",
       "length": 12,
-      "encoding": "BCD",
+      "encoding": "ASCII",
       "padding": {
         "char": "0",
         "direction": "left"
@@ -69,9 +69,8 @@
       "description": "STAN (Field 11)",
       "type": "NUMERIC",
       "length": 6,
-      "encoding": "BCD",
-      "required": true,
-      "defaultValue": "${stan}"
+      "encoding": "ASCII",
+      "required": true
     },
     {
       "id": "localTime",
@@ -79,8 +78,7 @@
       "description": "Transaction time HHmmss (Field 12)",
       "type": "NUMERIC",
       "length": 6,
-      "encoding": "BCD",
-      "defaultValue": "${time}"
+      "encoding": "ASCII"
     },
     {
       "id": "localDate",
@@ -88,8 +86,7 @@
       "description": "Transaction date MMdd (Field 13)",
       "type": "NUMERIC",
       "length": 4,
-      "encoding": "BCD",
-      "defaultValue": "${date}"
+      "encoding": "ASCII"
     },
     {
       "id": "posEntryMode",
@@ -97,7 +94,7 @@
       "description": "Entry mode (Field 22)",
       "type": "NUMERIC",
       "length": 3,
-      "encoding": "BCD",
+      "encoding": "ASCII",
       "defaultValue": "051"
     },
     {
@@ -106,7 +103,7 @@
       "description": "Card sequence (Field 23)",
       "type": "NUMERIC",
       "length": 3,
-      "encoding": "BCD"
+      "encoding": "ASCII"
     },
     {
       "id": "functionCode",
@@ -114,7 +111,7 @@
       "description": "Function code (Field 24)",
       "type": "NUMERIC",
       "length": 3,
-      "encoding": "BCD"
+      "encoding": "ASCII"
     },
     {
       "id": "posConditionCode",
@@ -122,7 +119,7 @@
       "description": "Condition code (Field 25)",
       "type": "NUMERIC",
       "length": 2,
-      "encoding": "BCD",
+      "encoding": "ASCII",
       "defaultValue": "00"
     },
     {
@@ -132,8 +129,8 @@
       "type": "NUMERIC",
       "length": 11,
       "lengthType": "LLVAR",
-      "encoding": "BCD",
-      "lengthEncoding": "BCD"
+      "encoding": "ASCII",
+      "lengthEncoding": "ASCII"
     },
     {
       "id": "rrn",
@@ -141,8 +138,7 @@
       "description": "RRN (Field 37)",
       "type": "ALPHANUMERIC",
       "length": 12,
-      "encoding": "ASCII",
-      "defaultValue": "${rrn}"
+      "encoding": "ASCII"
     },
     {
       "id": "authCode",
@@ -167,8 +163,7 @@
       "type": "ALPHANUMERIC",
       "length": 8,
       "encoding": "ASCII",
-      "required": true,
-      "defaultValue": "${terminalId}"
+      "required": true
     },
     {
       "id": "merchantId",
@@ -192,8 +187,7 @@
       "padding": {
         "char": " ",
         "direction": "right"
-      },
-      "defaultValue": "${atmLocation}"
+      }
     },
     {
       "id": "currencyCode",
@@ -201,8 +195,7 @@
       "description": "Currency (Field 49)",
       "type": "NUMERIC",
       "length": 3,
-      "encoding": "BCD",
-      "defaultValue": "901"
+      "encoding": "ASCII"
     },
     {
       "id": "pinBlock",

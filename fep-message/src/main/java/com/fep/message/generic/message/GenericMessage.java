@@ -34,6 +34,27 @@ public class GenericMessage {
     }
 
     /**
+     * Populates fields with default values from the schema.
+     * Only populates fields that are not already set.
+     * This should be called before applyVariables() to allow variable substitution in default values.
+     */
+    public void populateDefaults() {
+        if (schema.getFields() == null) {
+            return;
+        }
+        for (FieldSchema fieldSchema : schema.getFields()) {
+            String fieldId = fieldSchema.getId();
+            // Only set if not already present
+            if (!fields.containsKey(fieldId)) {
+                String defaultValue = fieldSchema.getDefaultValue();
+                if (defaultValue != null && !defaultValue.isEmpty()) {
+                    fields.put(fieldId, defaultValue);
+                }
+            }
+        }
+    }
+
+    /**
      * Sets a field value by ID.
      *
      * @param fieldId the field ID
@@ -142,12 +163,73 @@ public class GenericMessage {
     }
 
     /**
-     * Gets all field values as a map.
+     * Gets all field values as a map (only explicitly set fields).
      *
      * @return map of field ID to value
      */
     public Map<String, Object> getAllFields() {
         return Collections.unmodifiableMap(fields);
+    }
+
+    /**
+     * Gets all field values including schema default values.
+     * For fields not explicitly set, uses the defaultValue from schema if available.
+     *
+     * @return map of field ID to value (including defaults)
+     */
+    public Map<String, Object> getAllFieldsWithDefaults() {
+        Map<String, Object> result = new LinkedHashMap<>();
+
+        // First add all schema fields with their default values
+        if (schema.getFields() != null) {
+            for (FieldSchema fieldSchema : schema.getFields()) {
+                String fieldId = fieldSchema.getId();
+                if (fields.containsKey(fieldId)) {
+                    // Use explicitly set value
+                    result.put(fieldId, fields.get(fieldId));
+                } else if (fieldSchema.getDefaultValue() != null && !fieldSchema.getDefaultValue().isEmpty()) {
+                    // Use schema default value
+                    result.put(fieldId, fieldSchema.getDefaultValue());
+                }
+            }
+        }
+
+        // Add any extra fields not in schema (preserve order)
+        for (Map.Entry<String, Object> entry : fields.entrySet()) {
+            if (!result.containsKey(entry.getKey())) {
+                result.put(entry.getKey(), entry.getValue());
+            }
+        }
+
+        return Collections.unmodifiableMap(result);
+    }
+
+    /**
+     * Gets the effective value for a field, considering default values.
+     *
+     * @param fieldId the field ID
+     * @return the value (explicit or default), or null if not set and no default
+     */
+    public Object getFieldWithDefault(String fieldId) {
+        if (fields.containsKey(fieldId)) {
+            return fields.get(fieldId);
+        }
+        // Check schema for default value
+        return schema.getField(fieldId)
+                .map(FieldSchema::getDefaultValue)
+                .filter(d -> d != null && !d.isEmpty())
+                .orElse(null);
+    }
+
+    /**
+     * Gets the effective value for a field as String, considering default values.
+     *
+     * @param fieldId the field ID
+     * @return the string value (explicit or default), or null if not set and no default
+     */
+    public String getFieldWithDefaultAsString(String fieldId) {
+        Object value = getFieldWithDefault(fieldId);
+        return value != null ? value.toString() : null;
     }
 
     /**
@@ -265,15 +347,29 @@ public class GenericMessage {
 
     @Override
     public String toString() {
+        return toString(false);
+    }
+
+    /**
+     * Returns a string representation of the message.
+     *
+     * @param includeDefaults if true, includes fields with default values from schema
+     * @return string representation
+     */
+    public String toString(boolean includeDefaults) {
         StringBuilder sb = new StringBuilder();
         sb.append("GenericMessage[").append(schema.getName()).append("] {\n");
-        for (Map.Entry<String, Object> entry : fields.entrySet()) {
+
+        Map<String, Object> fieldsToDisplay = includeDefaults ? getAllFieldsWithDefaults() : fields;
+
+        for (Map.Entry<String, Object> entry : fieldsToDisplay.entrySet()) {
             String fieldId = entry.getKey();
             Object value = entry.getValue();
 
             // Check if sensitive
             Optional<FieldSchema> fieldSchema = schema.getField(fieldId);
             boolean sensitive = fieldSchema.map(FieldSchema::isSensitive).orElse(false);
+            boolean isDefault = includeDefaults && !fields.containsKey(fieldId);
 
             sb.append("  ").append(fieldId).append("=");
             if (sensitive) {
@@ -282,6 +378,9 @@ public class GenericMessage {
                 sb.append("[").append(bytes.length).append(" bytes]");
             } else {
                 sb.append(value);
+            }
+            if (isDefault) {
+                sb.append(" (default)");
             }
             sb.append("\n");
         }

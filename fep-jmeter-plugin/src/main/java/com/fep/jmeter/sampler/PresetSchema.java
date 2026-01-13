@@ -1,5 +1,9 @@
 package com.fep.jmeter.sampler;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+
 /**
  * Preset schemas for common ATM protocols.
  */
@@ -50,6 +54,22 @@ public enum PresetSchema {
 
     public String getDescription() {
         return description;
+    }
+
+    /**
+     * Load schema JSON content from resource.
+     *
+     * @return the schema JSON content, or error message if loading fails
+     */
+    public String loadSchemaContent() {
+        try (InputStream is = getClass().getClassLoader().getResourceAsStream(resourcePath)) {
+            if (is == null) {
+                return "// Schema not found: " + resourcePath;
+            }
+            return new String(is.readAllBytes(), StandardCharsets.UTF_8);
+        } catch (IOException e) {
+            return "// Error loading schema: " + e.getMessage();
+        }
     }
 
     /**

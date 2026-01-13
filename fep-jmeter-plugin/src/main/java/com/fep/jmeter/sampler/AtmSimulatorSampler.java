@@ -21,7 +21,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.jmeter.samplers.AbstractSampler;
 import org.apache.jmeter.samplers.Entry;
 import org.apache.jmeter.samplers.SampleResult;
-import org.apache.jmeter.testbeans.TestBean;
+// TestBean removed to use custom GUI (AtmSimulatorSamplerGui)
+import org.apache.jmeter.testelement.TestElement;
 import org.apache.jmeter.testelement.TestStateListener;
 import org.apache.jmeter.threads.JMeterContext;
 import org.apache.jmeter.threads.JMeterContextService;
@@ -51,7 +52,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * </ul>
  */
 @Slf4j
-public class AtmSimulatorSampler extends AbstractSampler implements TestBean, TestStateListener {
+public class AtmSimulatorSampler extends AbstractSampler implements TestStateListener {
 
     private static final long serialVersionUID = 1L;
 
@@ -80,6 +81,8 @@ public class AtmSimulatorSampler extends AbstractSampler implements TestBean, Te
     public AtmSimulatorSampler() {
         super();
         setName("ATM Simulator");
+        // Register a custom GUI class
+        setProperty(TestElement.GUI_CLASS, "com.fep.jmeter.gui.AtmSimulatorSamplerGui");
     }
 
     @Override
@@ -95,17 +98,20 @@ public class AtmSimulatorSampler extends AbstractSampler implements TestBean, Te
             // Load schema
             MessageSchema schema = loadMessageSchema();
 
-            // Create message
+            // Create a message
             GenericMessage message = new GenericMessage(schema);
 
             // Apply field values from JSON configuration
             applyFieldValuesToGenericMessage(message);
 
-            // Apply JMeter variables
+            // Populate schema default values (before variable substitution)
+            message.populateDefaults();
+
+            // Apply JMeter variables to all fields (including defaults with ${var} placeholders)
             Map<String, String> variables = buildVariables();
             message.applyVariables(variables);
 
-            // Validate message
+            // Validate a message
             var validationResult = message.validate();
             if (!validationResult.isValid()) {
                 result.sampleEnd();
@@ -115,7 +121,7 @@ public class AtmSimulatorSampler extends AbstractSampler implements TestBean, Te
                 return result;
             }
 
-            // Assemble message (includes length header based on schema)
+            // Assemble a message (includes length header based on schema)
             GenericMessageAssembler assembler = new GenericMessageAssembler();
             byte[] messageBytes = assembler.assemble(message);
 
@@ -123,10 +129,10 @@ public class AtmSimulatorSampler extends AbstractSampler implements TestBean, Te
             String requestStr = formatMessageForDisplay(message, messageBytes);
             result.setSamplerData(requestStr);
 
-            // Get or create channel
+            // Get or create a channel
             ChannelHolder holder = getOrCreateChannel(fepHost, fepPort, schema);
 
-            // Create response future
+            // Create a response future
             CompletableFuture<byte[]> responseFuture = new CompletableFuture<>();
             String messageId = String.valueOf(messageCounter.incrementAndGet());
             holder.pendingRequests.put(messageId, responseFuture);
@@ -258,7 +264,12 @@ public class AtmSimulatorSampler extends AbstractSampler implements TestBean, Te
         variables.put("datetime", now.format(DateTimeFormatter.ofPattern("MMddHHmmss")));
         variables.put("rrn", String.format("%012d", System.currentTimeMillis() % 1000000000000L));
 
-        // Add JMeter variables
+        // Default ATM-related variables (can be overridden by JMeter variables)
+        variables.put("atmLocation", "ATM LOCATION                            ");
+        variables.put("merchantId", "MERCHANT123456 ");
+        variables.put("currencyCode", "901");
+
+        // Add JMeter variables (these will override defaults above)
         JMeterVariables jmeterVars = JMeterContextService.getContext().getVariables();
         if (jmeterVars != null) {
             for (java.util.Iterator<Map.Entry<String, Object>> it = jmeterVars.getIterator(); it.hasNext(); ) {
@@ -273,7 +284,7 @@ public class AtmSimulatorSampler extends AbstractSampler implements TestBean, Te
     }
 
     /**
-     * Format message for display.
+     * Format message for display (includes default values from schema).
      */
     private String formatMessageForDisplay(GenericMessage message, byte[] bytes) {
         StringBuilder sb = new StringBuilder();
@@ -282,7 +293,7 @@ public class AtmSimulatorSampler extends AbstractSampler implements TestBean, Te
         sb.append("Length: ").append(bytes.length).append(" bytes\n\n");
 
         sb.append("Fields:\n");
-        sb.append(message.toString()).append("\n\n");
+        sb.append(message.toString(true)).append("\n\n");  // Include default values
 
         sb.append("Hex:\n");
         sb.append(hexFormat.formatHex(bytes)).append("\n");
