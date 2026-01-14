@@ -62,12 +62,19 @@ public class AtmSimulatorSampler extends AbstractSampler implements TestStateLis
     public static final String READ_TIMEOUT = "readTimeout";
     public static final String EXPECT_RESPONSE = "expectResponse";
 
-    // Property names - Generic Schema Mode
+    // Property names - Generic Schema Mode (Request)
     public static final String SCHEMA_SOURCE = "schemaSource";
     public static final String SCHEMA_FILE = "schemaFile";
     public static final String SCHEMA_CONTENT = "schemaContent";
     public static final String PRESET_SCHEMA = "presetSchema";
     public static final String FIELD_VALUES = "fieldValues";
+
+    // Property names - Response Schema
+    public static final String USE_DIFFERENT_RESPONSE_SCHEMA = "useDifferentResponseSchema";
+    public static final String RESPONSE_SCHEMA_SOURCE = "responseSchemaSource";
+    public static final String RESPONSE_SCHEMA_FILE = "responseSchemaFile";
+    public static final String RESPONSE_SCHEMA_CONTENT = "responseSchemaContent";
+    public static final String RESPONSE_PRESET_SCHEMA = "responsePresetSchema";
 
     // Static resources
     private static final Map<String, ChannelHolder> channelPool = new ConcurrentHashMap<>();
@@ -164,10 +171,14 @@ public class AtmSimulatorSampler extends AbstractSampler implements TestStateLis
                 // Stop timing
                 result.sampleEnd();
 
+                // Load response schema (may be different from request schema)
+                MessageSchema responseSchema = loadResponseSchema(schema);
+                log.debug("Using response schema: {}", responseSchema.getName());
+
                 // Parse response
                 // Note: skipLengthField=true because GenericLengthFieldDecoder already stripped the length field
                 GenericMessageParser parser = new GenericMessageParser();
-                GenericMessage response = parser.parse(responseBytes, schema, true);
+                GenericMessage response = parser.parse(responseBytes, responseSchema, true);
 
                 // Format response (response bytes don't include length field - stripped by decoder)
                 String responseStr = formatMessageForDisplay(response, responseBytes, false);
@@ -223,6 +234,31 @@ public class AtmSimulatorSampler extends AbstractSampler implements TestStateLis
             case INLINE -> JsonSchemaLoader.fromJson(substituteVariables(getSchemaContent()));
             case PRESET -> {
                 PresetSchema preset = PresetSchema.fromString(getPresetSchema());
+                yield JsonSchemaLoader.fromResource(preset.getResourcePath());
+            }
+        };
+    }
+
+    /**
+     * Load response schema based on configuration.
+     * If "use different response schema" is disabled, returns the request schema.
+     *
+     * @param requestSchema the request schema to use as fallback
+     * @return the response schema
+     */
+    private MessageSchema loadResponseSchema(MessageSchema requestSchema) {
+        if (!isUseDifferentResponseSchema()) {
+            return requestSchema;
+        }
+
+        ResponseSchemaSource source = ResponseSchemaSource.fromString(getResponseSchemaSource());
+
+        return switch (source) {
+            case SAME_AS_REQUEST -> requestSchema;
+            case FILE -> JsonSchemaLoader.fromFile(Path.of(substituteVariables(getResponseSchemaFile())));
+            case INLINE -> JsonSchemaLoader.fromJson(substituteVariables(getResponseSchemaContent()));
+            case PRESET -> {
+                PresetSchema preset = PresetSchema.fromString(getResponsePresetSchema());
                 yield JsonSchemaLoader.fromResource(preset.getResourcePath());
             }
         };
@@ -676,6 +712,48 @@ public class AtmSimulatorSampler extends AbstractSampler implements TestStateLis
 
     public void setFieldValues(String values) {
         setProperty(FIELD_VALUES, values);
+    }
+
+    // Response Schema Getters/Setters
+
+    public boolean isUseDifferentResponseSchema() {
+        return getPropertyAsBoolean(USE_DIFFERENT_RESPONSE_SCHEMA, false);
+    }
+
+    public void setUseDifferentResponseSchema(boolean useDifferent) {
+        setProperty(USE_DIFFERENT_RESPONSE_SCHEMA, useDifferent);
+    }
+
+    public String getResponseSchemaSource() {
+        return getPropertyAsString(RESPONSE_SCHEMA_SOURCE, ResponseSchemaSource.SAME_AS_REQUEST.name());
+    }
+
+    public void setResponseSchemaSource(String source) {
+        setProperty(RESPONSE_SCHEMA_SOURCE, source);
+    }
+
+    public String getResponseSchemaFile() {
+        return getPropertyAsString(RESPONSE_SCHEMA_FILE, "");
+    }
+
+    public void setResponseSchemaFile(String file) {
+        setProperty(RESPONSE_SCHEMA_FILE, file);
+    }
+
+    public String getResponseSchemaContent() {
+        return getPropertyAsString(RESPONSE_SCHEMA_CONTENT, "");
+    }
+
+    public void setResponseSchemaContent(String content) {
+        setProperty(RESPONSE_SCHEMA_CONTENT, content);
+    }
+
+    public String getResponsePresetSchema() {
+        return getPropertyAsString(RESPONSE_PRESET_SCHEMA, PresetSchema.FISC_ATM.name());
+    }
+
+    public void setResponsePresetSchema(String preset) {
+        setProperty(RESPONSE_PRESET_SCHEMA, preset);
     }
 
     /**
