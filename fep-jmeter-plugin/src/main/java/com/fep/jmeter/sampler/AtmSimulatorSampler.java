@@ -70,6 +70,16 @@ public class AtmSimulatorSampler extends AbstractSampler implements TestStateLis
     public static final String PRESET_SCHEMA = "presetSchema";
     public static final String FIELD_VALUES = "fieldValues";
 
+    // Property names - Transaction Flow
+    public static final String TRANSACTION_FLOW = "transactionFlow";
+    public static final String CONFIRM_DELAY = "confirmDelay";
+
+    // Fields to copy from request to confirm message
+    private static final String[] CONFIRM_COPY_FIELDS = {
+        "pan", "processingCode", "amount", "stan", "localTime", "localDate",
+        "rrn", "terminalId", "merchantId", "acquiringInstitution", "currencyCode"
+    };
+
     // Static resources
     private static final Map<String, ChannelHolder> channelPool = new ConcurrentHashMap<>();
     private static final Object channelLock = new Object();
@@ -87,6 +97,19 @@ public class AtmSimulatorSampler extends AbstractSampler implements TestStateLis
 
     @Override
     public SampleResult sample(Entry entry) {
+        TransactionFlow flow = TransactionFlow.fromString(getTransactionFlow());
+
+        return switch (flow) {
+            case SINGLE_REQUEST -> executeSingleRequest();
+            case FULL_TRANSACTION -> executeFullTransaction();
+            case CONFIRM_ONLY -> executeConfirmOnly();
+        };
+    }
+
+    /**
+     * Execute single request mode (original behavior).
+     */
+    private SampleResult executeSingleRequest() {
         SampleResult result = new SampleResult();
         result.setSampleLabel(getName());
         result.setDataType(SampleResult.TEXT);
@@ -197,6 +220,284 @@ public class AtmSimulatorSampler extends AbstractSampler implements TestStateLis
         }
 
         return result;
+    }
+
+    /**
+     * Execute full transaction flow: Request (0200) -> Response (0210) -> Confirm (0220).
+     * Confirm is sent without waiting for response.
+     */
+    private SampleResult executeFullTransaction() {
+        SampleResult result = new SampleResult();
+        result.setSampleLabel(getName() + " (Full Transaction)");
+        result.setDataType(SampleResult.TEXT);
+
+        String fepHost = getFepHost();
+        int fepPort = getFepPort();
+        StringBuilder samplerData = new StringBuilder();
+        StringBuilder responseData = new StringBuilder();
+
+        try {
+            // Load schema
+            MessageSchema schema = loadMessageSchema();
+            GenericMessageAssembler assembler = new GenericMessageAssembler();
+            GenericMessageParser parser = new GenericMessageParser();
+
+            // === Phase 1: Send Request (0200) ===
+            GenericMessage request = new GenericMessage(schema);
+            applyFieldValuesToGenericMessage(request);
+            request.populateDefaults();
+            Map<String, String> variables = buildVariables();
+            request.applyVariables(variables);
+
+            var validationResult = request.validate();
+            if (!validationResult.isValid()) {
+                result.setSuccessful(false);
+                result.setResponseCode("VALIDATION_ERROR");
+                result.setResponseMessage("Request validation failed: " + validationResult.errors());
+                return result;
+            }
+
+            byte[] requestBytes = assembler.assemble(request);
+            samplerData.append("=== Phase 1: Request ===\n");
+            samplerData.append(formatMessageForDisplay(request, requestBytes));
+
+            // Get or create channel
+            ChannelHolder holder = getOrCreateChannel(fepHost, fepPort, schema);
+
+            // Create response future
+            CompletableFuture<byte[]> responseFuture = new CompletableFuture<>();
+            String messageId = String.valueOf(messageCounter.incrementAndGet());
+            holder.pendingRequests.put(messageId, responseFuture);
+            holder.lastRequestId = messageId;
+
+            // Start timing
+            result.sampleStart();
+
+            // Send request
+            ByteBuf buf = Unpooled.wrappedBuffer(requestBytes);
+            holder.channel.writeAndFlush(buf).sync();
+            log.debug("Request sent, waiting for response...");
+
+            // === Phase 2: Wait for Response (0210) ===
+            byte[] responseBytes = responseFuture.get(getReadTimeout(), TimeUnit.MILLISECONDS);
+            GenericMessage response = parser.parse(responseBytes, schema);
+
+            responseData.append("=== Phase 2: Response ===\n");
+            responseData.append(formatMessageForDisplay(response, responseBytes));
+
+            // Store request and response variables for confirm
+            storeRequestVariables(request);
+            storeResponseVariables(response);
+
+            // Check if approved
+            String responseCode = getResponseCodeFromMessage(response);
+            boolean approved = "00".equals(responseCode) || "000".equals(responseCode);
+
+            if (!approved) {
+                // Transaction declined, no confirm needed
+                result.sampleEnd();
+                result.setSamplerData(samplerData.toString());
+                result.setResponseData(responseData.toString(), StandardCharsets.UTF_8.name());
+                result.setResponseCode(responseCode != null ? responseCode : "DECLINED");
+                result.setResponseMessage("Transaction declined: " + getResponseMessage(responseCode));
+                result.setSuccessful(false);
+                log.info("Transaction declined with response code: {}", responseCode);
+                return result;
+            }
+
+            // === Phase 3: Simulate cash dispensing delay ===
+            int confirmDelay = getConfirmDelay();
+            if (confirmDelay > 0) {
+                log.debug("Simulating cash dispensing delay: {} ms", confirmDelay);
+                Thread.sleep(confirmDelay);
+            }
+
+            // === Phase 4: Send Confirm (0220) - No response expected ===
+            GenericMessage confirm = buildConfirmMessage(request, response, schema);
+            byte[] confirmBytes = assembler.assemble(confirm);
+
+            samplerData.append("\n=== Phase 3: Confirm ===\n");
+            samplerData.append(formatMessageForDisplay(confirm, confirmBytes));
+
+            // Send confirm without waiting for response
+            ByteBuf confirmBuf = Unpooled.wrappedBuffer(confirmBytes);
+            holder.channel.writeAndFlush(confirmBuf).sync();
+            log.debug("Confirm sent (no response expected)");
+
+            // Stop timing
+            result.sampleEnd();
+
+            // Set result
+            result.setSamplerData(samplerData.toString());
+            responseData.append("\n=== Phase 3: Confirm Sent ===\n");
+            responseData.append("Confirm message sent successfully (no response expected)\n");
+            result.setResponseData(responseData.toString(), StandardCharsets.UTF_8.name());
+            result.setResponseCode("00");
+            result.setResponseMessage("Full transaction completed successfully");
+            result.setSuccessful(true);
+
+            log.info("Full transaction completed: Request -> Response (00) -> Confirm sent");
+
+        } catch (TimeoutException e) {
+            result.sampleEnd();
+            result.setSamplerData(samplerData.toString());
+            result.setSuccessful(false);
+            result.setResponseCode("TIMEOUT");
+            result.setResponseMessage("Response timeout waiting for authorization");
+            result.setResponseData("Timeout waiting for response\n" + responseData, StandardCharsets.UTF_8.name());
+            log.warn("Full transaction timeout waiting for response");
+        } catch (Exception e) {
+            result.sampleEnd();
+            result.setSamplerData(samplerData.toString());
+            result.setSuccessful(false);
+            result.setResponseCode("ERROR");
+            result.setResponseMessage(e.getMessage());
+            result.setResponseData(e.toString(), StandardCharsets.UTF_8.name());
+            log.error("Full transaction error", e);
+        }
+
+        return result;
+    }
+
+    /**
+     * Execute confirm only mode - send 0220 using stored variables.
+     */
+    private SampleResult executeConfirmOnly() {
+        SampleResult result = new SampleResult();
+        result.setSampleLabel(getName() + " (Confirm Only)");
+        result.setDataType(SampleResult.TEXT);
+
+        String fepHost = getFepHost();
+        int fepPort = getFepPort();
+
+        try {
+            // Load schema
+            MessageSchema schema = loadMessageSchema();
+            GenericMessageAssembler assembler = new GenericMessageAssembler();
+
+            // Build confirm message from JMeter variables
+            GenericMessage confirm = buildConfirmFromVariables(schema);
+            byte[] confirmBytes = assembler.assemble(confirm);
+
+            String requestStr = formatMessageForDisplay(confirm, confirmBytes);
+            result.setSamplerData(requestStr);
+
+            // Get or create channel
+            ChannelHolder holder = getOrCreateChannel(fepHost, fepPort, schema);
+
+            // Start timing
+            result.sampleStart();
+
+            // Send confirm without waiting for response
+            ByteBuf buf = Unpooled.wrappedBuffer(confirmBytes);
+            holder.channel.writeAndFlush(buf).sync();
+
+            // Stop timing
+            result.sampleEnd();
+
+            result.setSuccessful(true);
+            result.setResponseCode("SENT");
+            result.setResponseMessage("Confirm sent (no response expected)");
+            result.setResponseData("Confirm message sent successfully", StandardCharsets.UTF_8.name());
+
+            log.debug("Confirm-only message sent");
+
+        } catch (Exception e) {
+            result.sampleEnd();
+            result.setSuccessful(false);
+            result.setResponseCode("ERROR");
+            result.setResponseMessage(e.getMessage());
+            result.setResponseData(e.toString(), StandardCharsets.UTF_8.name());
+            log.error("Confirm-only error", e);
+        }
+
+        return result;
+    }
+
+    /**
+     * Build confirm message (0220) from original request and response.
+     */
+    private GenericMessage buildConfirmMessage(GenericMessage request, GenericMessage response,
+                                                MessageSchema schema) {
+        GenericMessage confirm = new GenericMessage(schema);
+
+        // Set MTI to 0220 (confirm)
+        String originalMti = request.getFieldAsString("mti");
+        if (originalMti != null && originalMti.startsWith("02")) {
+            confirm.setField("mti", "0220");
+        } else if (originalMti != null && originalMti.startsWith("01")) {
+            confirm.setField("mti", "0120");
+        } else {
+            confirm.setField("mti", "0220"); // default
+        }
+
+        // Copy fields from original request
+        for (String fieldId : CONFIRM_COPY_FIELDS) {
+            Object value = request.getField(fieldId);
+            if (value != null) {
+                confirm.setField(fieldId, value);
+            }
+        }
+
+        // Copy auth code and response code from response
+        String authCode = response.getFieldAsString("authCode");
+        if (authCode != null) {
+            confirm.setField("authCode", authCode);
+        }
+        String responseCode = response.getFieldAsString("responseCode");
+        if (responseCode != null) {
+            confirm.setField("responseCode", responseCode);
+        }
+
+        return confirm;
+    }
+
+    /**
+     * Build confirm message from JMeter variables (for CONFIRM_ONLY mode).
+     */
+    private GenericMessage buildConfirmFromVariables(MessageSchema schema) {
+        GenericMessage confirm = new GenericMessage(schema);
+        JMeterVariables vars = JMeterContextService.getContext().getVariables();
+
+        // Set MTI to 0220
+        confirm.setField("mti", "0220");
+
+        // Copy fields from REQUEST_ variables
+        for (String fieldId : CONFIRM_COPY_FIELDS) {
+            String varName = "REQUEST_" + fieldId;
+            String value = vars != null ? vars.get(varName) : null;
+            if (value != null && !value.isBlank()) {
+                confirm.setField(fieldId, value);
+            }
+        }
+
+        // Copy auth code and response code from RESPONSE_ variables
+        if (vars != null) {
+            String authCode = vars.get("RESPONSE_authCode");
+            if (authCode != null && !authCode.isBlank()) {
+                confirm.setField("authCode", authCode);
+            }
+            String responseCode = vars.get("RESPONSE_responseCode");
+            if (responseCode != null && !responseCode.isBlank()) {
+                confirm.setField("responseCode", responseCode);
+            }
+        }
+
+        return confirm;
+    }
+
+    /**
+     * Store request fields as JMeter variables for later use.
+     */
+    private void storeRequestVariables(GenericMessage request) {
+        JMeterContext context = JMeterContextService.getContext();
+        JMeterVariables vars = context.getVariables();
+        if (vars == null) return;
+
+        for (Map.Entry<String, Object> entry : request.getAllFields().entrySet()) {
+            String key = "REQUEST_" + entry.getKey();
+            vars.put(key, entry.getValue() != null ? entry.getValue().toString() : "");
+        }
     }
 
     /**
@@ -652,6 +953,22 @@ public class AtmSimulatorSampler extends AbstractSampler implements TestStateLis
 
     public void setFieldValues(String values) {
         setProperty(FIELD_VALUES, values);
+    }
+
+    public String getTransactionFlow() {
+        return getPropertyAsString(TRANSACTION_FLOW, TransactionFlow.SINGLE_REQUEST.name());
+    }
+
+    public void setTransactionFlow(String flow) {
+        setProperty(TRANSACTION_FLOW, flow);
+    }
+
+    public int getConfirmDelay() {
+        return getPropertyAsInt(CONFIRM_DELAY, 0);
+    }
+
+    public void setConfirmDelay(int delay) {
+        setProperty(CONFIRM_DELAY, delay);
     }
 
     /**

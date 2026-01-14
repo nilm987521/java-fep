@@ -5,6 +5,7 @@ import com.fep.jmeter.gui.schema.SchemaTableModel;
 import com.fep.jmeter.sampler.AtmSimulatorSampler;
 import com.fep.jmeter.sampler.PresetSchema;
 import com.fep.jmeter.sampler.SchemaSource;
+import com.fep.jmeter.sampler.TransactionFlow;
 import com.fep.message.generic.schema.JsonSchemaLoader;
 import com.fep.message.generic.schema.MessageSchema;
 import lombok.extern.slf4j.Slf4j;
@@ -39,6 +40,11 @@ public class AtmSimulatorSamplerGui extends AbstractSamplerGui {
     private JTextField readTimeoutField;
     private JCheckBox expectResponseCheckbox;
 
+    // Transaction Flow fields
+    private JComboBox<String> transactionFlowCombo;
+    private JTextField confirmDelayField;
+    private JPanel confirmSettingsPanel;
+
     // Schema fields
     private JComboBox<String> schemaSourceCombo;
     private JComboBox<String> presetSchemaCombo;
@@ -66,14 +72,16 @@ public class AtmSimulatorSamplerGui extends AbstractSamplerGui {
         JPanel mainPanel = new VerticalPanel();
         mainPanel.add(makeTitlePanel());
         mainPanel.add(createConnectionPanel());
+        mainPanel.add(createTransactionFlowPanel());
         mainPanel.add(createSchemaSettingsPanel());
         mainPanel.add(createSchemaPreviewPanel());
         mainPanel.add(createFieldValuesPanel());
 
         add(mainPanel, BorderLayout.CENTER);
 
-        // Initialize schema preview
+        // Initialize visibility
         updatePanelVisibility();
+        updateTransactionFlowVisibility();
         updateSchemaPreview();
     }
 
@@ -107,6 +115,57 @@ public class AtmSimulatorSamplerGui extends AbstractSamplerGui {
         panel.add(row3);
 
         return panel;
+    }
+
+    private JPanel createTransactionFlowPanel() {
+        JPanel panel = new VerticalPanel();
+        panel.setBorder(new TitledBorder("Transaction Flow"));
+
+        // Transaction Flow combo
+        transactionFlowCombo = new JComboBox<>(TransactionFlow.names());
+        transactionFlowCombo.addActionListener(e -> updateTransactionFlowVisibility());
+
+        JPanel flowRow = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        flowRow.add(new JLabel("Flow Type:"));
+        flowRow.add(transactionFlowCombo);
+
+        // Description label
+        JLabel flowDescLabel = new JLabel(
+            "<html><i>Single Request: 發送請求並等待回應 | " +
+            "Full Transaction: 請求→回應→確認 | " +
+            "Confirm Only: 僅發送確認</i></html>"
+        );
+        flowDescLabel.setFont(flowDescLabel.getFont().deriveFont(10f));
+
+        // Confirm settings (only visible for FULL_TRANSACTION)
+        confirmSettingsPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        confirmDelayField = new JTextField(6);
+        confirmSettingsPanel.add(new JLabel("Confirm Delay (ms):"));
+        confirmSettingsPanel.add(confirmDelayField);
+        confirmSettingsPanel.add(new JLabel("  (模擬出鈔延遲，0=無延遲)"));
+
+        panel.add(flowRow);
+        panel.add(flowDescLabel);
+        panel.add(confirmSettingsPanel);
+
+        return panel;
+    }
+
+    private void updateTransactionFlowVisibility() {
+        String flow = (String) transactionFlowCombo.getSelectedItem();
+        TransactionFlow transactionFlow = TransactionFlow.fromString(flow);
+
+        // Show confirm settings only for FULL_TRANSACTION
+        confirmSettingsPanel.setVisible(transactionFlow == TransactionFlow.FULL_TRANSACTION);
+
+        // Hide "Expect Response" for CONFIRM_ONLY (confirm never expects response)
+        expectResponseCheckbox.setEnabled(transactionFlow != TransactionFlow.CONFIRM_ONLY);
+        if (transactionFlow == TransactionFlow.CONFIRM_ONLY) {
+            expectResponseCheckbox.setSelected(false);
+        }
+
+        revalidate();
+        repaint();
     }
 
     private JPanel createSchemaSettingsPanel() {
@@ -419,6 +478,10 @@ public class AtmSimulatorSamplerGui extends AbstractSamplerGui {
 
             sampler.setExpectResponse(expectResponseCheckbox.isSelected());
 
+            // Transaction flow settings
+            sampler.setTransactionFlow((String) transactionFlowCombo.getSelectedItem());
+            sampler.setConfirmDelay(parseIntSafe(confirmDelayField.getText(), 0));
+
             // Schema settings
             sampler.setSchemaSource((String) schemaSourceCombo.getSelectedItem());
             sampler.setPresetSchema((String) presetSchemaCombo.getSelectedItem());
@@ -440,6 +503,10 @@ public class AtmSimulatorSamplerGui extends AbstractSamplerGui {
             readTimeoutField.setText(String.valueOf(sampler.getReadTimeout()));
             expectResponseCheckbox.setSelected(sampler.isExpectResponse());
 
+            // Transaction flow settings
+            transactionFlowCombo.setSelectedItem(sampler.getTransactionFlow());
+            confirmDelayField.setText(String.valueOf(sampler.getConfirmDelay()));
+
             // Schema settings
             schemaSourceCombo.setSelectedItem(sampler.getSchemaSource());
             presetSchemaCombo.setSelectedItem(sampler.getPresetSchema());
@@ -449,6 +516,7 @@ public class AtmSimulatorSamplerGui extends AbstractSamplerGui {
 
             // Update visibility and preview
             updatePanelVisibility();
+            updateTransactionFlowVisibility();
             updateSchemaPreview();
         }
     }
@@ -464,6 +532,10 @@ public class AtmSimulatorSamplerGui extends AbstractSamplerGui {
         readTimeoutField.setText("30000");
         expectResponseCheckbox.setSelected(true);
 
+        // Transaction flow settings
+        transactionFlowCombo.setSelectedItem(TransactionFlow.SINGLE_REQUEST.name());
+        confirmDelayField.setText("0");
+
         // Schema settings
         schemaSourceCombo.setSelectedItem(SchemaSource.PRESET.name());
         presetSchemaCombo.setSelectedItem(PresetSchema.FISC_ATM.name());
@@ -473,6 +545,7 @@ public class AtmSimulatorSamplerGui extends AbstractSamplerGui {
 
         // Update visibility and preview
         updatePanelVisibility();
+        updateTransactionFlowVisibility();
         updateSchemaPreview();
     }
 
