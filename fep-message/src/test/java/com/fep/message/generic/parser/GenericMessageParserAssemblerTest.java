@@ -219,4 +219,157 @@ class GenericMessageParserAssemblerTest {
         assertEquals("ABCD", parsed.getFieldAsString("hexField"));
         assertEquals("END", parsed.getFieldAsString("asciiField2"));
     }
+
+    @Test
+    void shouldEncodeBitmapBasedOnPresentFields() {
+        String json = """
+            {
+              "name": "Bitmap Test",
+              "fields": [
+                { "id": "mti", "length": 4, "encoding": "ASCII" },
+                { "id": "bitmap", "length": 8, "type": "BITMAP", "controls": ["field1", "field2", "field3", "field4", "field5", "field6", "field7", "field8"] },
+                { "id": "field1", "length": 4, "encoding": "ASCII" },
+                { "id": "field2", "length": 4, "encoding": "ASCII" },
+                { "id": "field3", "length": 4, "encoding": "ASCII" },
+                { "id": "field4", "length": 4, "encoding": "ASCII" },
+                { "id": "field5", "length": 4, "encoding": "ASCII" },
+                { "id": "field6", "length": 4, "encoding": "ASCII" },
+                { "id": "field7", "length": 4, "encoding": "ASCII" },
+                { "id": "field8", "length": 4, "encoding": "ASCII" }
+              ]
+            }
+            """;
+        MessageSchema schema = JsonSchemaLoader.fromJson(json);
+
+        GenericMessage original = new GenericMessage(schema);
+        original.setField("mti", "0200");
+        // Only set field1 and field3 - bitmap should be 0b10100000 = 0xA0 for first byte
+        original.setField("field1", "AAA1");
+        original.setField("field3", "CCC3");
+
+        byte[] bytes = assembler.assemble(original);
+
+        // mti (4) + bitmap (8) + field1 (4) + field3 (4) = 20 bytes
+        assertEquals(20, bytes.length);
+
+        // Check bitmap at position 4-11 (after mti)
+        // First byte should be 0xA0 (bit 0 and bit 2 set = field1 and field3)
+        assertEquals((byte) 0xA0, bytes[4]);
+        // Rest of bitmap should be zeros
+        for (int i = 5; i < 12; i++) {
+            assertEquals((byte) 0x00, bytes[i]);
+        }
+    }
+
+    @Test
+    void shouldEncodeFiscAtmMessage() {
+        String json = """
+            {
+              "name": "FISC ATM Format",
+              "header": {
+                "includeLength": true,
+                "lengthBytes": 4,
+                "lengthEncoding": "ASCII",
+                "lengthIncludesHeader": false
+              },
+              "fields": [
+                { "id": "mti", "length": 4, "encoding": "ASCII", "required": true },
+                { "id": "bitmap", "length": 8, "type": "BITMAP", "controls": ["pan", "processingCode", "amount", "stan", "terminalId"] },
+                { "id": "pan", "length": 19, "encoding": "BCD", "sensitive": true },
+                { "id": "processingCode", "length": 6, "encoding": "ASCII", "required": true },
+                { "id": "amount", "length": 12, "encoding": "ASCII" },
+                { "id": "stan", "length": 6, "encoding": "ASCII", "required": true },
+                { "id": "terminalId", "length": 8, "encoding": "ASCII", "required": true }
+              ]
+            }
+            """;
+        MessageSchema schema = JsonSchemaLoader.fromJson(json);
+
+        GenericMessage original = new GenericMessage(schema);
+        original.setField("mti", "0200");
+        original.setField("processingCode", "010000");
+        original.setField("amount", "000000000001");
+        original.setField("stan", "123456");
+        original.setField("terminalId", "00000000");
+
+        byte[] bytes = assembler.assemble(original);
+
+        // Length header (4) + mti (4) + bitmap (8) + processingCode (6) + amount (12) + stan (6) + terminalId (8) = 48 bytes
+        assertEquals(48, bytes.length);
+
+        // Verify length header "0044" (body length = 44)
+        assertEquals("0044", new String(bytes, 0, 4));
+
+        // Verify MTI "0200" at position 4
+        assertEquals("0200", new String(bytes, 4, 4));
+
+        // Verify bitmap at position 8-15
+        // Controls: pan(0), processingCode(1), amount(2), stan(3), terminalId(4)
+        // Present: processingCode(1), amount(2), stan(3), terminalId(4)
+        // Bitmap byte 0: bit 6,5,4,3 set = 0x78
+        assertEquals((byte) 0x78, bytes[8]);
+
+        // Print hex for debugging
+        StringBuilder hex = new StringBuilder();
+        for (byte b : bytes) {
+            hex.append(String.format("%02X", b));
+        }
+        System.out.println("Assembled message: " + hex);
+    }
+
+    @Test
+    void shouldParseBitmapControlledFieldsCorrectly() {
+        // This test verifies that the parser respects the bitmap when parsing fields
+        String json = """
+            {
+              "name": "Bitmap Parse Test",
+              "fields": [
+                { "id": "mti", "length": 4, "encoding": "ASCII", "required": true },
+                { "id": "bitmap", "length": 8, "type": "BITMAP", "controls": ["pan", "processingCode", "amount", "stan", "terminalId"] },
+                { "id": "pan", "length": 19, "encoding": "BCD", "sensitive": true },
+                { "id": "processingCode", "length": 6, "encoding": "ASCII", "required": true },
+                { "id": "amount", "length": 12, "encoding": "ASCII" },
+                { "id": "stan", "length": 6, "encoding": "ASCII", "required": true },
+                { "id": "terminalId", "length": 8, "encoding": "ASCII", "required": true }
+              ]
+            }
+            """;
+        MessageSchema schema = JsonSchemaLoader.fromJson(json);
+
+        // Build test data:
+        // mti = "0200", bitmap = 0x78 (bits 1,2,3,4 = processingCode, amount, stan, terminalId)
+        // NO pan (bit 0 not set)
+        // processingCode = "010000", amount = "000000000001", stan = "123456", terminalId = "00000000"
+        byte[] testData = hexToBytes(
+            "30323030" +                         // mti = "0200"
+            "7800000000000000" +                 // bitmap = 0x78 (bits 1-4 set, pan bit 0 not set)
+            "303130303030" +                     // processingCode = "010000"
+            "303030303030303030303031" +         // amount = "000000000001"
+            "313233343536" +                     // stan = "123456"
+            "3030303030303030"                   // terminalId = "00000000"
+        );
+
+        GenericMessage parsed = parser.parse(testData, schema);
+
+        // Verify fields
+        assertEquals("0200", parsed.getFieldAsString("mti"));
+        assertNull(parsed.getField("pan"), "pan should not be parsed (bit 0 not set)");
+        assertEquals("010000", parsed.getFieldAsString("processingCode"));
+        assertEquals("000000000001", parsed.getFieldAsString("amount"));
+        assertEquals("123456", parsed.getFieldAsString("stan"));
+        assertEquals("00000000", parsed.getFieldAsString("terminalId"));
+
+        System.out.println("Parsed message with bitmap control:");
+        System.out.println(parsed.toString(true));
+    }
+
+    private byte[] hexToBytes(String hex) {
+        int len = hex.length();
+        byte[] data = new byte[len / 2];
+        for (int i = 0; i < len; i += 2) {
+            data[i / 2] = (byte) ((Character.digit(hex.charAt(i), 16) << 4)
+                    + Character.digit(hex.charAt(i + 1), 16));
+        }
+        return data;
+    }
 }

@@ -49,8 +49,8 @@ public class GenericMessageAssembler {
                     if (value == null) {
                         value = fieldSchema.getDefaultValue();
                     }
-                    if (value != null || fieldSchema.isRequired()) {
-                        encodeField(fieldSchema, value, buffer, schema);
+                    if (value != null || fieldSchema.isRequired() || fieldSchema.isBitmap()) {
+                        encodeField(fieldSchema, value, buffer, schema, message);
                     }
                 }
             }
@@ -61,8 +61,11 @@ public class GenericMessageAssembler {
                 if (value == null) {
                     value = fieldSchema.getDefaultValue();
                 }
-                if (value != null) {
-                    encodeField(fieldSchema, value, buffer, schema);
+                // Always encode bitmap fields (they generate based on other fields)
+                if (fieldSchema.isBitmap()) {
+                    encodeField(fieldSchema, value, buffer, schema, message);
+                } else if (value != null) {
+                    encodeField(fieldSchema, value, buffer, schema, message);
                 } else if (fieldSchema.isRequired()) {
                     throw MessageException.fieldError(fieldSchema.getId(),
                             "Required field is missing");
@@ -76,8 +79,8 @@ public class GenericMessageAssembler {
                     if (value == null) {
                         value = fieldSchema.getDefaultValue();
                     }
-                    if (value != null || fieldSchema.isRequired()) {
-                        encodeField(fieldSchema, value, buffer, schema);
+                    if (value != null || fieldSchema.isRequired() || fieldSchema.isBitmap()) {
+                        encodeField(fieldSchema, value, buffer, schema, message);
                     }
                 }
             }
@@ -106,10 +109,17 @@ public class GenericMessageAssembler {
     /**
      * Encodes a single field to the buffer.
      */
-    private void encodeField(FieldSchema fieldSchema, Object value, ByteBuf buffer, MessageSchema schema) {
+    private void encodeField(FieldSchema fieldSchema, Object value, ByteBuf buffer,
+                             MessageSchema schema, GenericMessage message) {
         if (fieldSchema.isComposite()) {
             // Handle composite field
-            encodeCompositeField(fieldSchema, value, buffer, schema);
+            encodeCompositeField(fieldSchema, value, buffer, schema, message);
+            return;
+        }
+
+        // Handle BITMAP field - generate bitmap based on which controlled fields have values
+        if (fieldSchema.isBitmap()) {
+            encodeBitmapField(fieldSchema, buffer, message);
             return;
         }
 
@@ -141,10 +151,52 @@ public class GenericMessageAssembler {
     }
 
     /**
+     * Encodes a bitmap field based on which controlled fields have values.
+     */
+    private void encodeBitmapField(FieldSchema fieldSchema, ByteBuf buffer, GenericMessage message) {
+        java.util.List<String> controls = fieldSchema.getControls();
+        if (controls == null || controls.isEmpty()) {
+            log.warn("Bitmap field [{}] has no controls defined, writing zeros", fieldSchema.getId());
+            buffer.writeZero(fieldSchema.getLength());
+            return;
+        }
+
+        int bitmapBytes = fieldSchema.getLength();
+        int totalBits = bitmapBytes * 8;
+        byte[] bitmap = new byte[bitmapBytes];
+
+        // Set bits for fields that have values
+        for (int i = 0; i < controls.size() && i < totalBits; i++) {
+            String controlledFieldId = controls.get(i);
+            Object fieldValue = message.getField(controlledFieldId);
+
+            if (fieldValue != null) {
+                // Bit positions: bit 0 is MSB of first byte
+                int byteIndex = i / 8;
+                int bitIndex = 7 - (i % 8);  // MSB first
+                bitmap[byteIndex] |= (1 << bitIndex);
+            }
+        }
+
+        buffer.writeBytes(bitmap);
+        log.trace("Encoded bitmap [{}]: {} bytes, hex={}",
+                fieldSchema.getId(), bitmapBytes, bytesToHex(bitmap));
+    }
+
+    private static String bytesToHex(byte[] bytes) {
+        StringBuilder sb = new StringBuilder();
+        for (byte b : bytes) {
+            sb.append(String.format("%02X", b));
+        }
+        return sb.toString();
+    }
+
+    /**
      * Encodes a composite field with nested children.
      */
     @SuppressWarnings("unchecked")
-    private void encodeCompositeField(FieldSchema fieldSchema, Object value, ByteBuf buffer, MessageSchema schema) {
+    private void encodeCompositeField(FieldSchema fieldSchema, Object value, ByteBuf buffer,
+                                      MessageSchema schema, GenericMessage message) {
         Map<String, Object> nestedValues;
 
         if (value instanceof Map) {
@@ -162,7 +214,7 @@ public class GenericMessageAssembler {
                 childValue = childSchema.getDefaultValue();
             }
             if (childValue != null || childSchema.isRequired()) {
-                encodeField(childSchema, childValue, buffer, schema);
+                encodeField(childSchema, childValue, buffer, schema, message);
             }
         }
     }

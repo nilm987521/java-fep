@@ -14,8 +14,7 @@ import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
-import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
-import io.netty.handler.codec.LengthFieldPrepender;
+import com.fep.jmeter.codec.GenericLengthFieldDecoder;
 import io.netty.handler.timeout.ReadTimeoutHandler;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.jmeter.samplers.AbstractSampler;
@@ -133,8 +132,8 @@ public class AtmSimulatorSampler extends AbstractSampler implements TestStateLis
             GenericMessageAssembler assembler = new GenericMessageAssembler();
             byte[] messageBytes = assembler.assemble(message);
 
-            // Format request for display
-            String requestStr = formatMessageForDisplay(message, messageBytes);
+            // Format request for display (request bytes include length field)
+            String requestStr = formatMessageForDisplay(message, messageBytes, true);
             result.setSamplerData(requestStr);
 
             // Get or create a channel
@@ -150,22 +149,28 @@ public class AtmSimulatorSampler extends AbstractSampler implements TestStateLis
             result.sampleStart();
 
             // Send message directly (length header already included by assembler)
+            log.info("Sending request: {} bytes to {}:{}", messageBytes.length, fepHost, fepPort);
+            log.info("Request hex: {}", hexFormat.formatHex(messageBytes));
+
             ByteBuf buf = Unpooled.wrappedBuffer(messageBytes);
             holder.channel.writeAndFlush(buf).sync();
+            log.info("Request sent successfully, waiting for response (timeout={}ms)", getReadTimeout());
 
             // Wait for response
             if (isExpectResponse()) {
                 byte[] responseBytes = responseFuture.get(getReadTimeout(), TimeUnit.MILLISECONDS);
+                log.info("Response received: {} bytes", responseBytes.length);
 
                 // Stop timing
                 result.sampleEnd();
 
                 // Parse response
+                // Note: skipLengthField=true because GenericLengthFieldDecoder already stripped the length field
                 GenericMessageParser parser = new GenericMessageParser();
-                GenericMessage response = parser.parse(responseBytes, schema);
+                GenericMessage response = parser.parse(responseBytes, schema, true);
 
-                // Format response
-                String responseStr = formatMessageForDisplay(response, responseBytes);
+                // Format response (response bytes don't include length field - stripped by decoder)
+                String responseStr = formatMessageForDisplay(response, responseBytes, false);
                 result.setResponseData(responseStr, StandardCharsets.UTF_8.name());
 
                 // Try to get response code from common field names
@@ -297,8 +302,13 @@ public class AtmSimulatorSampler extends AbstractSampler implements TestStateLis
 
     /**
      * Format message for display (includes default values from schema).
+     *
+     * @param message the message to display
+     * @param bytes the raw bytes
+     * @param bytesIncludeLengthField true if bytes include the length field (request),
+     *                                 false if length field was stripped (response)
      */
-    private String formatMessageForDisplay(GenericMessage message, byte[] bytes) {
+    private String formatMessageForDisplay(GenericMessage message, byte[] bytes, boolean bytesIncludeLengthField) {
         StringBuilder sb = new StringBuilder();
         MessageSchema schema = message.getSchema();
 
@@ -316,11 +326,13 @@ public class AtmSimulatorSampler extends AbstractSampler implements TestStateLis
                 sb.append("  Length Encoding: ").append(header.getLengthEncoding()).append("\n");
                 sb.append("  Length Includes Header: ").append(header.isLengthIncludesHeader()).append("\n");
 
-                // Display actual length value from bytes
-                if (bytes.length >= header.getLengthBytes()) {
+                // Display actual length value from bytes (only if bytes include the length field)
+                if (bytesIncludeLengthField && bytes.length >= header.getLengthBytes()) {
                     sb.append("  Length Value: ");
                     sb.append(formatLengthValue(bytes, header.getLengthBytes(), header.getLengthEncoding()));
                     sb.append("\n");
+                } else if (!bytesIncludeLengthField) {
+                    sb.append("  Length Value: (stripped by decoder)\n");
                 }
             }
 
@@ -498,20 +510,18 @@ public class AtmSimulatorSampler extends AbstractSampler implements TestStateLis
 
                 // Determine length field configuration from schema
                 int lengthFieldLength = 2; // default
-                int lengthAdjustment = 0;
-                int initialBytesToStrip = 2;
+                String lengthEncoding = "BCD"; // default
+                boolean lengthIncludesHeader = false;
 
                 if (schema.getHeader() != null && schema.getHeader().isIncludeLength()) {
                     lengthFieldLength = schema.getHeader().getLengthBytes();
-                    initialBytesToStrip = lengthFieldLength;
-                    if (schema.getHeader().isLengthIncludesHeader()) {
-                        lengthAdjustment = -lengthFieldLength;
-                    }
+                    lengthEncoding = schema.getHeader().getLengthEncoding();
+                    lengthIncludesHeader = schema.getHeader().isLengthIncludesHeader();
                 }
 
-                final int finalLengthFieldLength = lengthFieldLength;
-                final int finalLengthAdjustment = lengthAdjustment;
-                final int finalInitialBytesToStrip = initialBytesToStrip;
+                final int finalLengthFieldBytes = lengthFieldLength;
+                final String finalLengthEncoding = lengthEncoding;
+                final boolean finalLengthIncludesHeader = lengthIncludesHeader;
 
                 // Create new connection
                 Bootstrap bootstrap = new Bootstrap()
@@ -529,8 +539,10 @@ public class AtmSimulatorSampler extends AbstractSampler implements TestStateLis
                     protected void initChannel(SocketChannel ch) {
                         ChannelPipeline pipeline = ch.pipeline();
                         // Frame decoder based on schema header configuration
-                        pipeline.addLast(new LengthFieldBasedFrameDecoder(
-                            65535, 0, finalLengthFieldLength, finalLengthAdjustment, finalInitialBytesToStrip));
+                        // Uses GenericLengthFieldDecoder to support ASCII/BCD/BINARY length encodings
+                        pipeline.addLast(new GenericLengthFieldDecoder(
+                            finalLengthFieldBytes, finalLengthEncoding,
+                            finalLengthIncludesHeader, 65535));
                         pipeline.addLast(new ReadTimeoutHandler(getReadTimeout(), TimeUnit.MILLISECONDS));
                         pipeline.addLast(new ResponseHandler(finalHolder));
                     }
@@ -690,13 +702,17 @@ public class AtmSimulatorSampler extends AbstractSampler implements TestStateLis
             byte[] data = new byte[msg.readableBytes()];
             msg.readBytes(data);
 
+            log.info("Response received: {} bytes, hex: {}", data.length, hexFormat.formatHex(data));
+
             // Complete the last pending request
             String requestId = holder.lastRequestId;
             if (requestId != null) {
-                CompletableFuture<byte[]> future = holder.pendingRequests.get(requestId);
+                CompletableFuture<byte[]> future = holder.pendingRequests.remove(requestId);
                 if (future != null) {
                     future.complete(data);
-                    log.debug("Response received: {} bytes", data.length);
+                    log.debug("Response completed for requestId={}", requestId);
+                } else {
+                    log.warn("No future found for requestId={}", requestId);
                 }
             } else {
                 log.warn("Received response with no pending request");

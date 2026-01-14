@@ -146,6 +146,16 @@ public class FiscDualChannelSimulatorEngine implements AutoCloseable {
     @Getter
     private volatile String lastValidationResult = "N/A";
 
+    /** Length field bytes (default 2) */
+    @Getter
+    @Setter
+    private volatile int lengthFieldBytes = 2;
+
+    /** Length field encoding: "BCD", "ASCII", or "BINARY" (default BCD) */
+    @Getter
+    @Setter
+    private volatile String lengthEncoding = "BCD";
+
     /**
      * Creates a simulator engine with random available ports.
      */
@@ -164,7 +174,8 @@ public class FiscDualChannelSimulatorEngine implements AutoCloseable {
         this.sendPort = sendPort;
         this.messageFactory = new Iso8583MessageFactory();
         this.messageParser = new FiscMessageParser(false);
-        this.messageAssembler = new FiscMessageAssembler(true);
+        // Don't include length prefix in assembler - we'll add it in the encoder
+        this.messageAssembler = new FiscMessageAssembler(false);
         initializeDefaultHandlers();
     }
 
@@ -561,7 +572,7 @@ public class FiscDualChannelSimulatorEngine implements AutoCloseable {
     ) {}
 
     /**
-     * ISO 8583 Message Decoder.
+     * ISO 8583 Message Decoder with configurable length encoding.
      */
     private class EngineDecoder extends ByteToMessageDecoder {
 
@@ -570,21 +581,20 @@ public class FiscDualChannelSimulatorEngine implements AutoCloseable {
 
         @Override
         protected void decode(ChannelHandlerContext ctx, ByteBuf in, List<Object> out) {
-            if (in.readableBytes() < 2) {
+            int reqLengthBytes = lengthFieldBytes;
+            if (in.readableBytes() < reqLengthBytes) {
                 return;
             }
 
             in.markReaderIndex();
 
-            // Read length prefix
-            byte b1 = in.readByte();
-            byte b2 = in.readByte();
-            int length = readBcdLength(b1, b2);
+            // Read length prefix based on configured encoding
+            int length = readLength(in, reqLengthBytes, lengthEncoding);
 
             // Validate length
             if (length <= 0 || length > MAX_MESSAGE_SIZE) {
-                log.error("[Engine] Invalid message length: {} (raw: 0x{}{}) - discarding {} bytes",
-                    length, String.format("%02X", b1), String.format("%02X", b2), in.readableBytes());
+                log.error("[Engine] Invalid message length: {} (encoding={}, bytes={}) - discarding {} bytes",
+                    length, lengthEncoding, reqLengthBytes, in.readableBytes());
                 logRawBytes(in, Math.min(50, in.readableBytes()));
                 in.skipBytes(in.readableBytes()); // Discard all data
                 return;
@@ -627,12 +637,54 @@ public class FiscDualChannelSimulatorEngine implements AutoCloseable {
             }
         }
 
-        private int readBcdLength(byte b1, byte b2) {
-            int h1 = (b1 >> 4) & 0x0F;
-            int l1 = b1 & 0x0F;
-            int h2 = (b2 >> 4) & 0x0F;
-            int l2 = b2 & 0x0F;
-            return h1 * 1000 + l1 * 100 + h2 * 10 + l2;
+        private int readLength(ByteBuf in, int bytes, String encoding) {
+            return switch (encoding.toUpperCase()) {
+                case "ASCII" -> readAsciiLength(in, bytes);
+                case "BINARY" -> readBinaryLength(in, bytes);
+                default -> readBcdLength(in, bytes); // BCD
+            };
+        }
+
+        private int readAsciiLength(ByteBuf in, int bytes) {
+            byte[] lengthBytes = new byte[bytes];
+            in.readBytes(lengthBytes);
+            String lengthStr = new String(lengthBytes, java.nio.charset.StandardCharsets.US_ASCII);
+            try {
+                return Integer.parseInt(lengthStr);
+            } catch (NumberFormatException e) {
+                log.error("[Engine] Invalid ASCII length: '{}'", lengthStr);
+                return -1;
+            }
+        }
+
+        private int readBcdLength(ByteBuf in, int bytes) {
+            int length = 0;
+            for (int i = 0; i < bytes; i++) {
+                int b = in.readByte() & 0xFF;
+                int high = (b >> 4) & 0x0F;
+                int low = b & 0x0F;
+                if (high > 9 || low > 9) {
+                    log.error("[Engine] Invalid BCD digit: 0x{}", String.format("%02X", b));
+                    return -1;
+                }
+                length = length * 100 + high * 10 + low;
+            }
+            return length;
+        }
+
+        private int readBinaryLength(ByteBuf in, int bytes) {
+            return switch (bytes) {
+                case 1 -> in.readByte() & 0xFF;
+                case 2 -> in.readUnsignedShort();
+                case 4 -> in.readInt();
+                default -> {
+                    int len = 0;
+                    for (int i = 0; i < bytes; i++) {
+                        len = (len << 8) | (in.readByte() & 0xFF);
+                    }
+                    yield len;
+                }
+            };
         }
 
         private void logRawBytes(ByteBuf buf, int maxBytes) {
@@ -662,14 +714,57 @@ public class FiscDualChannelSimulatorEngine implements AutoCloseable {
     }
 
     /**
-     * ISO 8583 Message Encoder.
+     * ISO 8583 Message Encoder with configurable length encoding.
      */
     private class EngineEncoder extends MessageToByteEncoder<Iso8583Message> {
 
         @Override
         protected void encode(ChannelHandlerContext ctx, Iso8583Message msg, ByteBuf out) {
             byte[] data = messageAssembler.assemble(msg);
+
+            // Write length prefix based on configured encoding
+            writeLength(out, data.length, lengthFieldBytes, lengthEncoding);
+
+            // Write message body
             out.writeBytes(data);
+        }
+
+        private void writeLength(ByteBuf out, int length, int bytes, String encoding) {
+            switch (encoding.toUpperCase()) {
+                case "ASCII" -> writeAsciiLength(out, length, bytes);
+                case "BINARY" -> writeBinaryLength(out, length, bytes);
+                default -> writeBcdLength(out, length, bytes); // BCD
+            }
+        }
+
+        private void writeAsciiLength(ByteBuf out, int length, int bytes) {
+            String lengthStr = String.format("%0" + bytes + "d", length);
+            out.writeBytes(lengthStr.getBytes(java.nio.charset.StandardCharsets.US_ASCII));
+        }
+
+        private void writeBcdLength(ByteBuf out, int length, int bytes) {
+            // BCD: each byte holds 2 decimal digits
+            int digits = bytes * 2;
+            String lengthStr = String.format("%0" + digits + "d", length);
+            for (int i = 0; i < bytes; i++) {
+                int high = Character.digit(lengthStr.charAt(i * 2), 10);
+                int low = Character.digit(lengthStr.charAt(i * 2 + 1), 10);
+                out.writeByte((high << 4) | low);
+            }
+        }
+
+        private void writeBinaryLength(ByteBuf out, int length, int bytes) {
+            switch (bytes) {
+                case 1 -> out.writeByte(length);
+                case 2 -> out.writeShort(length);
+                case 4 -> out.writeInt(length);
+                default -> {
+                    // Write big-endian
+                    for (int i = bytes - 1; i >= 0; i--) {
+                        out.writeByte((length >> (i * 8)) & 0xFF);
+                    }
+                }
+            }
         }
     }
 

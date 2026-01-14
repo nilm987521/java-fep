@@ -54,6 +54,7 @@ Scenarios:
           </elementProp>
         </collectionProp>
       </elementProp>
+      <stringProp name="TestPlan.user_define_classpath"></stringProp>
     </TestPlan>
     <hashTree>
       <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="Scenario 1 - Cash Withdrawal" enabled="true">
@@ -360,7 +361,13 @@ Uses default MTI 0200 and Processing Code 010000.</stringProp>
 </stringProp>
           <stringProp name="fieldValues">{&quot;mti&quot;: &quot;0200&quot;, &quot;processingCode&quot;: &quot;010000&quot;, &quot;amount&quot;: &quot;000000000001&quot;, &quot;terminalId&quot;: &quot;00000000&quot;, &quot;stan&quot;: &quot;123456&quot;}</stringProp>
         </com.fep.jmeter.sampler.AtmSimulatorSampler>
-        <hashTree/>
+        <hashTree>
+          <com.fep.jmeter.config.EchoServerElement guiclass="com.fep.jmeter.gui.EchoServerElementGui" testclass="com.fep.jmeter.config.EchoServerElement" testname="Echo Server">
+            <boolProp name="enabled">true</boolProp>
+            <intProp name="port">9000</intProp>
+          </com.fep.jmeter.config.EchoServerElement>
+          <hashTree/>
+        </hashTree>
         <ResultCollector guiclass="ViewResultsFullVisualizer" testclass="ResultCollector" testname="View Results Tree" enabled="true">
           <boolProp name="ResultCollector.error_logging">false</boolProp>
           <objProp>

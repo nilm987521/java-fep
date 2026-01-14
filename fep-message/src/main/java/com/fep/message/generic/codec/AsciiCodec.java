@@ -36,8 +36,10 @@ public class AsciiCodec implements GenericCodec {
         buffer.readBytes(data);
         String value = new String(data, StandardCharsets.US_ASCII);
 
-        // Trim padding for fixed-length fields
-        if (field != null && field.isFixedLength()) {
+        // Trim padding only for fixed-length fields with EXPLICIT padding configuration
+        // Don't trim based on inferred padding (e.g., NUMERIC type auto-padding)
+        // to preserve values like MTI "0200" which should not become "200"
+        if (field != null && field.isFixedLength() && field.hasExplicitPadding()) {
             value = trimPadding(value, field);
         }
 

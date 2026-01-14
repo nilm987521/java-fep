@@ -180,6 +180,15 @@ public class FieldSchema {
     }
 
     /**
+     * Checks if this field has explicit padding configuration.
+     * Returns true only if padding was explicitly defined in the schema,
+     * not inferred from the field type.
+     */
+    public boolean hasExplicitPadding() {
+        return padding != null;
+    }
+
+    /**
      * Gets the number of digits in the length prefix.
      */
     public int getLengthPrefixDigits() {
