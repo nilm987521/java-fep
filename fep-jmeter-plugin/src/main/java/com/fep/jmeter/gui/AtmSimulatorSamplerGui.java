@@ -1,8 +1,12 @@
 package com.fep.jmeter.gui;
 
+import com.fep.jmeter.gui.schema.SchemaTableCellRenderer;
+import com.fep.jmeter.gui.schema.SchemaTableModel;
 import com.fep.jmeter.sampler.AtmSimulatorSampler;
 import com.fep.jmeter.sampler.PresetSchema;
 import com.fep.jmeter.sampler.SchemaSource;
+import com.fep.message.generic.schema.JsonSchemaLoader;
+import com.fep.message.generic.schema.MessageSchema;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.jmeter.gui.util.VerticalPanel;
 import org.apache.jmeter.samplers.gui.AbstractSamplerGui;
@@ -10,6 +14,7 @@ import org.apache.jmeter.testelement.TestElement;
 
 import javax.swing.*;
 import javax.swing.border.TitledBorder;
+import javax.swing.table.TableColumn;
 import java.awt.*;
 import java.io.File;
 
@@ -39,7 +44,9 @@ public class AtmSimulatorSamplerGui extends AbstractSamplerGui {
     private JComboBox<String> presetSchemaCombo;
     private JTextField schemaFileField;
     private JTextArea schemaContentArea;
-    private JTextArea schemaPreviewArea;
+    private JTable schemaTable;
+    private SchemaTableModel schemaTableModel;
+    private JLabel schemaStatusLabel;
     private JTextArea fieldValuesArea;
 
     // Panels for dynamic visibility
@@ -164,22 +171,74 @@ public class AtmSimulatorSamplerGui extends AbstractSamplerGui {
     }
 
     private JPanel createSchemaPreviewPanel() {
-        schemaPreviewPanel = new JPanel(new BorderLayout());
-        schemaPreviewPanel.setBorder(new TitledBorder("Schema Preview (Read-only)"));
+        schemaPreviewPanel = new JPanel(new BorderLayout(0, 5));
+        schemaPreviewPanel.setBorder(new TitledBorder("Schema Preview"));
 
-        schemaPreviewArea = new JTextArea(12, 60);
-        schemaPreviewArea.setEditable(false);
-        schemaPreviewArea.setLineWrap(true);
-        schemaPreviewArea.setWrapStyleWord(true);
-        schemaPreviewArea.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
-        schemaPreviewArea.setBackground(new Color(245, 245, 245));
+        // Create table model and table
+        schemaTableModel = new SchemaTableModel();
+        schemaTable = new JTable(schemaTableModel);
+        schemaTable.setRowHeight(22);
+        schemaTable.setFont(new Font(Font.SANS_SERIF, Font.PLAIN, 12));
+        schemaTable.getTableHeader().setFont(new Font(Font.SANS_SERIF, Font.BOLD, 12));
+        schemaTable.setAutoResizeMode(JTable.AUTO_RESIZE_OFF);
+        schemaTable.setFillsViewportHeight(true);
 
-        JScrollPane scrollPane = new JScrollPane(schemaPreviewArea);
-        scrollPane.setPreferredSize(new Dimension(600, 200));
+        // Set custom cell renderer
+        SchemaTableCellRenderer renderer = new SchemaTableCellRenderer(schemaTableModel);
+        for (int i = 0; i < schemaTable.getColumnCount(); i++) {
+            schemaTable.getColumnModel().getColumn(i).setCellRenderer(renderer);
+        }
+
+        // Set column widths
+        setColumnWidths();
+
+        JScrollPane scrollPane = new JScrollPane(schemaTable);
+        scrollPane.setPreferredSize(new Dimension(900, 250));
+        scrollPane.setHorizontalScrollBarPolicy(JScrollPane.HORIZONTAL_SCROLLBAR_AS_NEEDED);
+
+        // Status label for loading indicator
+        schemaStatusLabel = new JLabel(" ");
+        schemaStatusLabel.setFont(new Font(Font.SANS_SERIF, Font.ITALIC, 11));
+
+        // Legend panel
+        JPanel legendPanel = createLegendPanel();
+
+        JPanel bottomPanel = new JPanel(new BorderLayout());
+        bottomPanel.add(schemaStatusLabel, BorderLayout.WEST);
+        bottomPanel.add(legendPanel, BorderLayout.EAST);
 
         schemaPreviewPanel.add(scrollPane, BorderLayout.CENTER);
+        schemaPreviewPanel.add(bottomPanel, BorderLayout.SOUTH);
 
         return schemaPreviewPanel;
+    }
+
+    private void setColumnWidths() {
+        int[] widths = {120, 160, 100, 60, 80, 70, 45, 45, 80, 100};
+        for (int i = 0; i < widths.length && i < schemaTable.getColumnCount(); i++) {
+            TableColumn column = schemaTable.getColumnModel().getColumn(i);
+            column.setPreferredWidth(widths[i]);
+        }
+    }
+
+    private JPanel createLegendPanel() {
+        JPanel panel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 10, 0));
+        panel.add(createLegendItem(new Color(230, 255, 230), "BITMAP"));
+        panel.add(createLegendItem(new Color(255, 250, 230), "由bitmap控制"));
+        panel.add(createLegendItem(new Color(230, 240, 255), "COMPOSITE"));
+        panel.add(createLegendItem(new Color(240, 248, 255), "子欄位"));
+        return panel;
+    }
+
+    private JPanel createLegendItem(Color color, String text) {
+        JPanel item = new JPanel(new FlowLayout(FlowLayout.LEFT, 3, 0));
+        JLabel colorBox = new JLabel("  ");
+        colorBox.setOpaque(true);
+        colorBox.setBackground(color);
+        colorBox.setBorder(BorderFactory.createLineBorder(Color.GRAY));
+        item.add(colorBox);
+        item.add(new JLabel(text));
+        return item;
     }
 
     private JPanel createFieldValuesPanel() {
@@ -228,34 +287,41 @@ public class AtmSimulatorSamplerGui extends AbstractSamplerGui {
         SchemaSource schemaSource = SchemaSource.fromString(source);
 
         if (schemaSource == SchemaSource.PRESET) {
-            schemaPreviewArea.setText("Loading schema...");
+            schemaStatusLabel.setText("Loading schema...");
+            schemaTableModel.clear();
             log.debug("Loading schema preview for: {}", presetSchemaCombo.getSelectedItem());
 
             // Perform I/O on background thread to prevent GUI freezing
-            SwingWorker<String, Void> worker = new SwingWorker<>() {
+            SwingWorker<MessageSchema, Void> worker = new SwingWorker<>() {
                 @Override
-                protected String doInBackground() {
+                protected MessageSchema doInBackground() {
                     String selected = (String) presetSchemaCombo.getSelectedItem();
                     PresetSchema preset = PresetSchema.fromString(selected);
-                    return preset.loadSchemaContent();
+                    String jsonContent = preset.loadSchemaContent();
+                    return JsonSchemaLoader.fromJson(jsonContent);
                 }
 
                 @Override
                 protected void done() {
                     try {
-                        String content = get();
-                        schemaPreviewArea.setText(content);
-                        schemaPreviewArea.setCaretPosition(0);
-                        log.debug("Schema preview loaded successfully");
+                        MessageSchema schema = get();
+                        schemaTableModel.loadSchema(schema);
+                        setColumnWidths(); // Re-apply column widths after data load
+                        schemaStatusLabel.setText(String.format("%s - %d fields",
+                            schema.getName(), schemaTableModel.getRowCount()));
+                        log.debug("Schema preview loaded successfully with {} rows",
+                            schemaTableModel.getRowCount());
                     } catch (Exception e) {
                         log.error("Error loading schema preview", e);
-                        schemaPreviewArea.setText("// Error loading schema: " + e.getMessage());
+                        schemaStatusLabel.setText("Error: " + e.getMessage());
+                        schemaTableModel.clear();
                     }
                 }
             };
             worker.execute();
         } else {
-            schemaPreviewArea.setText("// Schema preview is only available in PRESET mode");
+            schemaTableModel.clear();
+            schemaStatusLabel.setText("Schema preview only available in PRESET mode");
         }
     }
 
