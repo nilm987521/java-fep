@@ -102,7 +102,15 @@ public class AtmSimulatorSampler extends AbstractSampler implements TestStateLis
             GenericMessage message = new GenericMessage(schema);
 
             // Apply field values from JSON configuration
-            applyFieldValuesToGenericMessage(message);
+            try {
+                applyFieldValuesToGenericMessage(message);
+            } catch (FieldValuesParseException e) {
+                result.sampleEnd();
+                result.setSuccessful(false);
+                result.setResponseCode("JSON_PARSE_ERROR");
+                result.setResponseMessage(e.getMessage());
+                return result;
+            }
 
             // Populate schema default values (before variable substitution)
             message.populateDefaults();
@@ -217,9 +225,11 @@ public class AtmSimulatorSampler extends AbstractSampler implements TestStateLis
 
     /**
      * Apply field values from JSON configuration to generic message.
+     *
+     * @throws FieldValuesParseException if JSON parsing fails
      */
     @SuppressWarnings("unchecked")
-    private void applyFieldValuesToGenericMessage(GenericMessage message) {
+    private void applyFieldValuesToGenericMessage(GenericMessage message) throws FieldValuesParseException {
         String fieldValuesJson = getFieldValues();
         if (fieldValuesJson == null || fieldValuesJson.isBlank()) {
             return;
@@ -247,6 +257,8 @@ public class AtmSimulatorSampler extends AbstractSampler implements TestStateLis
             }
         } catch (Exception e) {
             log.warn("Failed to parse field values JSON: {}", e.getMessage());
+            throw new FieldValuesParseException(
+                    "Invalid JSON format in Field Values: " + e.getMessage(), e);
         }
     }
 
