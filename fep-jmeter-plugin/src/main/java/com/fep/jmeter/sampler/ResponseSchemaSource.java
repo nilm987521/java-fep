@@ -2,6 +2,7 @@ package com.fep.jmeter.sampler;
 
 /**
  * Defines the source of schema for parsing response messages.
+ * Schema is loaded from external JSON file only.
  */
 public enum ResponseSchemaSource {
     /**
@@ -10,19 +11,9 @@ public enum ResponseSchemaSource {
     SAME_AS_REQUEST("Same as Request"),
 
     /**
-     * Use a preset schema from resources.
-     */
-    PRESET("Preset Schema"),
-
-    /**
      * Load schema from an external file.
      */
-    FILE("From File"),
-
-    /**
-     * Use inline JSON schema content.
-     */
-    INLINE("Inline JSON");
+    FILE("From File");
 
     private final String displayName;
 

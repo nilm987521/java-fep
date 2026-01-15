@@ -3,7 +3,6 @@ package com.fep.jmeter.gui;
 import com.fep.jmeter.gui.schema.SchemaTableCellRenderer;
 import com.fep.jmeter.gui.schema.SchemaTableModel;
 import com.fep.jmeter.sampler.AtmSimulatorSampler;
-import com.fep.jmeter.sampler.PresetSchema;
 import com.fep.jmeter.sampler.ResponseSchemaSource;
 import com.fep.jmeter.sampler.SchemaSource;
 import com.fep.message.generic.schema.JsonSchemaLoader;
@@ -18,15 +17,16 @@ import javax.swing.border.TitledBorder;
 import javax.swing.table.TableColumn;
 import java.awt.*;
 import java.io.File;
+import java.nio.file.Path;
+import java.util.List;
 
 /**
  * Custom GUI for AtmSimulatorSampler with Schema Preview functionality.
  *
- * <p>This GUI provides real-time schema preview when selecting preset schemas,
- * allowing users to see the complete JSON schema definition.
+ * <p>This GUI provides schema selection from a collection file and real-time
+ * schema preview, allowing users to see the complete schema definition.
  *
- * <p>Thread safety: Schema loading is performed on a background thread using
- * SwingWorker to prevent GUI freezing during I/O operations.
+ * <p>Schema file path defaults to ${user.dir}/schemas/atm-schemas.json
  */
 @Slf4j
 public class AtmSimulatorSamplerGui extends AbstractSamplerGui {
@@ -41,36 +41,29 @@ public class AtmSimulatorSamplerGui extends AbstractSamplerGui {
     private JCheckBox expectResponseCheckbox;
 
     // Schema fields
-    private JComboBox<String> schemaSourceCombo;
-    private JComboBox<String> presetSchemaCombo;
     private JTextField schemaFileField;
-    private JTextArea schemaContentArea;
+    private JComboBox<String> selectedSchemaCombo;
     private JTable schemaTable;
     private SchemaTableModel schemaTableModel;
     private JLabel schemaStatusLabel;
     private JTextArea fieldValuesArea;
 
-    // Panels for dynamic visibility
-    private JPanel presetSchemaPanel;
-    private JPanel schemaFilePanel;
-    private JPanel schemaContentPanel;
+    // Panels
     private JPanel schemaPreviewPanel;
 
     // Response Schema fields
     private JCheckBox useDifferentResponseSchemaCheckbox;
     private JComboBox<String> responseSchemaSourceCombo;
-    private JComboBox<String> responsePresetSchemaCombo;
     private JTextField responseSchemaFileField;
-    private JTextArea responseSchemaContentArea;
+    private JComboBox<String> responseSelectedSchemaCombo;
     private JTable responseSchemaTable;
     private SchemaTableModel responseSchemaTableModel;
     private JLabel responseSchemaStatusLabel;
 
     // Response Schema panels
     private JPanel responseSchemaSettingsPanel;
-    private JPanel responsePresetSchemaPanel;
     private JPanel responseSchemaFilePanel;
-    private JPanel responseSchemaContentPanel;
+    private JPanel responseSelectedSchemaPanel;
     private JPanel responseSchemaPreviewPanel;
 
     public AtmSimulatorSamplerGui() {
@@ -92,10 +85,9 @@ public class AtmSimulatorSamplerGui extends AbstractSamplerGui {
         add(mainPanel, BorderLayout.CENTER);
 
         // Initialize schema preview
-        updatePanelVisibility();
+        loadSchemaNames();
         updateSchemaPreview();
         updateResponseSchemaPanelVisibility();
-        updateResponseSchemaPreview();
     }
 
     private JPanel createConnectionPanel() {
@@ -134,59 +126,39 @@ public class AtmSimulatorSamplerGui extends AbstractSamplerGui {
         JPanel panel = new VerticalPanel();
         panel.setBorder(new TitledBorder("Schema Settings"));
 
-        // Schema Source
-        schemaSourceCombo = new JComboBox<>(SchemaSource.names());
-        schemaSourceCombo.addActionListener(e -> {
-            try {
-                updatePanelVisibility();
-                updateSchemaPreview();
-            } catch (Exception ex) {
-                log.error("Error updating schema source", ex);
-            }
-        });
-
-        JPanel sourceRow = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        sourceRow.add(new JLabel("Schema Source:"));
-        sourceRow.add(schemaSourceCombo);
-
-        // Preset Schema
-        presetSchemaCombo = new JComboBox<>(PresetSchema.names());
-        presetSchemaCombo.addActionListener(e -> {
-            try {
-                updateSchemaPreview();
-            } catch (Exception ex) {
-                log.error("Error updating preset schema", ex);
-            }
-        });
-
-        presetSchemaPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        presetSchemaPanel.add(new JLabel("Preset Schema:"));
-        presetSchemaPanel.add(presetSchemaCombo);
-
         // Schema File
         schemaFileField = new JTextField(40);
+        schemaFileField.setText(SchemaSource.getDefaultSchemaPath());
         JButton browseButton = new JButton("Browse...");
         browseButton.addActionListener(e -> browseSchemaFile());
+        JButton reloadButton = new JButton("Reload");
+        reloadButton.addActionListener(e -> {
+            loadSchemaNames();
+            updateSchemaPreview();
+        });
 
-        schemaFilePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        schemaFilePanel.add(new JLabel("Schema File:"));
-        schemaFilePanel.add(schemaFileField);
-        schemaFilePanel.add(browseButton);
+        JPanel fileRow = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        fileRow.add(new JLabel("Schema File:"));
+        fileRow.add(schemaFileField);
+        fileRow.add(browseButton);
+        fileRow.add(reloadButton);
 
-        // Schema Content (for INLINE mode)
-        schemaContentArea = new JTextArea(8, 60);
-        schemaContentArea.setLineWrap(true);
-        schemaContentArea.setWrapStyleWord(true);
-        schemaContentArea.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
+        // Selected Schema
+        selectedSchemaCombo = new JComboBox<>();
+        selectedSchemaCombo.addActionListener(e -> {
+            try {
+                updateSchemaPreview();
+            } catch (Exception ex) {
+                log.error("Error updating schema preview", ex);
+            }
+        });
 
-        schemaContentPanel = new JPanel(new BorderLayout());
-        schemaContentPanel.add(new JLabel("Inline Schema (JSON):"), BorderLayout.NORTH);
-        schemaContentPanel.add(new JScrollPane(schemaContentArea), BorderLayout.CENTER);
+        JPanel schemaRow = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        schemaRow.add(new JLabel("Selected Schema:"));
+        schemaRow.add(selectedSchemaCombo);
 
-        panel.add(sourceRow);
-        panel.add(presetSchemaPanel);
-        panel.add(schemaFilePanel);
-        panel.add(schemaContentPanel);
+        panel.add(fileRow);
+        panel.add(schemaRow);
 
         return panel;
     }
@@ -282,9 +254,7 @@ public class AtmSimulatorSamplerGui extends AbstractSamplerGui {
         // Response Schema Source
         String[] responseSources = {
             ResponseSchemaSource.SAME_AS_REQUEST.name(),
-            ResponseSchemaSource.PRESET.name(),
-            ResponseSchemaSource.FILE.name(),
-            ResponseSchemaSource.INLINE.name()
+            ResponseSchemaSource.FILE.name()
         };
         responseSchemaSourceCombo = new JComboBox<>(responseSources);
         responseSchemaSourceCombo.addActionListener(e -> {
@@ -297,36 +267,32 @@ public class AtmSimulatorSamplerGui extends AbstractSamplerGui {
         sourceRow.add(responseSchemaSourceCombo);
         mainContent.add(sourceRow);
 
-        // Response Preset Schema
-        responsePresetSchemaCombo = new JComboBox<>(PresetSchema.names());
-        responsePresetSchemaCombo.addActionListener(e -> updateResponseSchemaPreview());
-
-        responsePresetSchemaPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        responsePresetSchemaPanel.add(new JLabel("Preset Schema:"));
-        responsePresetSchemaPanel.add(responsePresetSchemaCombo);
-        mainContent.add(responsePresetSchemaPanel);
-
         // Response Schema File
         responseSchemaFileField = new JTextField(40);
+        responseSchemaFileField.setText(SchemaSource.getDefaultSchemaPath());
         JButton responseBrowseButton = new JButton("Browse...");
         responseBrowseButton.addActionListener(e -> browseResponseSchemaFile());
+        JButton responseReloadButton = new JButton("Reload");
+        responseReloadButton.addActionListener(e -> {
+            loadResponseSchemaNames();
+            updateResponseSchemaPreview();
+        });
 
         responseSchemaFilePanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         responseSchemaFilePanel.add(new JLabel("Schema File:"));
         responseSchemaFilePanel.add(responseSchemaFileField);
         responseSchemaFilePanel.add(responseBrowseButton);
+        responseSchemaFilePanel.add(responseReloadButton);
         mainContent.add(responseSchemaFilePanel);
 
-        // Response Schema Content (for INLINE mode)
-        responseSchemaContentArea = new JTextArea(6, 60);
-        responseSchemaContentArea.setLineWrap(true);
-        responseSchemaContentArea.setWrapStyleWord(true);
-        responseSchemaContentArea.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
+        // Response Selected Schema
+        responseSelectedSchemaCombo = new JComboBox<>();
+        responseSelectedSchemaCombo.addActionListener(e -> updateResponseSchemaPreview());
 
-        responseSchemaContentPanel = new JPanel(new BorderLayout());
-        responseSchemaContentPanel.add(new JLabel("Inline Schema (JSON):"), BorderLayout.NORTH);
-        responseSchemaContentPanel.add(new JScrollPane(responseSchemaContentArea), BorderLayout.CENTER);
-        mainContent.add(responseSchemaContentPanel);
+        responseSelectedSchemaPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        responseSelectedSchemaPanel.add(new JLabel("Selected Schema:"));
+        responseSelectedSchemaPanel.add(responseSelectedSchemaCombo);
+        mainContent.add(responseSelectedSchemaPanel);
 
         // Response Schema Preview
         responseSchemaPreviewPanel = createResponseSchemaPreviewPanel();
@@ -379,9 +345,61 @@ public class AtmSimulatorSamplerGui extends AbstractSamplerGui {
         }
     }
 
+    private static final long MAX_SCHEMA_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+
+    private void browseSchemaFile() {
+        JFileChooser fileChooser = new JFileChooser();
+        fileChooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("JSON files", "json"));
+
+        // Start from current schema file directory
+        String currentPath = schemaFileField.getText();
+        if (currentPath != null && !currentPath.isBlank()) {
+            File currentFile = new File(currentPath);
+            if (currentFile.exists()) {
+                fileChooser.setCurrentDirectory(currentFile.getParentFile());
+            }
+        }
+
+        int result = fileChooser.showOpenDialog(this);
+
+        if (result == JFileChooser.APPROVE_OPTION) {
+            File selectedFile = fileChooser.getSelectedFile();
+
+            if (!selectedFile.exists() || !selectedFile.isFile()) {
+                JOptionPane.showMessageDialog(this,
+                    "Selected path is not a valid file",
+                    "Invalid Selection",
+                    JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            if (selectedFile.length() > MAX_SCHEMA_FILE_SIZE) {
+                JOptionPane.showMessageDialog(this,
+                    "File too large (max 10MB)",
+                    "File Too Large",
+                    JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+
+            schemaFileField.setText(selectedFile.getAbsolutePath());
+            loadSchemaNames();
+            updateSchemaPreview();
+            log.debug("Schema file selected: {}", selectedFile.getAbsolutePath());
+        }
+    }
+
     private void browseResponseSchemaFile() {
         JFileChooser fileChooser = new JFileChooser();
         fileChooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("JSON files", "json"));
+
+        String currentPath = responseSchemaFileField.getText();
+        if (currentPath != null && !currentPath.isBlank()) {
+            File currentFile = new File(currentPath);
+            if (currentFile.exists()) {
+                fileChooser.setCurrentDirectory(currentFile.getParentFile());
+            }
+        }
+
         int result = fileChooser.showOpenDialog(this);
 
         if (result == JFileChooser.APPROVE_OPTION) {
@@ -404,7 +422,65 @@ public class AtmSimulatorSamplerGui extends AbstractSamplerGui {
             }
 
             responseSchemaFileField.setText(selectedFile.getAbsolutePath());
+            loadResponseSchemaNames();
+            updateResponseSchemaPreview();
             log.debug("Response schema file selected: {}", selectedFile.getAbsolutePath());
+        }
+    }
+
+    private void loadSchemaNames() {
+        String schemaFile = schemaFileField.getText();
+        if (schemaFile == null || schemaFile.isBlank()) {
+            schemaFile = SchemaSource.getDefaultSchemaPath();
+        }
+
+        try {
+            Path path = Path.of(schemaFile);
+            if (path.toFile().exists()) {
+                List<String> names = JsonSchemaLoader.getSchemaNames(path);
+                selectedSchemaCombo.removeAllItems();
+                for (String name : names) {
+                    selectedSchemaCombo.addItem(name);
+                }
+                if (!names.isEmpty()) {
+                    selectedSchemaCombo.setSelectedIndex(0);
+                }
+            } else {
+                selectedSchemaCombo.removeAllItems();
+                schemaStatusLabel.setText("Schema file not found: " + schemaFile);
+            }
+        } catch (Exception e) {
+            log.error("Error loading schema names", e);
+            selectedSchemaCombo.removeAllItems();
+            schemaStatusLabel.setText("Error: " + e.getMessage());
+        }
+    }
+
+    private void loadResponseSchemaNames() {
+        String schemaFile = responseSchemaFileField.getText();
+        if (schemaFile == null || schemaFile.isBlank()) {
+            schemaFile = SchemaSource.getDefaultSchemaPath();
+        }
+
+        try {
+            Path path = Path.of(schemaFile);
+            if (path.toFile().exists()) {
+                List<String> names = JsonSchemaLoader.getSchemaNames(path);
+                responseSelectedSchemaCombo.removeAllItems();
+                for (String name : names) {
+                    responseSelectedSchemaCombo.addItem(name);
+                }
+                if (!names.isEmpty()) {
+                    responseSelectedSchemaCombo.setSelectedIndex(0);
+                }
+            } else {
+                responseSelectedSchemaCombo.removeAllItems();
+                responseSchemaStatusLabel.setText("Schema file not found: " + schemaFile);
+            }
+        } catch (Exception e) {
+            log.error("Error loading response schema names", e);
+            responseSelectedSchemaCombo.removeAllItems();
+            responseSchemaStatusLabel.setText("Error: " + e.getMessage());
         }
     }
 
@@ -413,30 +489,22 @@ public class AtmSimulatorSamplerGui extends AbstractSamplerGui {
 
         // Hide all response schema fields if not using different schema
         responseSchemaSourceCombo.getParent().setVisible(useDifferent);
-        responsePresetSchemaPanel.setVisible(false);
         responseSchemaFilePanel.setVisible(false);
-        responseSchemaContentPanel.setVisible(false);
+        responseSelectedSchemaPanel.setVisible(false);
         responseSchemaPreviewPanel.setVisible(false);
 
         if (useDifferent) {
             String source = (String) responseSchemaSourceCombo.getSelectedItem();
             ResponseSchemaSource schemaSource = ResponseSchemaSource.fromString(source);
 
-            boolean showPreview = false;
             switch (schemaSource) {
                 case SAME_AS_REQUEST:
                     // No additional fields needed
                     break;
-                case PRESET:
-                    responsePresetSchemaPanel.setVisible(true);
-                    responseSchemaPreviewPanel.setVisible(true);
-                    showPreview = true;
-                    break;
                 case FILE:
                     responseSchemaFilePanel.setVisible(true);
-                    break;
-                case INLINE:
-                    responseSchemaContentPanel.setVisible(true);
+                    responseSelectedSchemaPanel.setVisible(true);
+                    responseSchemaPreviewPanel.setVisible(true);
                     break;
             }
         }
@@ -455,17 +523,23 @@ public class AtmSimulatorSamplerGui extends AbstractSamplerGui {
         String source = (String) responseSchemaSourceCombo.getSelectedItem();
         ResponseSchemaSource schemaSource = ResponseSchemaSource.fromString(source);
 
-        if (schemaSource == ResponseSchemaSource.PRESET) {
+        if (schemaSource == ResponseSchemaSource.FILE) {
+            String schemaFile = responseSchemaFileField.getText();
+            String selectedSchema = (String) responseSelectedSchemaCombo.getSelectedItem();
+
+            if (schemaFile == null || schemaFile.isBlank() || selectedSchema == null) {
+                responseSchemaTableModel.clear();
+                responseSchemaStatusLabel.setText("Please select a schema file and schema");
+                return;
+            }
+
             responseSchemaStatusLabel.setText("Loading schema...");
             responseSchemaTableModel.clear();
 
             SwingWorker<MessageSchema, Void> worker = new SwingWorker<>() {
                 @Override
                 protected MessageSchema doInBackground() {
-                    String selected = (String) responsePresetSchemaCombo.getSelectedItem();
-                    PresetSchema preset = PresetSchema.fromString(selected);
-                    String jsonContent = preset.loadSchemaContent();
-                    return JsonSchemaLoader.fromJson(jsonContent);
+                    return JsonSchemaLoader.fromCollectionFile(Path.of(schemaFile), selectedSchema);
                 }
 
                 @Override
@@ -514,108 +588,49 @@ public class AtmSimulatorSamplerGui extends AbstractSamplerGui {
         return panel;
     }
 
-    private void updatePanelVisibility() {
-        String source = (String) schemaSourceCombo.getSelectedItem();
-        SchemaSource schemaSource = SchemaSource.fromString(source);
-
-        presetSchemaPanel.setVisible(schemaSource == SchemaSource.PRESET);
-        schemaFilePanel.setVisible(schemaSource == SchemaSource.FILE);
-        schemaContentPanel.setVisible(schemaSource == SchemaSource.INLINE);
-        schemaPreviewPanel.setVisible(schemaSource == SchemaSource.PRESET);
-
-        revalidate();
-        repaint();
-    }
-
     /**
      * Update schema preview using SwingWorker to avoid GUI freezing.
      * Schema loading is performed on a background thread.
      */
     private void updateSchemaPreview() {
-        String source = (String) schemaSourceCombo.getSelectedItem();
-        SchemaSource schemaSource = SchemaSource.fromString(source);
+        String schemaFile = schemaFileField.getText();
+        String selectedSchema = (String) selectedSchemaCombo.getSelectedItem();
 
-        if (schemaSource == SchemaSource.PRESET) {
-            schemaStatusLabel.setText("Loading schema...");
+        if (schemaFile == null || schemaFile.isBlank() || selectedSchema == null) {
             schemaTableModel.clear();
-            log.debug("Loading schema preview for: {}", presetSchemaCombo.getSelectedItem());
-
-            // Perform I/O on background thread to prevent GUI freezing
-            SwingWorker<MessageSchema, Void> worker = new SwingWorker<>() {
-                @Override
-                protected MessageSchema doInBackground() {
-                    String selected = (String) presetSchemaCombo.getSelectedItem();
-                    PresetSchema preset = PresetSchema.fromString(selected);
-                    String jsonContent = preset.loadSchemaContent();
-                    return JsonSchemaLoader.fromJson(jsonContent);
-                }
-
-                @Override
-                protected void done() {
-                    try {
-                        MessageSchema schema = get();
-                        schemaTableModel.loadSchema(schema);
-                        setColumnWidths(); // Re-apply column widths after data load
-                        schemaStatusLabel.setText(String.format("%s - %d fields",
-                            schema.getName(), schemaTableModel.getRowCount()));
-                        log.debug("Schema preview loaded successfully with {} rows",
-                            schemaTableModel.getRowCount());
-                    } catch (Exception e) {
-                        log.error("Error loading schema preview", e);
-                        schemaStatusLabel.setText("Error: " + e.getMessage());
-                        schemaTableModel.clear();
-                    }
-                }
-            };
-            worker.execute();
-        } else {
-            schemaTableModel.clear();
-            schemaStatusLabel.setText("Schema preview only available in PRESET mode");
+            schemaStatusLabel.setText("Please select a schema file and schema");
+            return;
         }
-    }
 
-    private static final long MAX_SCHEMA_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+        schemaStatusLabel.setText("Loading schema...");
+        schemaTableModel.clear();
+        log.debug("Loading schema preview for: {} from {}", selectedSchema, schemaFile);
 
-    private void browseSchemaFile() {
-        JFileChooser fileChooser = new JFileChooser();
-        fileChooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("JSON files", "json"));
-        int result = fileChooser.showOpenDialog(this);
-
-        if (result == JFileChooser.APPROVE_OPTION) {
-            File selectedFile = fileChooser.getSelectedFile();
-
-            // Validate file exists
-            if (!selectedFile.exists() || !selectedFile.isFile()) {
-                JOptionPane.showMessageDialog(this,
-                    "Selected path is not a valid file",
-                    "Invalid Selection",
-                    JOptionPane.ERROR_MESSAGE);
-                return;
+        // Perform I/O on background thread to prevent GUI freezing
+        SwingWorker<MessageSchema, Void> worker = new SwingWorker<>() {
+            @Override
+            protected MessageSchema doInBackground() {
+                return JsonSchemaLoader.fromCollectionFile(Path.of(schemaFile), selectedSchema);
             }
 
-            // Validate file size
-            if (selectedFile.length() > MAX_SCHEMA_FILE_SIZE) {
-                JOptionPane.showMessageDialog(this,
-                    "File too large (max 10MB)",
-                    "File Too Large",
-                    JOptionPane.ERROR_MESSAGE);
-                return;
-            }
-
-            // Warn if not .json extension
-            if (!selectedFile.getName().toLowerCase().endsWith(".json")) {
-                int confirm = JOptionPane.showConfirmDialog(this,
-                    "Selected file doesn't have .json extension. Continue?",
-                    "Confirm",
-                    JOptionPane.YES_NO_OPTION);
-                if (confirm != JOptionPane.YES_OPTION) {
-                    return;
+            @Override
+            protected void done() {
+                try {
+                    MessageSchema schema = get();
+                    schemaTableModel.loadSchema(schema);
+                    setColumnWidths(); // Re-apply column widths after data load
+                    schemaStatusLabel.setText(String.format("%s - %d fields",
+                        schema.getName(), schemaTableModel.getRowCount()));
+                    log.debug("Schema preview loaded successfully with {} rows",
+                        schemaTableModel.getRowCount());
+                } catch (Exception e) {
+                    log.error("Error loading schema preview", e);
+                    schemaStatusLabel.setText("Error: " + e.getMessage());
+                    schemaTableModel.clear();
                 }
             }
-
-            schemaFileField.setText(selectedFile.getAbsolutePath());
-            log.debug("Schema file selected: {}", selectedFile.getAbsolutePath());
-        }
+        };
+        worker.execute();
     }
 
     @Override
@@ -669,18 +684,17 @@ public class AtmSimulatorSamplerGui extends AbstractSamplerGui {
             sampler.setExpectResponse(expectResponseCheckbox.isSelected());
 
             // Schema settings
-            sampler.setSchemaSource((String) schemaSourceCombo.getSelectedItem());
-            sampler.setPresetSchema((String) presetSchemaCombo.getSelectedItem());
             sampler.setSchemaFile(schemaFileField.getText().trim());
-            sampler.setSchemaContent(schemaContentArea.getText());
+            String selectedSchema = (String) selectedSchemaCombo.getSelectedItem();
+            sampler.setSelectedSchema(selectedSchema != null ? selectedSchema : "FISC ATM Format");
             sampler.setFieldValues(fieldValuesArea.getText());
 
             // Response Schema settings
             sampler.setUseDifferentResponseSchema(useDifferentResponseSchemaCheckbox.isSelected());
             sampler.setResponseSchemaSource((String) responseSchemaSourceCombo.getSelectedItem());
-            sampler.setResponsePresetSchema((String) responsePresetSchemaCombo.getSelectedItem());
             sampler.setResponseSchemaFile(responseSchemaFileField.getText().trim());
-            sampler.setResponseSchemaContent(responseSchemaContentArea.getText());
+            String responseSelectedSchema = (String) responseSelectedSchemaCombo.getSelectedItem();
+            sampler.setResponseSelectedSchema(responseSelectedSchema != null ? responseSelectedSchema : "FISC ATM Format");
         }
     }
 
@@ -697,21 +711,19 @@ public class AtmSimulatorSamplerGui extends AbstractSamplerGui {
             expectResponseCheckbox.setSelected(sampler.isExpectResponse());
 
             // Schema settings
-            schemaSourceCombo.setSelectedItem(sampler.getSchemaSource());
-            presetSchemaCombo.setSelectedItem(sampler.getPresetSchema());
             schemaFileField.setText(sampler.getSchemaFile());
-            schemaContentArea.setText(sampler.getSchemaContent());
+            loadSchemaNames();
+            selectedSchemaCombo.setSelectedItem(sampler.getSelectedSchema());
             fieldValuesArea.setText(sampler.getFieldValues());
 
             // Response Schema settings
             useDifferentResponseSchemaCheckbox.setSelected(sampler.isUseDifferentResponseSchema());
             responseSchemaSourceCombo.setSelectedItem(sampler.getResponseSchemaSource());
-            responsePresetSchemaCombo.setSelectedItem(sampler.getResponsePresetSchema());
             responseSchemaFileField.setText(sampler.getResponseSchemaFile());
-            responseSchemaContentArea.setText(sampler.getResponseSchemaContent());
+            loadResponseSchemaNames();
+            responseSelectedSchemaCombo.setSelectedItem(sampler.getResponseSelectedSchema());
 
             // Update visibility and preview
-            updatePanelVisibility();
             updateSchemaPreview();
             updateResponseSchemaPanelVisibility();
             updateResponseSchemaPreview();
@@ -730,21 +742,17 @@ public class AtmSimulatorSamplerGui extends AbstractSamplerGui {
         expectResponseCheckbox.setSelected(true);
 
         // Schema settings
-        schemaSourceCombo.setSelectedItem(SchemaSource.PRESET.name());
-        presetSchemaCombo.setSelectedItem(PresetSchema.FISC_ATM.name());
-        schemaFileField.setText("");
-        schemaContentArea.setText("");
+        schemaFileField.setText(SchemaSource.getDefaultSchemaPath());
+        loadSchemaNames();
         fieldValuesArea.setText("");
 
         // Response Schema settings
         useDifferentResponseSchemaCheckbox.setSelected(false);
         responseSchemaSourceCombo.setSelectedItem(ResponseSchemaSource.SAME_AS_REQUEST.name());
-        responsePresetSchemaCombo.setSelectedItem(PresetSchema.FISC_ATM.name());
-        responseSchemaFileField.setText("");
-        responseSchemaContentArea.setText("");
+        responseSchemaFileField.setText(SchemaSource.getDefaultSchemaPath());
+        loadResponseSchemaNames();
 
         // Update visibility and preview
-        updatePanelVisibility();
         updateSchemaPreview();
         updateResponseSchemaPanelVisibility();
         updateResponseSchemaPreview();

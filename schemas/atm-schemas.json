@@ -1,0 +1,940 @@
+{
+  "$schema": "fep-message-schema-collection-v1",
+  "description": "ATM Protocol Schema Collection - All schemas in one file",
+  "schemas": [
+    {
+      "$schema": "fep-message-schema-v1",
+      "name": "FISC ATM Format",
+      "version": "1.0",
+      "vendor": "FISC",
+      "description": "Taiwan FISC ATM message format (simplified)",
+
+      "header": {
+        "includeLength": true,
+        "lengthBytes": 4,
+        "lengthEncoding": "ASCII",
+        "lengthIncludesHeader": false
+      },
+
+      "fields": [
+        {
+          "id": "mti",
+          "name": "Message Type Indicator",
+          "description": "ISO 8583 Message Type",
+          "type": "NUMERIC",
+          "length": 4,
+          "encoding": "ASCII",
+          "required": true
+        },
+        {
+          "id": "bitmap",
+          "name": "Primary Bitmap",
+          "description": "Primary bitmap (64 bits)",
+          "type": "BITMAP",
+          "length": 8,
+          "encoding": "BINARY",
+          "controls": ["pan", "processingCode", "amount", "stan", "localTime", "localDate", "expiryDate", "posEntryMode", "cardSequence", "functionCode", "posConditionCode", "acquiringInstitution", "rrn", "authCode", "responseCode", "terminalId", "merchantId", "cardAcceptorName", "currencyCode", "pinBlock", "additionalData", "sourceAccount", "destAccount"]
+        },
+        {
+          "id": "pan",
+          "name": "Primary Account Number",
+          "description": "Card number (Field 2)",
+          "type": "NUMERIC",
+          "length": 19,
+          "lengthType": "FIXED",
+          "encoding": "BCD",
+          "lengthEncoding": "BCD",
+          "sensitive": true
+        },
+        {
+          "id": "processingCode",
+          "name": "Processing Code",
+          "description": "Transaction type (Field 3)",
+          "type": "NUMERIC",
+          "length": 6,
+          "encoding": "ASCII",
+          "required": true
+        },
+        {
+          "id": "amount",
+          "name": "Transaction Amount",
+          "description": "Amount (Field 4)",
+          "type": "NUMERIC",
+          "length": 12,
+          "encoding": "ASCII",
+          "padding": {
+            "char": "0",
+            "direction": "left"
+          }
+        },
+        {
+          "id": "stan",
+          "name": "System Trace Audit Number",
+          "description": "STAN (Field 11)",
+          "type": "NUMERIC",
+          "length": 6,
+          "encoding": "ASCII",
+          "required": true
+        },
+        {
+          "id": "localTime",
+          "name": "Local Time",
+          "description": "Transaction time HHmmss (Field 12)",
+          "type": "NUMERIC",
+          "length": 6,
+          "encoding": "ASCII"
+        },
+        {
+          "id": "localDate",
+          "name": "Local Date",
+          "description": "Transaction date MMdd (Field 13)",
+          "type": "NUMERIC",
+          "length": 4,
+          "encoding": "ASCII"
+        },
+        {
+          "id": "posEntryMode",
+          "name": "POS Entry Mode",
+          "description": "Entry mode (Field 22)",
+          "type": "NUMERIC",
+          "length": 3,
+          "encoding": "ASCII",
+          "defaultValue": "051"
+        },
+        {
+          "id": "cardSequence",
+          "name": "Card Sequence Number",
+          "description": "Card sequence (Field 23)",
+          "type": "NUMERIC",
+          "length": 3,
+          "encoding": "ASCII"
+        },
+        {
+          "id": "functionCode",
+          "name": "Function Code",
+          "description": "Function code (Field 24)",
+          "type": "NUMERIC",
+          "length": 3,
+          "encoding": "ASCII"
+        },
+        {
+          "id": "posConditionCode",
+          "name": "POS Condition Code",
+          "description": "Condition code (Field 25)",
+          "type": "NUMERIC",
+          "length": 2,
+          "encoding": "ASCII",
+          "defaultValue": "00"
+        },
+        {
+          "id": "acquiringInstitution",
+          "name": "Acquiring Institution ID",
+          "description": "Bank code (Field 32)",
+          "type": "NUMERIC",
+          "length": 11,
+          "lengthType": "LLVAR",
+          "encoding": "ASCII",
+          "lengthEncoding": "ASCII"
+        },
+        {
+          "id": "rrn",
+          "name": "Retrieval Reference Number",
+          "description": "RRN (Field 37)",
+          "type": "ALPHANUMERIC",
+          "length": 12,
+          "encoding": "ASCII"
+        },
+        {
+          "id": "authCode",
+          "name": "Authorization Code",
+          "description": "Auth code (Field 38)",
+          "type": "ALPHANUMERIC",
+          "length": 6,
+          "encoding": "ASCII"
+        },
+        {
+          "id": "responseCode",
+          "name": "Response Code",
+          "description": "Response code (Field 39)",
+          "type": "ALPHANUMERIC",
+          "length": 2,
+          "encoding": "ASCII"
+        },
+        {
+          "id": "terminalId",
+          "name": "Terminal ID",
+          "description": "ATM ID (Field 41)",
+          "type": "ALPHANUMERIC",
+          "length": 8,
+          "encoding": "ASCII",
+          "required": true
+        },
+        {
+          "id": "merchantId",
+          "name": "Merchant ID",
+          "description": "Merchant ID (Field 42)",
+          "type": "ALPHANUMERIC",
+          "length": 15,
+          "encoding": "ASCII",
+          "padding": {
+            "char": " ",
+            "direction": "right"
+          }
+        },
+        {
+          "id": "cardAcceptorName",
+          "name": "Card Acceptor Name/Location",
+          "description": "ATM location (Field 43)",
+          "type": "ALPHANUMERIC",
+          "length": 40,
+          "encoding": "ASCII",
+          "padding": {
+            "char": " ",
+            "direction": "right"
+          }
+        },
+        {
+          "id": "currencyCode",
+          "name": "Currency Code",
+          "description": "Currency (Field 49)",
+          "type": "NUMERIC",
+          "length": 3,
+          "encoding": "ASCII"
+        },
+        {
+          "id": "pinBlock",
+          "name": "PIN Block",
+          "description": "Encrypted PIN (Field 52)",
+          "type": "BINARY",
+          "length": 8,
+          "encoding": "HEX",
+          "sensitive": true
+        },
+        {
+          "id": "additionalData",
+          "name": "Additional Data",
+          "description": "Additional data (Field 48)",
+          "type": "ALPHANUMERIC",
+          "length": 999,
+          "lengthType": "LLLVAR",
+          "encoding": "ASCII",
+          "lengthEncoding": "BCD"
+        },
+        {
+          "id": "sourceAccount",
+          "name": "Source Account",
+          "description": "From account (Field 102)",
+          "type": "ALPHANUMERIC",
+          "length": 28,
+          "lengthType": "LLVAR",
+          "encoding": "ASCII",
+          "lengthEncoding": "BCD"
+        },
+        {
+          "id": "destAccount",
+          "name": "Destination Account",
+          "description": "To account (Field 103)",
+          "type": "ALPHANUMERIC",
+          "length": 28,
+          "lengthType": "LLVAR",
+          "encoding": "ASCII",
+          "lengthEncoding": "BCD"
+        }
+      ],
+
+      "encoding": {
+        "defaultCharset": "ASCII",
+        "bcdPacking": "RIGHT_JUSTIFIED",
+        "endianness": "BIG_ENDIAN"
+      },
+
+      "validation": {
+        "rules": [
+          {
+            "type": "required",
+            "fields": ["mti", "processingCode", "stan", "terminalId"]
+          }
+        ]
+      }
+    },
+    {
+      "$schema": "fep-message-schema-v1",
+      "name": "NCR NDC Protocol",
+      "version": "1.0",
+      "vendor": "NCR",
+      "description": "NCR NDC (Network Data Control) ATM protocol",
+
+      "header": {
+        "includeLength": true,
+        "lengthBytes": 2,
+        "lengthEncoding": "BINARY",
+        "lengthIncludesHeader": false,
+        "fields": [
+          {
+            "id": "protocolId",
+            "name": "Protocol Identifier",
+            "type": "BINARY",
+            "length": 2,
+            "encoding": "HEX",
+            "defaultValue": "6000"
+          }
+        ]
+      },
+
+      "fields": [
+        {
+          "id": "commandCode",
+          "name": "Command Code",
+          "description": "NDC command identifier",
+          "type": "ALPHANUMERIC",
+          "length": 2,
+          "encoding": "ASCII",
+          "required": true
+        },
+        {
+          "id": "responseFlag",
+          "name": "Response Flag",
+          "description": "Indicates request or response",
+          "type": "ALPHA",
+          "length": 1,
+          "encoding": "ASCII",
+          "defaultValue": " "
+        },
+        {
+          "id": "luno",
+          "name": "Logical Unit Number",
+          "description": "Terminal logical unit number",
+          "type": "ALPHANUMERIC",
+          "length": 9,
+          "encoding": "ASCII",
+          "padding": {
+            "char": " ",
+            "direction": "right"
+          }
+        },
+        {
+          "id": "statusInfo",
+          "name": "Status Information",
+          "description": "Terminal status descriptor",
+          "type": "ALPHANUMERIC",
+          "length": 1,
+          "encoding": "ASCII"
+        },
+        {
+          "id": "track2",
+          "name": "Track 2 Data",
+          "description": "Card track 2 data",
+          "type": "TRACK2",
+          "length": 40,
+          "lengthType": "LLVAR",
+          "encoding": "ASCII",
+          "lengthEncoding": "ASCII",
+          "sensitive": true
+        },
+        {
+          "id": "track3",
+          "name": "Track 3 Data",
+          "description": "Card track 3 data",
+          "type": "ALPHANUMERIC",
+          "length": 107,
+          "lengthType": "LLLVAR",
+          "encoding": "ASCII",
+          "lengthEncoding": "ASCII",
+          "sensitive": true
+        },
+        {
+          "id": "pinBlock",
+          "name": "PIN Block",
+          "description": "Encrypted PIN block",
+          "type": "BINARY",
+          "length": 16,
+          "encoding": "HEX",
+          "sensitive": true
+        },
+        {
+          "id": "amount",
+          "name": "Transaction Amount",
+          "description": "Amount in cents",
+          "type": "NUMERIC",
+          "length": 12,
+          "encoding": "ASCII",
+          "padding": {
+            "char": "0",
+            "direction": "left"
+          }
+        },
+        {
+          "id": "amountAvailable",
+          "name": "Amount Available",
+          "description": "Available amount for withdrawal",
+          "type": "NUMERIC",
+          "length": 12,
+          "encoding": "ASCII",
+          "padding": {
+            "char": "0",
+            "direction": "left"
+          }
+        },
+        {
+          "id": "transactionSerialNumber",
+          "name": "Transaction Serial Number",
+          "description": "Sequential transaction number",
+          "type": "NUMERIC",
+          "length": 4,
+          "encoding": "ASCII",
+          "padding": {
+            "char": "0",
+            "direction": "left"
+          }
+        },
+        {
+          "id": "functionId",
+          "name": "Function Identifier",
+          "description": "Transaction function code",
+          "type": "ALPHANUMERIC",
+          "length": 3,
+          "encoding": "ASCII"
+        },
+        {
+          "id": "screenNumber",
+          "name": "Screen Number",
+          "description": "Screen display identifier",
+          "type": "NUMERIC",
+          "length": 3,
+          "encoding": "ASCII"
+        },
+        {
+          "id": "coordinationNumber",
+          "name": "Coordination Number",
+          "description": "Message coordination identifier",
+          "type": "NUMERIC",
+          "length": 1,
+          "encoding": "ASCII"
+        },
+        {
+          "id": "nextStateId",
+          "name": "Next State ID",
+          "description": "State table identifier",
+          "type": "ALPHANUMERIC",
+          "length": 3,
+          "encoding": "ASCII"
+        },
+        {
+          "id": "cardRetained",
+          "name": "Card Retained",
+          "description": "Card retain indicator",
+          "type": "NUMERIC",
+          "length": 1,
+          "encoding": "ASCII",
+          "defaultValue": "0"
+        },
+        {
+          "id": "deviceStatus",
+          "name": "Device Status",
+          "description": "ATM device status indicators",
+          "type": "COMPOSITE",
+          "fields": [
+            {
+              "id": "cardReader",
+              "name": "Card Reader Status",
+              "type": "NUMERIC",
+              "length": 1,
+              "encoding": "ASCII"
+            },
+            {
+              "id": "cashDispenser",
+              "name": "Cash Dispenser Status",
+              "type": "NUMERIC",
+              "length": 1,
+              "encoding": "ASCII"
+            },
+            {
+              "id": "depositoryModule",
+              "name": "Depository Module Status",
+              "type": "NUMERIC",
+              "length": 1,
+              "encoding": "ASCII"
+            },
+            {
+              "id": "receiptPrinter",
+              "name": "Receipt Printer Status",
+              "type": "NUMERIC",
+              "length": 1,
+              "encoding": "ASCII"
+            },
+            {
+              "id": "journalPrinter",
+              "name": "Journal Printer Status",
+              "type": "NUMERIC",
+              "length": 1,
+              "encoding": "ASCII"
+            },
+            {
+              "id": "encryptor",
+              "name": "Encryptor Status",
+              "type": "NUMERIC",
+              "length": 1,
+              "encoding": "ASCII"
+            }
+          ]
+        },
+        {
+          "id": "notesDispensed",
+          "name": "Notes Dispensed",
+          "description": "Number of notes dispensed per cassette",
+          "type": "COMPOSITE",
+          "fields": [
+            {
+              "id": "cassette1",
+              "name": "Cassette 1",
+              "type": "NUMERIC",
+              "length": 5,
+              "encoding": "ASCII",
+              "padding": { "char": "0", "direction": "left" }
+            },
+            {
+              "id": "cassette2",
+              "name": "Cassette 2",
+              "type": "NUMERIC",
+              "length": 5,
+              "encoding": "ASCII",
+              "padding": { "char": "0", "direction": "left" }
+            },
+            {
+              "id": "cassette3",
+              "name": "Cassette 3",
+              "type": "NUMERIC",
+              "length": 5,
+              "encoding": "ASCII",
+              "padding": { "char": "0", "direction": "left" }
+            },
+            {
+              "id": "cassette4",
+              "name": "Cassette 4",
+              "type": "NUMERIC",
+              "length": 5,
+              "encoding": "ASCII",
+              "padding": { "char": "0", "direction": "left" }
+            }
+          ]
+        },
+        {
+          "id": "responseCode",
+          "name": "Response Code",
+          "description": "Transaction response code",
+          "type": "ALPHANUMERIC",
+          "length": 2,
+          "encoding": "ASCII"
+        },
+        {
+          "id": "messageText",
+          "name": "Message Text",
+          "description": "Free-form message text",
+          "type": "ALPHANUMERIC",
+          "length": 256,
+          "lengthType": "LLLVAR",
+          "encoding": "ASCII",
+          "lengthEncoding": "ASCII"
+        }
+      ],
+
+      "trailer": {
+        "fields": [
+          {
+            "id": "mac",
+            "name": "Message Authentication Code",
+            "description": "Message MAC for security verification",
+            "type": "BINARY",
+            "length": 8,
+            "encoding": "HEX"
+          }
+        ]
+      },
+
+      "encoding": {
+        "defaultCharset": "ASCII",
+        "endianness": "BIG_ENDIAN"
+      },
+
+      "validation": {
+        "rules": [
+          {
+            "type": "required",
+            "fields": ["commandCode", "luno"]
+          },
+          {
+            "type": "conditional",
+            "if": { "field": "commandCode", "equals": "11" },
+            "then": { "required": ["track2", "pinBlock", "amount"] }
+          },
+          {
+            "type": "conditional",
+            "if": { "field": "commandCode", "equals": "12" },
+            "then": { "required": ["track2", "amount"] }
+          }
+        ]
+      }
+    },
+    {
+      "$schema": "fep-message-schema-v1",
+      "name": "Diebold 91x Protocol",
+      "version": "1.0",
+      "vendor": "Diebold",
+      "description": "Diebold 91x ATM protocol",
+
+      "header": {
+        "includeLength": true,
+        "lengthBytes": 2,
+        "lengthEncoding": "BCD",
+        "lengthIncludesHeader": false
+      },
+
+      "fields": [
+        {
+          "id": "messageClass",
+          "name": "Message Class",
+          "description": "Message classification code",
+          "type": "NUMERIC",
+          "length": 1,
+          "encoding": "ASCII",
+          "required": true
+        },
+        {
+          "id": "terminalId",
+          "name": "Terminal ID",
+          "description": "ATM terminal identifier",
+          "type": "ALPHANUMERIC",
+          "length": 10,
+          "encoding": "ASCII",
+          "required": true
+        },
+        {
+          "id": "sequenceNumber",
+          "name": "Sequence Number",
+          "description": "Message sequence number",
+          "type": "NUMERIC",
+          "length": 3,
+          "encoding": "ASCII",
+          "padding": {
+            "char": "0",
+            "direction": "left"
+          }
+        },
+        {
+          "id": "track2",
+          "name": "Track 2 Data",
+          "description": "Card track 2 data",
+          "type": "TRACK2",
+          "length": 40,
+          "lengthType": "LLVAR",
+          "encoding": "ASCII",
+          "lengthEncoding": "BCD",
+          "sensitive": true
+        },
+        {
+          "id": "pinBlock",
+          "name": "PIN Block",
+          "description": "Encrypted PIN block",
+          "type": "BINARY",
+          "length": 8,
+          "encoding": "HEX",
+          "sensitive": true
+        },
+        {
+          "id": "amount",
+          "name": "Transaction Amount",
+          "description": "Transaction amount",
+          "type": "NUMERIC",
+          "length": 12,
+          "encoding": "ASCII",
+          "padding": {
+            "char": "0",
+            "direction": "left"
+          }
+        },
+        {
+          "id": "transactionCode",
+          "name": "Transaction Code",
+          "description": "Transaction type code",
+          "type": "NUMERIC",
+          "length": 2,
+          "encoding": "ASCII"
+        },
+        {
+          "id": "responseCode",
+          "name": "Response Code",
+          "description": "Transaction response code",
+          "type": "ALPHANUMERIC",
+          "length": 2,
+          "encoding": "ASCII"
+        }
+      ],
+
+      "encoding": {
+        "defaultCharset": "ASCII",
+        "bcdPacking": "RIGHT_JUSTIFIED",
+        "endianness": "BIG_ENDIAN"
+      },
+
+      "validation": {
+        "rules": [
+          {
+            "type": "required",
+            "fields": ["messageClass", "terminalId"]
+          }
+        ]
+      }
+    },
+    {
+      "$schema": "fep-message-schema-v1",
+      "name": "Wincor DDC Protocol",
+      "version": "1.0",
+      "vendor": "Wincor",
+      "description": "Wincor Nixdorf DDC ATM protocol",
+
+      "header": {
+        "includeLength": true,
+        "lengthBytes": 2,
+        "lengthEncoding": "BINARY",
+        "lengthIncludesHeader": false,
+        "fields": [
+          {
+            "id": "stx",
+            "name": "Start of Text",
+            "type": "BINARY",
+            "length": 1,
+            "encoding": "HEX",
+            "defaultValue": "02"
+          }
+        ]
+      },
+
+      "fields": [
+        {
+          "id": "messageType",
+          "name": "Message Type",
+          "description": "DDC message type",
+          "type": "ALPHANUMERIC",
+          "length": 2,
+          "encoding": "ASCII",
+          "required": true
+        },
+        {
+          "id": "terminalId",
+          "name": "Terminal ID",
+          "description": "ATM terminal identifier",
+          "type": "ALPHANUMERIC",
+          "length": 8,
+          "encoding": "ASCII",
+          "required": true
+        },
+        {
+          "id": "track2",
+          "name": "Track 2 Data",
+          "description": "Card track 2 data",
+          "type": "TRACK2",
+          "length": 40,
+          "lengthType": "LLVAR",
+          "encoding": "ASCII",
+          "lengthEncoding": "ASCII",
+          "sensitive": true
+        },
+        {
+          "id": "pinBlock",
+          "name": "PIN Block",
+          "description": "Encrypted PIN block",
+          "type": "BINARY",
+          "length": 8,
+          "encoding": "HEX",
+          "sensitive": true
+        },
+        {
+          "id": "amount",
+          "name": "Transaction Amount",
+          "description": "Transaction amount",
+          "type": "NUMERIC",
+          "length": 12,
+          "encoding": "ASCII",
+          "padding": {
+            "char": "0",
+            "direction": "left"
+          }
+        },
+        {
+          "id": "transactionType",
+          "name": "Transaction Type",
+          "description": "Transaction type code",
+          "type": "NUMERIC",
+          "length": 2,
+          "encoding": "ASCII"
+        },
+        {
+          "id": "responseCode",
+          "name": "Response Code",
+          "description": "Transaction response code",
+          "type": "ALPHANUMERIC",
+          "length": 2,
+          "encoding": "ASCII"
+        }
+      ],
+
+      "trailer": {
+        "fields": [
+          {
+            "id": "etx",
+            "name": "End of Text",
+            "type": "BINARY",
+            "length": 1,
+            "encoding": "HEX",
+            "defaultValue": "03"
+          },
+          {
+            "id": "lrc",
+            "name": "Longitudinal Redundancy Check",
+            "type": "BINARY",
+            "length": 1,
+            "encoding": "HEX"
+          }
+        ]
+      },
+
+      "encoding": {
+        "defaultCharset": "ASCII",
+        "endianness": "BIG_ENDIAN"
+      },
+
+      "validation": {
+        "rules": [
+          {
+            "type": "required",
+            "fields": ["messageType", "terminalId"]
+          }
+        ]
+      }
+    },
+    {
+      "$schema": "fep-message-schema-v1",
+      "name": "ISO 8583 Generic",
+      "version": "1.0",
+      "vendor": "ISO",
+      "description": "Generic ISO 8583 message format",
+
+      "header": {
+        "includeLength": true,
+        "lengthBytes": 2,
+        "lengthEncoding": "BCD",
+        "lengthIncludesHeader": false
+      },
+
+      "fields": [
+        {
+          "id": "mti",
+          "name": "Message Type Indicator",
+          "description": "ISO 8583 MTI",
+          "type": "NUMERIC",
+          "length": 4,
+          "encoding": "ASCII",
+          "required": true
+        },
+        {
+          "id": "bitmap",
+          "name": "Primary Bitmap",
+          "description": "Primary bitmap (64 bits)",
+          "type": "BITMAP",
+          "length": 8,
+          "encoding": "BINARY",
+          "controls": ["pan", "processingCode", "amount", "stan", "localTime", "localDate", "responseCode", "terminalId"]
+        },
+        {
+          "id": "pan",
+          "name": "Primary Account Number",
+          "description": "Card number (Field 2)",
+          "type": "NUMERIC",
+          "length": 19,
+          "lengthType": "LLVAR",
+          "encoding": "ASCII",
+          "lengthEncoding": "BCD",
+          "sensitive": true
+        },
+        {
+          "id": "processingCode",
+          "name": "Processing Code",
+          "description": "Transaction type (Field 3)",
+          "type": "NUMERIC",
+          "length": 6,
+          "encoding": "ASCII",
+          "required": true
+        },
+        {
+          "id": "amount",
+          "name": "Transaction Amount",
+          "description": "Amount (Field 4)",
+          "type": "NUMERIC",
+          "length": 12,
+          "encoding": "ASCII",
+          "padding": {
+            "char": "0",
+            "direction": "left"
+          }
+        },
+        {
+          "id": "stan",
+          "name": "System Trace Audit Number",
+          "description": "STAN (Field 11)",
+          "type": "NUMERIC",
+          "length": 6,
+          "encoding": "ASCII",
+          "required": true
+        },
+        {
+          "id": "localTime",
+          "name": "Local Time",
+          "description": "Transaction time (Field 12)",
+          "type": "NUMERIC",
+          "length": 6,
+          "encoding": "ASCII"
+        },
+        {
+          "id": "localDate",
+          "name": "Local Date",
+          "description": "Transaction date (Field 13)",
+          "type": "NUMERIC",
+          "length": 4,
+          "encoding": "ASCII"
+        },
+        {
+          "id": "responseCode",
+          "name": "Response Code",
+          "description": "Response code (Field 39)",
+          "type": "ALPHANUMERIC",
+          "length": 2,
+          "encoding": "ASCII"
+        },
+        {
+          "id": "terminalId",
+          "name": "Terminal ID",
+          "description": "Terminal ID (Field 41)",
+          "type": "ALPHANUMERIC",
+          "length": 8,
+          "encoding": "ASCII",
+          "required": true
+        }
+      ],
+
+      "encoding": {
+        "defaultCharset": "ASCII",
+        "bcdPacking": "RIGHT_JUSTIFIED",
+        "endianness": "BIG_ENDIAN"
+      },
+
+      "validation": {
+        "rules": [
+          {
+            "type": "required",
+            "fields": ["mti", "processingCode", "stan", "terminalId"]
+          }
+        ]
+      }
+    }
+  ]
+}

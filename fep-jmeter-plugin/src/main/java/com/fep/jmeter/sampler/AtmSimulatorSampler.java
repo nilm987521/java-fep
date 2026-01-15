@@ -62,19 +62,16 @@ public class AtmSimulatorSampler extends AbstractSampler implements TestStateLis
     public static final String READ_TIMEOUT = "readTimeout";
     public static final String EXPECT_RESPONSE = "expectResponse";
 
-    // Property names - Generic Schema Mode (Request)
-    public static final String SCHEMA_SOURCE = "schemaSource";
+    // Property names - Schema Settings
     public static final String SCHEMA_FILE = "schemaFile";
-    public static final String SCHEMA_CONTENT = "schemaContent";
-    public static final String PRESET_SCHEMA = "presetSchema";
+    public static final String SELECTED_SCHEMA = "selectedSchema";
     public static final String FIELD_VALUES = "fieldValues";
 
     // Property names - Response Schema
     public static final String USE_DIFFERENT_RESPONSE_SCHEMA = "useDifferentResponseSchema";
     public static final String RESPONSE_SCHEMA_SOURCE = "responseSchemaSource";
     public static final String RESPONSE_SCHEMA_FILE = "responseSchemaFile";
-    public static final String RESPONSE_SCHEMA_CONTENT = "responseSchemaContent";
-    public static final String RESPONSE_PRESET_SCHEMA = "responsePresetSchema";
+    public static final String RESPONSE_SELECTED_SCHEMA = "responseSelectedSchema";
 
     // Static resources
     private static final Map<String, ChannelHolder> channelPool = new ConcurrentHashMap<>();
@@ -224,19 +221,23 @@ public class AtmSimulatorSampler extends AbstractSampler implements TestStateLis
     }
 
     /**
-     * Load message schema based on source configuration.
+     * Load message schema from schema collection file.
+     * Schema file path defaults to ${user.dir}/schemas/atm-schemas.json
      */
     private MessageSchema loadMessageSchema() {
-        SchemaSource source = SchemaSource.fromString(getSchemaSource());
+        String schemaFile = getSchemaFile();
+        if (schemaFile == null || schemaFile.isBlank()) {
+            schemaFile = SchemaSource.getDefaultSchemaPath();
+        } else {
+            schemaFile = substituteVariables(schemaFile);
+        }
 
-        return switch (source) {
-            case FILE -> JsonSchemaLoader.fromFile(Path.of(substituteVariables(getSchemaFile())));
-            case INLINE -> JsonSchemaLoader.fromJson(substituteVariables(getSchemaContent()));
-            case PRESET -> {
-                PresetSchema preset = PresetSchema.fromString(getPresetSchema());
-                yield JsonSchemaLoader.fromResource(preset.getResourcePath());
-            }
-        };
+        String selectedSchema = getSelectedSchema();
+        if (selectedSchema == null || selectedSchema.isBlank()) {
+            selectedSchema = "FISC ATM Format"; // default schema
+        }
+
+        return JsonSchemaLoader.fromCollectionFile(Path.of(schemaFile), selectedSchema);
     }
 
     /**
@@ -255,11 +256,20 @@ public class AtmSimulatorSampler extends AbstractSampler implements TestStateLis
 
         return switch (source) {
             case SAME_AS_REQUEST -> requestSchema;
-            case FILE -> JsonSchemaLoader.fromFile(Path.of(substituteVariables(getResponseSchemaFile())));
-            case INLINE -> JsonSchemaLoader.fromJson(substituteVariables(getResponseSchemaContent()));
-            case PRESET -> {
-                PresetSchema preset = PresetSchema.fromString(getResponsePresetSchema());
-                yield JsonSchemaLoader.fromResource(preset.getResourcePath());
+            case FILE -> {
+                String schemaFile = getResponseSchemaFile();
+                if (schemaFile == null || schemaFile.isBlank()) {
+                    schemaFile = SchemaSource.getDefaultSchemaPath();
+                } else {
+                    schemaFile = substituteVariables(schemaFile);
+                }
+
+                String selectedSchema = getResponseSelectedSchema();
+                if (selectedSchema == null || selectedSchema.isBlank()) {
+                    selectedSchema = "FISC ATM Format"; // default schema
+                }
+
+                yield JsonSchemaLoader.fromCollectionFile(Path.of(schemaFile), selectedSchema);
             }
         };
     }
@@ -674,36 +684,20 @@ public class AtmSimulatorSampler extends AbstractSampler implements TestStateLis
         setProperty(EXPECT_RESPONSE, expect);
     }
 
-    public String getSchemaSource() {
-        return getPropertyAsString(SCHEMA_SOURCE, SchemaSource.PRESET.name());
-    }
-
-    public void setSchemaSource(String source) {
-        setProperty(SCHEMA_SOURCE, source);
-    }
-
     public String getSchemaFile() {
-        return getPropertyAsString(SCHEMA_FILE, "");
+        return getPropertyAsString(SCHEMA_FILE, SchemaSource.getDefaultSchemaPath());
     }
 
     public void setSchemaFile(String file) {
         setProperty(SCHEMA_FILE, file);
     }
 
-    public String getSchemaContent() {
-        return getPropertyAsString(SCHEMA_CONTENT, "");
+    public String getSelectedSchema() {
+        return getPropertyAsString(SELECTED_SCHEMA, "FISC ATM Format");
     }
 
-    public void setSchemaContent(String content) {
-        setProperty(SCHEMA_CONTENT, content);
-    }
-
-    public String getPresetSchema() {
-        return getPropertyAsString(PRESET_SCHEMA, PresetSchema.FISC_ATM.name());
-    }
-
-    public void setPresetSchema(String preset) {
-        setProperty(PRESET_SCHEMA, preset);
+    public void setSelectedSchema(String schema) {
+        setProperty(SELECTED_SCHEMA, schema);
     }
 
     public String getFieldValues() {
@@ -733,27 +727,19 @@ public class AtmSimulatorSampler extends AbstractSampler implements TestStateLis
     }
 
     public String getResponseSchemaFile() {
-        return getPropertyAsString(RESPONSE_SCHEMA_FILE, "");
+        return getPropertyAsString(RESPONSE_SCHEMA_FILE, SchemaSource.getDefaultSchemaPath());
     }
 
     public void setResponseSchemaFile(String file) {
         setProperty(RESPONSE_SCHEMA_FILE, file);
     }
 
-    public String getResponseSchemaContent() {
-        return getPropertyAsString(RESPONSE_SCHEMA_CONTENT, "");
+    public String getResponseSelectedSchema() {
+        return getPropertyAsString(RESPONSE_SELECTED_SCHEMA, "FISC ATM Format");
     }
 
-    public void setResponseSchemaContent(String content) {
-        setProperty(RESPONSE_SCHEMA_CONTENT, content);
-    }
-
-    public String getResponsePresetSchema() {
-        return getPropertyAsString(RESPONSE_PRESET_SCHEMA, PresetSchema.FISC_ATM.name());
-    }
-
-    public void setResponsePresetSchema(String preset) {
-        setProperty(RESPONSE_PRESET_SCHEMA, preset);
+    public void setResponseSelectedSchema(String schema) {
+        setProperty(RESPONSE_SELECTED_SCHEMA, schema);
     }
 
     /**

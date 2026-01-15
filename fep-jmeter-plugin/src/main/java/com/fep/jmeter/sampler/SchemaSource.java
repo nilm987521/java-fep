@@ -1,24 +1,16 @@
 package com.fep.jmeter.sampler;
 
 /**
- * Source types for message schema in GENERIC_SCHEMA mode.
+ * Source types for message schema.
+ * Schema is loaded from external JSON file only.
+ * Default schema directory: ${user.dir}/schemas/atm-schemas.json
  */
 public enum SchemaSource {
 
     /**
      * Load schema from an external JSON file.
      */
-    FILE("File", "Load schema from JSON file"),
-
-    /**
-     * Use inline JSON schema content.
-     */
-    INLINE("Inline", "Inline JSON schema definition"),
-
-    /**
-     * Use a preset schema (NCR NDC, Diebold, etc.).
-     */
-    PRESET("Preset", "Built-in schema for common ATM protocols");
+    FILE("File", "Load schema from JSON file");
 
     private final String displayName;
     private final String description;
@@ -60,5 +52,12 @@ public enum SchemaSource {
         } catch (IllegalArgumentException e) {
             return FILE;
         }
+    }
+
+    /**
+     * Get default schema file path using user.dir system property.
+     */
+    public static String getDefaultSchemaPath() {
+        return System.getProperty("user.dir") + "/schemas/atm-schemas.json";
     }
 }
