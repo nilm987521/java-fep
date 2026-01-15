@@ -152,7 +152,7 @@ public class AtmSimulatorSampler extends AbstractSampler implements TestStateLis
             // Start timing
             result.sampleStart();
 
-            // Send message directly (length header already included by assembler)
+            // Send a message directly (length header already included by assembler)
             log.info("Sending request: {} bytes to {}:{}", messageBytes.length, fepHost, fepPort);
             log.info("Request hex: {}", hexFormat.formatHex(messageBytes));
 

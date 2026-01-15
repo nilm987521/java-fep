@@ -3,6 +3,7 @@ package com.fep.message.generic.schema;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fep.message.exception.MessageException;
 import lombok.extern.slf4j.Slf4j;
 
@@ -11,6 +12,7 @@ import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -170,13 +172,12 @@ public class JsonSchemaLoader {
             try {
                 String json = Files.readString(path);
                 JsonNode root = objectMapper.readTree(json);
-                JsonNode schemasNode = root.get("schemas");
 
-                if (schemasNode == null || !schemasNode.isArray()) {
-                    throw MessageException.parseError("Schema collection file must contain 'schemas' array: " + path);
+                if (root == null || !root.isArray()) {
+                    throw MessageException.parseError("Schema collection file must contain an array: " + path);
                 }
 
-                for (JsonNode schemaNode : schemasNode) {
+                for (JsonNode schemaNode : root) {
                     String name = schemaNode.has("name") ? schemaNode.get("name").asText() : null;
                     if (schemaName.equals(name)) {
                         MessageSchema schema = objectMapper.treeToValue(schemaNode, MessageSchema.class);
@@ -204,17 +205,17 @@ public class JsonSchemaLoader {
         try {
             String json = Files.readString(path);
             JsonNode root = objectMapper.readTree(json);
-            JsonNode schemasNode = root.get("schemas");
+            if (!root.isArray()) {
+                return  Collections.emptyList();
+            }
 
-            List<String> names = new ArrayList<>();
-            if (schemasNode != null && schemasNode.isArray()) {
-                for (JsonNode schemaNode : schemasNode) {
-                    if (schemaNode.has("name")) {
-                        names.add(schemaNode.get("name").asText());
-                    }
+            List<String> schemaNames = new ArrayList<>();
+            for (JsonNode schemaNode : root) {
+                if (schemaNode.has("name")) {
+                    schemaNames.add(schemaNode.get("name").asText());
                 }
             }
-            return names;
+            return schemaNames;
         } catch (IOException e) {
             throw MessageException.parseError("Failed to read schema collection file: " + path + " - " + e.getMessage());
         }

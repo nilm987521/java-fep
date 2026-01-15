@@ -1,4 +1,4 @@
-{
+[{
   "$schema": "fep-message-schema-v1",
   "name": "FISC ATM Format",
   "version": "1.0",
@@ -252,4 +252,4 @@
       }
     ]
   }
-}
+}]
