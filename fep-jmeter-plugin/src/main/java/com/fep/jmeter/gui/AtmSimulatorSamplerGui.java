@@ -98,7 +98,6 @@ public class AtmSimulatorSamplerGui extends AbstractSamplerGui {
         portField = new JTextField(6);
         connectionTimeoutField = new JTextField(8);
         readTimeoutField = new JTextField(8);
-        expectResponseCheckbox = new JCheckBox("Expect Response", true);
 
         JPanel row1 = new JPanel(new FlowLayout(FlowLayout.LEFT));
         row1.add(new JLabel("Host:"));
@@ -112,12 +111,8 @@ public class AtmSimulatorSamplerGui extends AbstractSamplerGui {
         row2.add(new JLabel("Read Timeout (ms):"));
         row2.add(readTimeoutField);
 
-        JPanel row3 = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        row3.add(expectResponseCheckbox);
-
         panel.add(row1);
         panel.add(row2);
-        panel.add(row3);
 
         return panel;
     }
@@ -165,9 +160,9 @@ public class AtmSimulatorSamplerGui extends AbstractSamplerGui {
 
     private JPanel createSchemaPreviewPanel() {
         schemaPreviewPanel = new JPanel(new BorderLayout(0, 5));
-        schemaPreviewPanel.setBorder(new TitledBorder("Schema Preview"));
+        schemaPreviewPanel.setBorder(new TitledBorder("Request Schema Preview"));
 
-        // Create table model and table
+        // Create a table model and table
         schemaTableModel = new SchemaTableModel();
         schemaTable = new JTable(schemaTableModel);
         schemaTable.setRowHeight(22);
@@ -236,9 +231,12 @@ public class AtmSimulatorSamplerGui extends AbstractSamplerGui {
 
     private JPanel createResponseSchemaSettingsPanel() {
         responseSchemaSettingsPanel = new JPanel(new BorderLayout());
-        responseSchemaSettingsPanel.setBorder(new TitledBorder("Response Schema"));
+        responseSchemaSettingsPanel.setBorder(new TitledBorder("Response Settings"));
 
         JPanel mainContent = new VerticalPanel();
+
+        // Expect Response checkbox
+        expectResponseCheckbox = new JCheckBox("Expect Response", true);
 
         // Checkbox to enable different response schema
         useDifferentResponseSchemaCheckbox = new JCheckBox("Use different schema for response");
@@ -248,6 +246,8 @@ public class AtmSimulatorSamplerGui extends AbstractSamplerGui {
         });
 
         JPanel checkboxRow = new JPanel(new FlowLayout(FlowLayout.LEFT));
+        checkboxRow.add(expectResponseCheckbox);
+        checkboxRow.add(Box.createHorizontalStrut(20));
         checkboxRow.add(useDifferentResponseSchemaCheckbox);
         mainContent.add(checkboxRow);
 

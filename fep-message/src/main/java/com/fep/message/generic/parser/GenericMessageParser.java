@@ -323,12 +323,13 @@ public class GenericMessageParser {
      */
     private void parseBitmapField(FieldSchema fieldSchema, ByteBuf buffer, GenericMessage message, ParseContext ctx) {
         int length = fieldSchema.getLength();
-        if (buffer.readableBytes() < length) {
+        int realBytes = fieldSchema.getEncoding().equalsIgnoreCase("BINARY") ? length / 8 : length;
+        if (buffer.readableBytes() < realBytes) {
             throw MessageException.fieldError(fieldSchema.getId(),
                     "Not enough bytes for bitmap: need " + length + ", have " + buffer.readableBytes());
         }
 
-        byte[] bitmapBytes = new byte[length];
+        byte[] bitmapBytes = new byte[realBytes];
         buffer.readBytes(bitmapBytes);
 
         // Store in context for field control
@@ -337,7 +338,7 @@ public class GenericMessageParser {
         // Store in message (as hex string for display)
         message.setField(fieldSchema.getId(), bitmapBytes);
 
-        log.debug("Parsed bitmap [{}]: {} bytes, hex={}", fieldSchema.getId(), length,
+        log.debug("Parsed bitmap [{}]: {} bytes, hex={}", fieldSchema.getId(), realBytes,
                 java.util.HexFormat.of().formatHex(bitmapBytes));
     }
 

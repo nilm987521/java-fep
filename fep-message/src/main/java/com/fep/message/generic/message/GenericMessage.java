@@ -6,6 +6,7 @@ import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.*;
+import java.util.HexFormat;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -362,18 +363,26 @@ public class GenericMessage {
 
         Map<String, Object> fieldsToDisplay = includeDefaults ? getAllFieldsWithDefaults() : fields;
 
+        // Track which fields have been displayed
+        Set<String> displayedFields = new LinkedHashSet<>();
+
         for (Map.Entry<String, Object> entry : fieldsToDisplay.entrySet()) {
             String fieldId = entry.getKey();
             Object value = entry.getValue();
+            displayedFields.add(fieldId);
 
             // Check if sensitive
             Optional<FieldSchema> fieldSchema = schema.getField(fieldId);
             boolean sensitive = fieldSchema.map(FieldSchema::isSensitive).orElse(false);
             boolean isDefault = includeDefaults && !fields.containsKey(fieldId);
+            boolean isBitmap = fieldSchema.map(FieldSchema::isBitmap).orElse(false);
 
             sb.append("  ").append(fieldId).append("=");
             if (sensitive) {
                 sb.append("****");
+            } else if (isBitmap && value instanceof byte[] bitmapBytes) {
+                // Display bitmap as list of present fields (from parsed response)
+                sb.append(formatBitmapAsFieldList(fieldSchema.get(), bitmapBytes));
             } else if (value instanceof byte[] bytes) {
                 sb.append("[").append(bytes.length).append(" bytes]");
             } else {
@@ -384,8 +393,91 @@ public class GenericMessage {
             }
             sb.append("\n");
         }
+
+        // Display bitmap fields that weren't in fieldsToDisplay (for request messages)
+        // These bitmaps are dynamically generated based on which controlled fields are set
+        for (FieldSchema fieldSchema : schema.getFields()) {
+            if (fieldSchema.isBitmap() && !displayedFields.contains(fieldSchema.getId())) {
+                sb.append("  ").append(fieldSchema.getId()).append("=");
+                sb.append(formatBitmapFromPresentFields(fieldSchema));
+                sb.append(" (auto-generated)\n");
+            }
+        }
+
         sb.append("}");
         return sb.toString();
+    }
+
+    /**
+     * Formats a bitmap field value as a list of present fields.
+     *
+     * @param fieldSchema the bitmap field schema
+     * @param bitmapBytes the bitmap byte array
+     * @return formatted string showing which fields are present
+     */
+    private String formatBitmapAsFieldList(FieldSchema fieldSchema, byte[] bitmapBytes) {
+        List<String> controls = fieldSchema.getControls();
+        if (controls == null || controls.isEmpty()) {
+            // No controls defined, show hex value
+            return HexFormat.of().formatHex(bitmapBytes);
+        }
+
+        List<String> presentFields = new ArrayList<>();
+        for (int i = 0; i < controls.size(); i++) {
+            if (isBitSet(bitmapBytes, i)) {
+                presentFields.add(controls.get(i));
+            }
+        }
+
+        if (presentFields.isEmpty()) {
+            return "(no fields present)";
+        }
+
+        return "[" + String.join(", ", presentFields) + "]";
+    }
+
+    /**
+     * Formats a bitmap based on which controlled fields are currently set in the message.
+     * Used for displaying request messages where bitmap is auto-generated.
+     *
+     * @param fieldSchema the bitmap field schema
+     * @return formatted string showing which fields will be present in bitmap
+     */
+    private String formatBitmapFromPresentFields(FieldSchema fieldSchema) {
+        List<String> controls = fieldSchema.getControls();
+        if (controls == null || controls.isEmpty()) {
+            return "(no controls defined)";
+        }
+
+        List<String> presentFields = new ArrayList<>();
+        for (String controlledFieldId : controls) {
+            if (fields.containsKey(controlledFieldId)) {
+                presentFields.add(controlledFieldId);
+            }
+        }
+
+        if (presentFields.isEmpty()) {
+            return "(no fields present)";
+        }
+
+        return "[" + String.join(", ", presentFields) + "]";
+    }
+
+    /**
+     * Checks if a specific bit is set in the bitmap.
+     * Bit 0 is MSB of first byte, bit 7 is LSB of first byte, etc.
+     *
+     * @param bitmap   the bitmap byte array
+     * @param bitIndex the bit index (0-based)
+     * @return true if the bit is set
+     */
+    private boolean isBitSet(byte[] bitmap, int bitIndex) {
+        int byteIndex = bitIndex / 8;
+        int bitPosition = 7 - (bitIndex % 8);  // MSB first
+        if (byteIndex >= bitmap.length) {
+            return false;
+        }
+        return (bitmap[byteIndex] & (1 << bitPosition)) != 0;
     }
 
     /**

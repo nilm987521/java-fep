@@ -2,6 +2,7 @@ package com.fep.jmeter.sampler;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fep.jmeter.gui.AtmSimulatorSamplerGui;
 import com.fep.message.generic.message.GenericMessage;
 import com.fep.message.generic.parser.GenericMessageAssembler;
 import com.fep.message.generic.parser.GenericMessageParser;
@@ -56,22 +57,22 @@ public class AtmSimulatorSampler extends AbstractSampler implements TestStateLis
     private static final long serialVersionUID = 1L;
 
     // Property names - Connection
-    public static final String FEP_HOST = "fepHost";
-    public static final String FEP_PORT = "fepPort";
-    public static final String CONNECTION_TIMEOUT = "connectionTimeout";
-    public static final String READ_TIMEOUT = "readTimeout";
-    public static final String EXPECT_RESPONSE = "expectResponse";
+    public static final String FEP_HOST = "AtmSimulatorSampler.fepHost";
+    public static final String FEP_PORT = "AtmSimulatorSampler.fepPort";
+    public static final String CONNECTION_TIMEOUT = "AtmSimulatorSampler.connectionTimeout";
+    public static final String READ_TIMEOUT = "AtmSimulatorSampler.readTimeout";
+    public static final String EXPECT_RESPONSE = "AtmSimulatorSampler.expectResponse";
 
     // Property names - Schema Settings
-    public static final String SCHEMA_FILE = "schemaFile";
-    public static final String SELECTED_SCHEMA = "selectedSchema";
-    public static final String FIELD_VALUES = "fieldValues";
+    public static final String SCHEMA_FILE = "AtmSimulatorSampler.schemaFile";
+    public static final String SELECTED_SCHEMA = "AtmSimulatorSampler.selectedSchema";
+    public static final String FIELD_VALUES = "AtmSimulatorSampler.fieldValues";
 
     // Property names - Response Schema
-    public static final String USE_DIFFERENT_RESPONSE_SCHEMA = "useDifferentResponseSchema";
-    public static final String RESPONSE_SCHEMA_SOURCE = "responseSchemaSource";
-    public static final String RESPONSE_SCHEMA_FILE = "responseSchemaFile";
-    public static final String RESPONSE_SELECTED_SCHEMA = "responseSelectedSchema";
+    public static final String USE_DIFFERENT_RESPONSE_SCHEMA = "AtmSimulatorSampler.useDifferentResponseSchema";
+    public static final String RESPONSE_SCHEMA_SOURCE = "AtmSimulatorSampler.responseSchemaSource";
+    public static final String RESPONSE_SCHEMA_FILE = "AtmSimulatorSampler.responseSchemaFile";
+    public static final String RESPONSE_SELECTED_SCHEMA = "AtmSimulatorSampler.responseSelectedSchema";
 
     // Static resources
     private static final Map<String, ChannelHolder> channelPool = new ConcurrentHashMap<>();
@@ -85,7 +86,7 @@ public class AtmSimulatorSampler extends AbstractSampler implements TestStateLis
         super();
         setName("ATM Simulator");
         // Register a custom GUI class
-        setProperty(TestElement.GUI_CLASS, "com.fep.jmeter.gui.AtmSimulatorSamplerGui");
+        setProperty(TestElement.GUI_CLASS, AtmSimulatorSamplerGui.class.getName());
     }
 
     @Override

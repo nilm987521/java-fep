@@ -161,8 +161,18 @@ public class GenericMessageAssembler {
             return;
         }
 
-        int bitmapBytes = fieldSchema.getLength();
-        int totalBits = bitmapBytes * 8;
+        int bitmapBytes;
+        int totalBits;
+        String encoding = fieldSchema.getEncoding();
+        if (encoding != null && encoding.equalsIgnoreCase("BINARY")) {
+            // BINARY encoding: length specifies total bits
+            totalBits = fieldSchema.getLength();
+            bitmapBytes = totalBits / 8;
+        } else {
+            // Default (HEX/ASCII): length specifies bytes
+            bitmapBytes = fieldSchema.getLength();
+            totalBits = bitmapBytes * 8;
+        }
         byte[] bitmap = new byte[bitmapBytes];
 
         // Set bits for fields that have values

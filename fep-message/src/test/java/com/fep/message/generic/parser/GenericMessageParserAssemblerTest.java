@@ -247,6 +247,10 @@ class GenericMessageParserAssemblerTest {
         original.setField("field1", "AAA1");
         original.setField("field3", "CCC3");
 
+        // Display request message before assembly (bitmap auto-generated)
+        System.out.println("Request message (before assembly):");
+        System.out.println(original.toString(true));
+
         byte[] bytes = assembler.assemble(original);
 
         // mti (4) + bitmap (8) + field1 (4) + field3 (4) = 20 bytes
