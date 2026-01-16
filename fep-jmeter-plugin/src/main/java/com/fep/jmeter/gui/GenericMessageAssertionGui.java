@@ -1,8 +1,11 @@
 package com.fep.jmeter.gui;
 
 import com.fep.jmeter.assertion.GenericMessageAssertion;
+import com.fep.jmeter.config.SchemaConfigElement;
 import com.fep.jmeter.sampler.SchemaSource;
 import com.fep.message.generic.schema.JsonSchemaLoader;
+import com.fep.message.generic.schema.MessageSchema;
+import com.fep.message.interfaces.SchemaSubscriber;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.jmeter.assertions.gui.AbstractAssertionGui;
 import org.apache.jmeter.gui.util.VerticalPanel;
@@ -10,19 +13,25 @@ import org.apache.jmeter.testelement.TestElement;
 
 import javax.swing.*;
 import javax.swing.border.TitledBorder;
+import javax.swing.event.AncestorEvent;
+import javax.swing.event.AncestorListener;
 import java.awt.*;
 import java.io.File;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /**
  * GUI for GenericMessageAssertion.
  *
  * <p>Provides schema selection and expected values configuration for validating
  * Generic Message responses from ATM Simulator or similar samplers.
+ *
+ * <p>Implements SchemaSubscriber to receive schema updates from JsonSchemaLoader.
  */
 @Slf4j
-public class GenericMessageAssertionGui extends AbstractAssertionGui {
+public class GenericMessageAssertionGui extends AbstractAssertionGui implements SchemaSubscriber {
 
     private static final long serialVersionUID = 1L;
     private static final long MAX_SCHEMA_FILE_SIZE = 10 * 1024 * 1024; // 10MB
@@ -52,6 +61,29 @@ public class GenericMessageAssertionGui extends AbstractAssertionGui {
 
         // Initialize schema list
         loadSchemaNames();
+
+        // Register as subscriber to receive schema updates
+        JsonSchemaLoader.registerSubscriber(this);
+
+        // Unregister when component is removed from hierarchy
+        addAncestorListener(new AncestorListener() {
+            @Override
+            public void ancestorAdded(AncestorEvent event) {
+                // Re-register when added back to hierarchy
+                JsonSchemaLoader.registerSubscriber(GenericMessageAssertionGui.this);
+            }
+
+            @Override
+            public void ancestorRemoved(AncestorEvent event) {
+                // Unregister when removed from hierarchy to prevent memory leak
+                JsonSchemaLoader.unregisterSubscriber(GenericMessageAssertionGui.this);
+            }
+
+            @Override
+            public void ancestorMoved(AncestorEvent event) {
+                // No action needed
+            }
+        });
     }
 
     private JPanel createSchemaSettingsPanel() {
@@ -241,5 +273,40 @@ public class GenericMessageAssertionGui extends AbstractAssertionGui {
         schemaFileField.setText(SchemaSource.getDefaultSchemaPath());
         loadSchemaNames();
         expectedValuesArea.setText("");
+    }
+
+    /**
+     * Called when schema map is updated (subscriber callback).
+     * Updates schema combo box while preserving selection.
+     * This method is thread-safe and ensures UI updates happen on EDT.
+     *
+     * @param schemaMap the updated schema map
+     */
+    @Override
+    public void updateSchemaMap(Map<String, MessageSchema> schemaMap) {
+        SwingUtilities.invokeLater(() -> {
+            // Preserve current selection
+            String currentSelection = (String) selectedSchemaCombo.getSelectedItem();
+
+            // Get schema names as list
+            List<String> schemaNames = new ArrayList<>(schemaMap.keySet());
+
+            // Update combo box
+            selectedSchemaCombo.removeAllItems();
+            for (String name : schemaNames) {
+                selectedSchemaCombo.addItem(name);
+            }
+
+            // Restore selection if available
+            if (currentSelection != null && schemaNames.contains(currentSelection)) {
+                selectedSchemaCombo.setSelectedItem(currentSelection);
+            } else if (!schemaNames.isEmpty()) {
+                selectedSchemaCombo.setSelectedIndex(0);
+            }
+
+            // Update status
+            schemaStatusLabel.setText("Found " + schemaNames.size() + " schema(s)");
+            log.debug("Schema combo updated with {} schemas", schemaNames.size());
+        });
     }
 }
