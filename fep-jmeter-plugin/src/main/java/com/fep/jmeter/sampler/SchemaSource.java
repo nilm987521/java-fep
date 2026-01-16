@@ -2,7 +2,7 @@ package com.fep.jmeter.sampler;
 
 /**
  * Source types for message schema.
- * Schema is loaded from external JSON file only.
+ * Schema is loaded from an external JSON file only.
  * Default schema directory: ${user.dir}/schemas/atm-schemas.json
  */
 public enum SchemaSource {
@@ -29,7 +29,7 @@ public enum SchemaSource {
     }
 
     /**
-     * Get all source names as String array for JMeter GUI.
+     * Get all source names as a String array for JMeter GUI.
      */
     public static String[] names() {
         SchemaSource[] values = values();

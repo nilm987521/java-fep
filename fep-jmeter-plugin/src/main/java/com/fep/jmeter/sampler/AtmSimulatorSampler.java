@@ -2,12 +2,12 @@ package com.fep.jmeter.sampler;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fep.jmeter.config.SchemaConfigElement;
 import com.fep.jmeter.gui.AtmSimulatorSamplerGui;
 import com.fep.message.generic.message.GenericMessage;
 import com.fep.message.generic.parser.GenericMessageAssembler;
 import com.fep.message.generic.parser.GenericMessageParser;
 import com.fep.message.generic.schema.MessageSchema;
-import com.fep.message.generic.schema.JsonSchemaLoader;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
@@ -64,14 +64,11 @@ public class AtmSimulatorSampler extends AbstractSampler implements TestStateLis
     public static final String EXPECT_RESPONSE = "AtmSimulatorSampler.expectResponse";
 
     // Property names - Schema Settings
-    public static final String SCHEMA_FILE = "AtmSimulatorSampler.schemaFile";
     public static final String SELECTED_SCHEMA = "AtmSimulatorSampler.selectedSchema";
     public static final String FIELD_VALUES = "AtmSimulatorSampler.fieldValues";
 
     // Property names - Response Schema
     public static final String USE_DIFFERENT_RESPONSE_SCHEMA = "AtmSimulatorSampler.useDifferentResponseSchema";
-    public static final String RESPONSE_SCHEMA_SOURCE = "AtmSimulatorSampler.responseSchemaSource";
-    public static final String RESPONSE_SCHEMA_FILE = "AtmSimulatorSampler.responseSchemaFile";
     public static final String RESPONSE_SELECTED_SCHEMA = "AtmSimulatorSampler.responseSelectedSchema";
 
     // Static resources
@@ -191,6 +188,9 @@ public class AtmSimulatorSampler extends AbstractSampler implements TestStateLis
                 boolean success = responseCode == null || "00".equals(responseCode) || "000".equals(responseCode);
                 result.setSuccessful(success);
 
+                // Store raw response bytes for assertion use
+                storeRawResponseForAssertion(responseBytes, responseSchema);
+
                 // Store response variables
                 storeResponseVariables(response);
 
@@ -222,27 +222,26 @@ public class AtmSimulatorSampler extends AbstractSampler implements TestStateLis
     }
 
     /**
-     * Load message schema from schema collection file.
-     * Schema file path defaults to ${user.dir}/schemas/atm-schemas.json
+     * Load message schema from SchemaConfigElement.
+     * Uses this sampler's selectedSchema to determine which schema to load.
      */
     private MessageSchema loadMessageSchema() {
-        String schemaFile = getSchemaFile();
-        if (schemaFile == null || schemaFile.isBlank()) {
-            schemaFile = SchemaSource.getDefaultSchemaPath();
-        } else {
-            schemaFile = substituteVariables(schemaFile);
-        }
-
         String selectedSchema = getSelectedSchema();
         if (selectedSchema == null || selectedSchema.isBlank()) {
             selectedSchema = "FISC ATM Format"; // default schema
         }
 
-        return JsonSchemaLoader.fromCollectionFile(Path.of(schemaFile), selectedSchema);
+        if (SchemaConfigElement.isInitialized()) {
+            log.debug("Loading schema '{}' from SchemaConfigElement", selectedSchema);
+            return SchemaConfigElement.getSchema(selectedSchema);
+        }
+
+        throw new IllegalStateException("SchemaConfigElement not initialized. " +
+            "Please add Schema Configuration to your test plan.");
     }
 
     /**
-     * Load response schema based on configuration.
+     * Load response schema from the same schema file as request.
      * If "use different response schema" is disabled, returns the request schema.
      *
      * @param requestSchema the request schema to use as fallback
@@ -253,26 +252,17 @@ public class AtmSimulatorSampler extends AbstractSampler implements TestStateLis
             return requestSchema;
         }
 
-        ResponseSchemaSource source = ResponseSchemaSource.fromString(getResponseSchemaSource());
+        String responseSchema = getResponseSelectedSchema();
+        if (responseSchema == null || responseSchema.isBlank()) {
+            return requestSchema;
+        }
 
-        return switch (source) {
-            case SAME_AS_REQUEST -> requestSchema;
-            case FILE -> {
-                String schemaFile = getResponseSchemaFile();
-                if (schemaFile == null || schemaFile.isBlank()) {
-                    schemaFile = SchemaSource.getDefaultSchemaPath();
-                } else {
-                    schemaFile = substituteVariables(schemaFile);
-                }
+        if (SchemaConfigElement.isInitialized()) {
+            log.debug("Loading response schema '{}' from SchemaConfigElement", responseSchema);
+            return SchemaConfigElement.getSchema(responseSchema);
+        }
 
-                String selectedSchema = getResponseSelectedSchema();
-                if (selectedSchema == null || selectedSchema.isBlank()) {
-                    selectedSchema = "FISC ATM Format"; // default schema
-                }
-
-                yield JsonSchemaLoader.fromCollectionFile(Path.of(schemaFile), selectedSchema);
-            }
-        };
+        return requestSchema;
     }
 
     /**
@@ -487,6 +477,27 @@ public class AtmSimulatorSampler extends AbstractSampler implements TestStateLis
         }
     }
 
+    /**
+     * Store raw response bytes and schema info for assertion use.
+     *
+     * @param responseBytes raw response bytes (without length header)
+     * @param responseSchema the schema used to parse the response
+     */
+    private void storeRawResponseForAssertion(byte[] responseBytes, MessageSchema responseSchema) {
+        JMeterContext context = JMeterContextService.getContext();
+        JMeterVariables vars = context.getVariables();
+        if (vars == null) return;
+
+        // Store raw bytes for assertion parsing
+        vars.putObject("RESPONSE_RAW_BYTES", responseBytes);
+
+        // Store schema info so assertion can auto-detect schema
+        if (SchemaConfigElement.isInitialized()) {
+            vars.put("RESPONSE_SCHEMA_FILE", SchemaConfigElement.getSchemaFilePath());
+        }
+        vars.put("RESPONSE_SCHEMA_NAME", responseSchema.getName());
+    }
+
     private String substituteVariables(String value) {
         JMeterContext context = JMeterContextService.getContext();
         if (context != null) {
@@ -685,14 +696,6 @@ public class AtmSimulatorSampler extends AbstractSampler implements TestStateLis
         setProperty(EXPECT_RESPONSE, expect);
     }
 
-    public String getSchemaFile() {
-        return getPropertyAsString(SCHEMA_FILE, SchemaSource.getDefaultSchemaPath());
-    }
-
-    public void setSchemaFile(String file) {
-        setProperty(SCHEMA_FILE, file);
-    }
-
     public String getSelectedSchema() {
         return getPropertyAsString(SELECTED_SCHEMA, "FISC ATM Format");
     }
@@ -717,22 +720,6 @@ public class AtmSimulatorSampler extends AbstractSampler implements TestStateLis
 
     public void setUseDifferentResponseSchema(boolean useDifferent) {
         setProperty(USE_DIFFERENT_RESPONSE_SCHEMA, useDifferent);
-    }
-
-    public String getResponseSchemaSource() {
-        return getPropertyAsString(RESPONSE_SCHEMA_SOURCE, ResponseSchemaSource.SAME_AS_REQUEST.name());
-    }
-
-    public void setResponseSchemaSource(String source) {
-        setProperty(RESPONSE_SCHEMA_SOURCE, source);
-    }
-
-    public String getResponseSchemaFile() {
-        return getPropertyAsString(RESPONSE_SCHEMA_FILE, SchemaSource.getDefaultSchemaPath());
-    }
-
-    public void setResponseSchemaFile(String file) {
-        setProperty(RESPONSE_SCHEMA_FILE, file);
     }
 
     public String getResponseSelectedSchema() {

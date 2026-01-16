@@ -3,12 +3,13 @@ package com.fep.message.generic.schema;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fep.message.exception.MessageException;
+import com.fep.message.interfaces.SchemaSubscriber;
 import lombok.extern.slf4j.Slf4j;
 
+import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
+import java.lang.ref.WeakReference;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -16,6 +17,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * Loads and caches message schemas from JSON files or strings.
@@ -25,6 +27,7 @@ public class JsonSchemaLoader {
 
     private static final ObjectMapper objectMapper = createObjectMapper();
     private static final Map<String, MessageSchema> schemaCache = new ConcurrentHashMap<>();
+    private static final List<WeakReference<SchemaSubscriber>> subscribers = new CopyOnWriteArrayList<>();
 
     private static ObjectMapper createObjectMapper() {
         ObjectMapper mapper = new ObjectMapper();
@@ -47,50 +50,6 @@ public class JsonSchemaLoader {
         } catch (IOException e) {
             throw MessageException.parseError("Failed to parse schema JSON: " + e.getMessage());
         }
-    }
-
-    /**
-     * Loads a schema from a file path.
-     *
-     * @param path the file path
-     * @return the parsed MessageSchema
-     * @throws MessageException if loading or parsing fails
-     */
-    public static MessageSchema fromFile(Path path) {
-        String cacheKey = path.toAbsolutePath().toString();
-        return schemaCache.computeIfAbsent(cacheKey, k -> {
-            try {
-                String json = Files.readString(path);
-                MessageSchema schema = fromJson(json);
-                log.info("Loaded schema '{}' from file: {}", schema.getName(), path);
-                return schema;
-            } catch (IOException e) {
-                throw MessageException.parseError("Failed to load schema from file: " + path + " - " + e.getMessage());
-            }
-        });
-    }
-
-    /**
-     * Loads a schema from classpath resource.
-     *
-     * @param resourcePath the classpath resource path (e.g., "schemas/ncr-ndc-v1.json")
-     * @return the parsed MessageSchema
-     * @throws MessageException if loading or parsing fails
-     */
-    public static MessageSchema fromResource(String resourcePath) {
-        return schemaCache.computeIfAbsent("resource:" + resourcePath, k -> {
-            try (InputStream is = JsonSchemaLoader.class.getClassLoader().getResourceAsStream(resourcePath)) {
-                if (is == null) {
-                    throw MessageException.parseError("Schema resource not found: " + resourcePath);
-                }
-                MessageSchema schema = objectMapper.readValue(is, MessageSchema.class);
-                validateSchema(schema);
-                log.info("Loaded schema '{}' from resource: {}", schema.getName(), resourcePath);
-                return schema;
-            } catch (IOException e) {
-                throw MessageException.parseError("Failed to load schema from resource: " + resourcePath + " - " + e.getMessage());
-            }
-        });
     }
 
     /**
@@ -230,11 +189,114 @@ public class JsonSchemaLoader {
     }
 
     /**
-     * Removes a specific schema from cache.
+     * Removes a specific schema from the cache.
      *
      * @param key the cache key (file path or resource path)
      */
     public static void removeFromCache(String key) {
         schemaCache.remove(key);
     }
+
+    public static void reloadFromFilePath(String filePath) {
+        schemaCache.clear();
+        File jsonFile = new File(filePath);
+        if (!jsonFile.exists()) {
+            throw MessageException.parseError("Schema json file not found: " + filePath);
+        }
+
+        try {
+            JsonNode root = objectMapper.readTree(jsonFile);
+            // 規劃所有的 schema 都要放在一個json檔內，所以必須使用ArrayNode
+            if (!root.isArray()) {
+                throw MessageException.parseError("Schema json file must contain an array: " + filePath);
+            }
+            for (JsonNode schemaNode : root) {
+                String name = schemaNode.has("name") ? schemaNode.get("name").asText() : null;
+                MessageSchema schema = objectMapper.treeToValue(schemaNode, MessageSchema.class);
+                validateSchema(schema);
+                schemaCache.put(name, schema);
+            }
+            publishSchemaMap();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
+    public static Map<String, MessageSchema> getSchemaMap() {
+        return Collections.unmodifiableMap(schemaCache);
+    }
+
+    /**
+     * Registers a subscriber to receive schema updates.
+     * Uses WeakReference to prevent memory leaks.
+     * If schemas are already loaded, immediately notifies the new subscriber.
+     *
+     * @param subscriber the subscriber to register
+     */
+    public static void registerSubscriber(SchemaSubscriber subscriber) {
+        if (subscriber == null) return;
+
+        // Check if already registered (compare actual subscribers, not WeakReferences)
+        boolean hasRegistry = subscribers.stream().anyMatch(ref -> ref.get() == subscriber);
+        if (!hasRegistry) {
+            subscribers.add(new WeakReference<>(subscriber));
+            log.debug("Registered schema subscriber: {}", subscriber.getClass().getSimpleName());
+        }
+
+        // Immediately notify the new subscriber if schemas are already loaded
+        if (!schemaCache.isEmpty()) {
+            try {
+                subscriber.updateSchemaMap(getSchemaMap());
+                log.debug("Immediately notified new subscriber with {} schemas", schemaCache.size());
+            } catch (Exception e) {
+                log.error("Failed to notify new subscriber {}: {}",
+                    subscriber.getClass().getSimpleName(), e.getMessage());
+            }
+        }
+    }
+
+    /**
+     * Unregisters a subscriber from receiving schema updates.
+     * Also cleans up any GC'd references.
+     *
+     * @param subscriber the subscriber to unregister
+     */
+    public static void unregisterSubscriber(SchemaSubscriber subscriber) {
+        if (subscriber == null) return;
+        subscribers.removeIf(ref -> {
+            SchemaSubscriber s = ref.get();
+            return s == null || s == subscriber;  // Also clean up GC'd references
+        });
+        log.debug("Unregistered schema subscriber: {}", subscriber.getClass().getSimpleName());
+    }
+
+    /**
+     * Notifies all registered subscribers of schema changes.
+     * Automatically cleans up GC'd weak references.
+     */
+    private static void publishSchemaMap() {
+        Map<String, MessageSchema> schemaMap = getSchemaMap();
+        List<WeakReference<SchemaSubscriber>> toRemove = new ArrayList<>();
+
+        for (WeakReference<SchemaSubscriber> ref : subscribers) {
+            SchemaSubscriber subscriber = ref.get();
+            if (subscriber == null) {
+                toRemove.add(ref);  // Mark for removal
+                continue;
+            }
+            try {
+                subscriber.updateSchemaMap(schemaMap);
+            } catch (Exception e) {
+                log.error("Failed to notify subscriber {}: {}",
+                    subscriber.getClass().getSimpleName(), e.getMessage());
+            }
+        }
+
+        // Clean up GC'd references
+        if (!toRemove.isEmpty()) {
+            subscribers.removeAll(toRemove);
+            log.debug("Cleaned up {} GC'd subscriber references", toRemove.size());
+        }
+    }
+
 }

@@ -57,6 +57,16 @@ Scenarios:
       <stringProp name="TestPlan.user_define_classpath"></stringProp>
     </TestPlan>
     <hashTree>
+      <com.fep.jmeter.config.SchemaConfigElement guiclass="com.fep.jmeter.gui.SchemaConfigElementGui" testclass="com.fep.jmeter.config.SchemaConfigElement" testname="Schema Configuration" enabled="true">
+        <stringProp name="configName">default</stringProp>
+        <stringProp name="schemaFile">/Users/daniel/Documents/Personal/java-fep/fep-jmeter-plugin/src/main/resources/schemas/AtmMessages.json</stringProp>
+        <stringProp name="selectedSchema">FISC TEST Format</stringProp>
+        <boolProp name="useDifferentResponseSchema">false</boolProp>
+        <stringProp name="responseSchemaFile">/Users/daniel/Documents/Personal/java-fep/fep-jmeter-plugin/examples/schemas/atm-schemas.json</stringProp>
+        <stringProp name="responseSelectedSchema">FISC ATM Format</stringProp>
+        <boolProp name="useDifferentResponseSchemaFile">false</boolProp>
+      </com.fep.jmeter.config.SchemaConfigElement>
+      <hashTree/>
       <ThreadGroup guiclass="ThreadGroupGui" testclass="ThreadGroup" testname="Scenario 1 - Cash Withdrawal" enabled="true">
         <stringProp name="ThreadGroup.on_sample_error">continue</stringProp>
         <elementProp name="ThreadGroup.main_controller" elementType="LoopController" guiclass="LoopControlPanel" testclass="LoopController" testname="Loop Controller" enabled="true">
@@ -377,6 +387,8 @@ Uses default MTI 0200 and Processing Code 010000.</stringProp>
           <stringProp name="AtmSimulatorSampler.responseSchemaSource">SAME_AS_REQUEST</stringProp>
           <stringProp name="AtmSimulatorSampler.responseSchemaFile">/Users/daniel/Documents/Personal/java-fep/fep-jmeter-plugin/examples/schemas/atm-schemas.json</stringProp>
           <stringProp name="AtmSimulatorSampler.responseSelectedSchema">FISC ATM Format</stringProp>
+          <boolProp name="AtmSimulatorSampler.useSchemaConfig">true</boolProp>
+          <stringProp name="AtmSimulatorSampler.schemaConfigName">default</stringProp>
         </com.fep.jmeter.sampler.AtmSimulatorSampler>
         <hashTree>
           <com.fep.jmeter.config.EchoServerElement guiclass="com.fep.jmeter.gui.EchoServerElementGui" testclass="com.fep.jmeter.config.EchoServerElement" testname="Echo Server">
@@ -384,13 +396,11 @@ Uses default MTI 0200 and Processing Code 010000.</stringProp>
             <intProp name="port">9000</intProp>
           </com.fep.jmeter.config.EchoServerElement>
           <hashTree/>
-          <JSR223Assertion guiclass="TestBeanGUI" testclass="JSR223Assertion" testname="JSR223 Assertion" enabled="true">
-            <stringProp name="cacheKey">true</stringProp>
-            <stringProp name="filename"></stringProp>
-            <stringProp name="parameters"></stringProp>
-            <stringProp name="script">log.info(prev.getResponseDataAsString())</stringProp>
-            <stringProp name="scriptLanguage">groovy</stringProp>
-          </JSR223Assertion>
+          <com.fep.jmeter.assertion.GenericMessageAssertion guiclass="com.fep.jmeter.gui.GenericMessageAssertionGui" testclass="com.fep.jmeter.assertion.GenericMessageAssertion" testname="Generic Message Assertion" enabled="true">
+            <stringProp name="GenericMessageAssertion.schemaFile">/Users/daniel/Documents/Personal/java-fep/fep-jmeter-plugin/src/main/resources/schemas/fisc-atm-v1.json</stringProp>
+            <stringProp name="GenericMessageAssertion.selectedSchema">FISC ATM Format</stringProp>
+            <stringProp name="GenericMessageAssertion.expectedValues">{&quot;mti&quot;: {&quot;$eq&quot;:&quot;2341&quot;}}</stringProp>
+          </com.fep.jmeter.assertion.GenericMessageAssertion>
           <hashTree/>
         </hashTree>
         <ResultCollector guiclass="ViewResultsFullVisualizer" testclass="ResultCollector" testname="View Results Tree" enabled="true">
@@ -489,6 +499,8 @@ No amount required.</stringProp>
           <stringProp name="AtmSimulatorSampler.responseSchemaSource">SAME_AS_REQUEST</stringProp>
           <stringProp name="AtmSimulatorSampler.responseSchemaFile">/Users/daniel/Documents/Personal/java-fep/fep-jmeter-plugin/examples/schemas/atm-schemas.json</stringProp>
           <stringProp name="AtmSimulatorSampler.responseSelectedSchema">FISC ATM Format</stringProp>
+          <boolProp name="AtmSimulatorSampler.useSchemaConfig">true</boolProp>
+          <stringProp name="AtmSimulatorSampler.schemaConfigName">default</stringProp>
         </com.fep.jmeter.sampler.AtmSimulatorSampler>
         <hashTree/>
         <ResultCollector guiclass="ViewResultsFullVisualizer" testclass="ResultCollector" testname="View Results Tree" enabled="true">
@@ -587,6 +599,8 @@ Requires destination account.</stringProp>
           <stringProp name="AtmSimulatorSampler.responseSchemaSource">SAME_AS_REQUEST</stringProp>
           <stringProp name="AtmSimulatorSampler.responseSchemaFile">/Users/daniel/Documents/Personal/java-fep/fep-jmeter-plugin/examples/schemas/atm-schemas.json</stringProp>
           <stringProp name="AtmSimulatorSampler.responseSelectedSchema">FISC ATM Format</stringProp>
+          <boolProp name="AtmSimulatorSampler.useSchemaConfig">true</boolProp>
+          <stringProp name="AtmSimulatorSampler.schemaConfigName">default</stringProp>
         </com.fep.jmeter.sampler.AtmSimulatorSampler>
         <hashTree/>
         <ResultCollector guiclass="ViewResultsFullVisualizer" testclass="ResultCollector" testname="View Results Tree" enabled="true">
@@ -694,6 +708,8 @@ Supports JMeter variable substitution.</stringProp>
           <stringProp name="AtmSimulatorSampler.responseSchemaSource">SAME_AS_REQUEST</stringProp>
           <stringProp name="AtmSimulatorSampler.responseSchemaFile">/Users/daniel/Documents/Personal/java-fep/fep-jmeter-plugin/examples/schemas/atm-schemas.json</stringProp>
           <stringProp name="AtmSimulatorSampler.responseSelectedSchema">FISC ATM Format</stringProp>
+          <boolProp name="AtmSimulatorSampler.useSchemaConfig">true</boolProp>
+          <stringProp name="AtmSimulatorSampler.schemaConfigName">default</stringProp>
         </com.fep.jmeter.sampler.AtmSimulatorSampler>
         <hashTree/>
         <ResultCollector guiclass="ViewResultsFullVisualizer" testclass="ResultCollector" testname="View Results Tree" enabled="true">
@@ -792,6 +808,8 @@ In real scenarios, the PIN Block would be generated by HSM.</stringProp>
           <stringProp name="AtmSimulatorSampler.responseSchemaSource">SAME_AS_REQUEST</stringProp>
           <stringProp name="AtmSimulatorSampler.responseSchemaFile">/Users/daniel/Documents/Personal/java-fep/fep-jmeter-plugin/examples/schemas/atm-schemas.json</stringProp>
           <stringProp name="AtmSimulatorSampler.responseSelectedSchema">FISC ATM Format</stringProp>
+          <boolProp name="AtmSimulatorSampler.useSchemaConfig">true</boolProp>
+          <stringProp name="AtmSimulatorSampler.schemaConfigName">default</stringProp>
         </com.fep.jmeter.sampler.AtmSimulatorSampler>
         <hashTree/>
         <ResultCollector guiclass="ViewResultsFullVisualizer" testclass="ResultCollector" testname="View Results Tree" enabled="true">
@@ -901,6 +919,8 @@ Command Code 11 = Transaction Request (with PIN and amount).</stringProp>
           <stringProp name="AtmSimulatorSampler.responseSchemaSource">SAME_AS_REQUEST</stringProp>
           <stringProp name="AtmSimulatorSampler.responseSchemaFile">/Users/daniel/Documents/Personal/java-fep/fep-jmeter-plugin/examples/schemas/atm-schemas.json</stringProp>
           <stringProp name="AtmSimulatorSampler.responseSelectedSchema">FISC ATM Format</stringProp>
+          <boolProp name="AtmSimulatorSampler.useSchemaConfig">true</boolProp>
+          <stringProp name="AtmSimulatorSampler.schemaConfigName">default</stringProp>
         </com.fep.jmeter.sampler.AtmSimulatorSampler>
         <hashTree/>
         <ResultCollector guiclass="ViewResultsFullVisualizer" testclass="ResultCollector" testname="View Results Tree" enabled="true">
@@ -1011,6 +1031,8 @@ Similar to ISO 8583 but with BCD encoding for numeric fields.</stringProp>
           <stringProp name="AtmSimulatorSampler.responseSchemaSource">SAME_AS_REQUEST</stringProp>
           <stringProp name="AtmSimulatorSampler.responseSchemaFile">/Users/daniel/Documents/Personal/java-fep/fep-jmeter-plugin/examples/schemas/atm-schemas.json</stringProp>
           <stringProp name="AtmSimulatorSampler.responseSelectedSchema">FISC ATM Format</stringProp>
+          <boolProp name="AtmSimulatorSampler.useSchemaConfig">true</boolProp>
+          <stringProp name="AtmSimulatorSampler.schemaConfigName">default</stringProp>
         </com.fep.jmeter.sampler.AtmSimulatorSampler>
         <hashTree/>
         <ResultCollector guiclass="ViewResultsFullVisualizer" testclass="ResultCollector" testname="View Results Tree" enabled="true">
@@ -1136,6 +1158,8 @@ Example shows a simple proprietary ATM protocol with mixed encodings.</stringPro
           <stringProp name="AtmSimulatorSampler.responseSchemaSource">SAME_AS_REQUEST</stringProp>
           <stringProp name="AtmSimulatorSampler.responseSchemaFile">/Users/daniel/Documents/Personal/java-fep/fep-jmeter-plugin/examples/schemas/atm-schemas.json</stringProp>
           <stringProp name="AtmSimulatorSampler.responseSelectedSchema">FISC ATM Format</stringProp>
+          <boolProp name="AtmSimulatorSampler.useSchemaConfig">true</boolProp>
+          <stringProp name="AtmSimulatorSampler.schemaConfigName">default</stringProp>
         </com.fep.jmeter.sampler.AtmSimulatorSampler>
         <hashTree/>
         <ResultCollector guiclass="ViewResultsFullVisualizer" testclass="ResultCollector" testname="View Results Tree" enabled="true">
@@ -1272,6 +1296,8 @@ For 2000 ATM simulation:
           <stringProp name="AtmSimulatorSampler.responseSchemaSource">SAME_AS_REQUEST</stringProp>
           <stringProp name="AtmSimulatorSampler.responseSchemaFile">/Users/daniel/Documents/Personal/java-fep/fep-jmeter-plugin/examples/schemas/atm-schemas.json</stringProp>
           <stringProp name="AtmSimulatorSampler.responseSelectedSchema">FISC ATM Format</stringProp>
+          <boolProp name="AtmSimulatorSampler.useSchemaConfig">true</boolProp>
+          <stringProp name="AtmSimulatorSampler.schemaConfigName">default</stringProp>
         </com.fep.jmeter.sampler.AtmSimulatorSampler>
         <hashTree/>
         <com.fep.jmeter.sampler.AtmSimulatorSampler guiclass="com.fep.jmeter.gui.AtmSimulatorSamplerGui" testclass="com.fep.jmeter.sampler.AtmSimulatorSampler" testname="Multi-ATM Withdrawal (GENERIC_SCHEMA)" enabled="false">
@@ -1327,6 +1353,8 @@ For 2000 ATM simulation:
           <stringProp name="AtmSimulatorSampler.responseSchemaSource">SAME_AS_REQUEST</stringProp>
           <stringProp name="AtmSimulatorSampler.responseSchemaFile">/Users/daniel/Documents/Personal/java-fep/fep-jmeter-plugin/examples/schemas/atm-schemas.json</stringProp>
           <stringProp name="AtmSimulatorSampler.responseSelectedSchema">FISC ATM Format</stringProp>
+          <boolProp name="AtmSimulatorSampler.useSchemaConfig">true</boolProp>
+          <stringProp name="AtmSimulatorSampler.schemaConfigName">default</stringProp>
         </com.fep.jmeter.sampler.AtmSimulatorSampler>
         <hashTree/>
         <ResultCollector guiclass="SummaryReport" testclass="ResultCollector" testname="Summary Report" enabled="true">
