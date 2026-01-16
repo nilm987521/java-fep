@@ -1,8 +1,17 @@
 package com.fep.message.generic.schema;
 
 import com.fep.message.exception.MessageException;
+import com.fep.message.interfaces.SchemaSubscriber;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -192,5 +201,194 @@ class JsonSchemaLoaderTest {
         MessageSchema schema2 = JsonSchemaLoader.fromJson(json);
 
         assertEquals(schema1.getName(), schema2.getName());
+    }
+
+    // ==================== Subscriber Pattern Tests ====================
+
+    @Test
+    void shouldNotifySubscriberWhenSchemaReloaded(@TempDir Path tempDir) throws IOException {
+        // Create a schema file
+        Path schemaFile = tempDir.resolve("test-schemas.json");
+        String schemaJson = """
+            [
+              {
+                "name": "TestSchema",
+                "fields": [ { "id": "f1", "length": 5 } ]
+              }
+            ]
+            """;
+        Files.writeString(schemaFile, schemaJson);
+
+        // Track subscriber notifications
+        AtomicReference<Map<String, MessageSchema>> receivedSchemaMap = new AtomicReference<>();
+        AtomicInteger notifyCount = new AtomicInteger(0);
+
+        SchemaSubscriber subscriber = schemaMap -> {
+            receivedSchemaMap.set(schemaMap);
+            notifyCount.incrementAndGet();
+        };
+
+        try {
+            // Register subscriber
+            JsonSchemaLoader.registerSubscriber(subscriber);
+
+            // Load schema - should notify subscriber
+            JsonSchemaLoader.reloadFromFilePath(schemaFile.toString());
+
+            // Verify subscriber was notified
+            assertEquals(1, notifyCount.get());
+            assertNotNull(receivedSchemaMap.get());
+            assertTrue(receivedSchemaMap.get().containsKey("TestSchema"));
+        } finally {
+            JsonSchemaLoader.unregisterSubscriber(subscriber);
+        }
+    }
+
+    @Test
+    void shouldNotifyNewSubscriberImmediatelyIfSchemasLoaded(@TempDir Path tempDir) throws IOException {
+        // Create a schema file
+        Path schemaFile = tempDir.resolve("test-schemas.json");
+        String schemaJson = """
+            [
+              {
+                "name": "ExistingSchema",
+                "fields": [ { "id": "f1", "length": 5 } ]
+              }
+            ]
+            """;
+        Files.writeString(schemaFile, schemaJson);
+
+        // Load schema first (before subscriber registration)
+        JsonSchemaLoader.reloadFromFilePath(schemaFile.toString());
+
+        // Track subscriber notifications
+        AtomicReference<Map<String, MessageSchema>> receivedSchemaMap = new AtomicReference<>();
+
+        SchemaSubscriber subscriber = receivedSchemaMap::set;
+
+        try {
+            // Register subscriber AFTER schema is loaded
+            JsonSchemaLoader.registerSubscriber(subscriber);
+
+            // Verify subscriber was immediately notified with existing schema
+            assertNotNull(receivedSchemaMap.get());
+            assertTrue(receivedSchemaMap.get().containsKey("ExistingSchema"));
+        } finally {
+            JsonSchemaLoader.unregisterSubscriber(subscriber);
+        }
+    }
+
+    @Test
+    void shouldNotNotifyUnregisteredSubscriber(@TempDir Path tempDir) throws IOException {
+        // Create a schema file
+        Path schemaFile = tempDir.resolve("test-schemas.json");
+        String schemaJson = """
+            [
+              {
+                "name": "TestSchema",
+                "fields": [ { "id": "f1", "length": 5 } ]
+              }
+            ]
+            """;
+        Files.writeString(schemaFile, schemaJson);
+
+        AtomicInteger notifyCount = new AtomicInteger(0);
+        SchemaSubscriber subscriber = schemaMap -> notifyCount.incrementAndGet();
+
+        // Register and then unregister
+        JsonSchemaLoader.registerSubscriber(subscriber);
+        JsonSchemaLoader.unregisterSubscriber(subscriber);
+
+        // Load schema - should NOT notify unregistered subscriber
+        JsonSchemaLoader.reloadFromFilePath(schemaFile.toString());
+
+        // Verify subscriber was NOT notified (only got initial notification on register)
+        // Since schema wasn't loaded before register, count should be 0
+        assertEquals(0, notifyCount.get());
+    }
+
+    @Test
+    void shouldNotDuplicateSubscriber(@TempDir Path tempDir) throws IOException {
+        // Create a schema file
+        Path schemaFile = tempDir.resolve("test-schemas.json");
+        String schemaJson = """
+            [
+              {
+                "name": "TestSchema",
+                "fields": [ { "id": "f1", "length": 5 } ]
+              }
+            ]
+            """;
+        Files.writeString(schemaFile, schemaJson);
+
+        AtomicInteger notifyCount = new AtomicInteger(0);
+        SchemaSubscriber subscriber = schemaMap -> notifyCount.incrementAndGet();
+
+        try {
+            // Register same subscriber multiple times
+            JsonSchemaLoader.registerSubscriber(subscriber);
+            JsonSchemaLoader.registerSubscriber(subscriber);
+            JsonSchemaLoader.registerSubscriber(subscriber);
+
+            // Load schema
+            JsonSchemaLoader.reloadFromFilePath(schemaFile.toString());
+
+            // Verify subscriber was notified only once (not 3 times)
+            assertEquals(1, notifyCount.get());
+        } finally {
+            JsonSchemaLoader.unregisterSubscriber(subscriber);
+        }
+    }
+
+    @Test
+    void shouldHandleSubscriberException(@TempDir Path tempDir) throws IOException {
+        // Create a schema file
+        Path schemaFile = tempDir.resolve("test-schemas.json");
+        String schemaJson = """
+            [
+              {
+                "name": "TestSchema",
+                "fields": [ { "id": "f1", "length": 5 } ]
+              }
+            ]
+            """;
+        Files.writeString(schemaFile, schemaJson);
+
+        AtomicInteger goodSubscriberCount = new AtomicInteger(0);
+
+        // Bad subscriber that throws exception
+        SchemaSubscriber badSubscriber = schemaMap -> {
+            throw new RuntimeException("Intentional test exception");
+        };
+
+        // Good subscriber
+        SchemaSubscriber goodSubscriber = schemaMap -> goodSubscriberCount.incrementAndGet();
+
+        try {
+            // Register both subscribers
+            JsonSchemaLoader.registerSubscriber(badSubscriber);
+            JsonSchemaLoader.registerSubscriber(goodSubscriber);
+
+            // Load schema - bad subscriber throws, but good subscriber should still be notified
+            assertDoesNotThrow(() -> JsonSchemaLoader.reloadFromFilePath(schemaFile.toString()));
+
+            // Verify good subscriber was still notified despite bad subscriber's exception
+            assertEquals(1, goodSubscriberCount.get());
+        } finally {
+            JsonSchemaLoader.unregisterSubscriber(badSubscriber);
+            JsonSchemaLoader.unregisterSubscriber(goodSubscriber);
+        }
+    }
+
+    @Test
+    void shouldNotRegisterNullSubscriber() {
+        // Should not throw, just ignore
+        assertDoesNotThrow(() -> JsonSchemaLoader.registerSubscriber(null));
+    }
+
+    @Test
+    void shouldNotThrowWhenUnregisteringNullSubscriber() {
+        // Should not throw, just ignore
+        assertDoesNotThrow(() -> JsonSchemaLoader.unregisterSubscriber(null));
     }
 }
