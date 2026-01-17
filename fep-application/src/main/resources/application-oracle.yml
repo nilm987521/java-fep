@@ -8,8 +8,8 @@
 
 spring:
   datasource:
-    # Oracle connection URL
-    url: jdbc:oracle:thin:@${ORACLE_HOST:localhost}:${ORACLE_PORT:1521}/${ORACLE_SERVICE:FEPDB}
+    # Oracle connection URL (default to Docker test environment)
+    url: jdbc:oracle:thin:@${ORACLE_HOST:localhost}:${ORACLE_PORT:1521}/${ORACLE_SERVICE:FREEPDB1}
     username: ${ORACLE_USER:fep_user}
     password: ${ORACLE_PASSWORD:fep_password}
     driver-class-name: oracle.jdbc.OracleDriver

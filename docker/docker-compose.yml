@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+  oracle:
+    image: gvenzl/oracle-free:23-slim
+    container_name: fep-oracle
+    ports:
+      - "1521:1521"
+    environment:
+      ORACLE_PASSWORD: fep_password
+      APP_USER: fep_user
+      APP_USER_PASSWORD: fep_password
+    volumes:
+      - oracle-data:/opt/oracle/oradata
+      - ./init-scripts:/container-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "healthcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 120s
+    restart: unless-stopped
+
+volumes:
+  oracle-data:
+    driver: local
