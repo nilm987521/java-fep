@@ -74,5 +74,18 @@
             <artifactId>swagger-annotations</artifactId>
             <version>2.2.25</version>
         </dependency>
+
+        <!-- YAML support for channel configuration -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.dataformat</groupId>
+            <artifactId>jackson-dataformat-yaml</artifactId>
+        </dependency>
+
+        <!-- Spring Boot Test (for integration tests) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 </project>

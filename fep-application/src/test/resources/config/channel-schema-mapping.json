@@ -1,0 +1,200 @@
+{
+  "$schema": "fep-channel-schema-mapping-v1",
+  "version": "1.0.0",
+  "lastModified": "2026-01-17T10:00:00Z",
+
+  "schemaFiles": [
+    {
+      "path": "../schemas/atm-schemas.json",
+      "description": "ATM protocol schemas (FISC, NCR, Diebold, Wincor)"
+    }
+  ],
+
+  "channels": [
+    {
+      "id": "ATM_FISC_V1",
+      "name": "FISC ATM Channel",
+      "description": "Taiwan FISC standard ATM message format",
+      "type": "ATM",
+      "vendor": "FISC",
+      "version": "1.0",
+      "active": true,
+      "requestSchemas": ["FISC ATM Format"],
+      "responseSchemas": ["FISC ATM Format"],
+      "defaultRequestSchema": "FISC ATM Format",
+      "defaultResponseSchema": "FISC ATM Format",
+      "properties": {
+        "encoding": "ASCII",
+        "macRequired": "true",
+        "institutionId": "822"
+      },
+      "tags": ["production", "interbank"],
+      "priority": 1
+    },
+    {
+      "id": "ATM_NCR_V1",
+      "name": "NCR ATM Channel V1",
+      "description": "NCR NDC (Network Data Control) ATM protocol",
+      "type": "ATM",
+      "vendor": "NCR",
+      "version": "1.0",
+      "active": true,
+      "requestSchemas": ["NCR NDC Protocol"],
+      "responseSchemas": ["NCR NDC Protocol"],
+      "defaultRequestSchema": "NCR NDC Protocol",
+      "defaultResponseSchema": "NCR NDC Protocol",
+      "properties": {
+        "encoding": "ASCII",
+        "macRequired": "true"
+      },
+      "tags": ["production"],
+      "priority": 10
+    },
+    {
+      "id": "ATM_DIEBOLD_V1",
+      "name": "Diebold ATM Channel",
+      "description": "Diebold Nixdorf 91x ATM protocol",
+      "type": "ATM",
+      "vendor": "Diebold",
+      "version": "1.0",
+      "active": true,
+      "requestSchemas": ["Diebold 91x Protocol"],
+      "responseSchemas": ["Diebold 91x Protocol"],
+      "defaultRequestSchema": "Diebold 91x Protocol",
+      "defaultResponseSchema": "Diebold 91x Protocol",
+      "properties": {
+        "encoding": "ASCII"
+      },
+      "tags": ["production"],
+      "priority": 10
+    },
+    {
+      "id": "ATM_WINCOR_V1",
+      "name": "Wincor ATM Channel",
+      "description": "Wincor Nixdorf DDC ATM protocol",
+      "type": "ATM",
+      "vendor": "Wincor",
+      "version": "1.0",
+      "active": true,
+      "requestSchemas": ["Wincor DDC Protocol"],
+      "responseSchemas": ["Wincor DDC Protocol"],
+      "defaultRequestSchema": "Wincor DDC Protocol",
+      "defaultResponseSchema": "Wincor DDC Protocol",
+      "properties": {
+        "encoding": "ASCII"
+      },
+      "tags": ["production"],
+      "priority": 10
+    },
+    {
+      "id": "FISC_INTERBANK_V1",
+      "name": "FISC Interbank Channel",
+      "description": "Taiwan FISC standard interbank protocol for FEP-to-FISC communication",
+      "type": "INTERBANK",
+      "vendor": "FISC",
+      "version": "1.0",
+      "active": true,
+      "requestSchemas": ["FISC ATM Format"],
+      "responseSchemas": ["FISC ATM Format"],
+      "defaultRequestSchema": "FISC ATM Format",
+      "defaultResponseSchema": "FISC ATM Format",
+      "properties": {
+        "encoding": "ASCII",
+        "macRequired": "true",
+        "institutionId": "822",
+        "macAlgorithm": "ANSI_X9_19"
+      },
+      "tags": ["production", "fisc", "critical"],
+      "priority": 1
+    },
+    {
+      "id": "POS_GENERIC_V1",
+      "name": "Generic POS Channel",
+      "description": "Generic ISO 8583 POS terminal protocol",
+      "type": "POS",
+      "vendor": "GENERIC",
+      "version": "1.0",
+      "active": true,
+      "requestSchemas": ["ISO 8583 Generic"],
+      "responseSchemas": ["ISO 8583 Generic"],
+      "defaultRequestSchema": "ISO 8583 Generic",
+      "defaultResponseSchema": "ISO 8583 Generic",
+      "properties": {
+        "encoding": "ASCII"
+      },
+      "tags": ["production"],
+      "priority": 20
+    },
+    {
+      "id": "CBS_MAINFRAME_V1",
+      "name": "Core Banking System",
+      "description": "Mainframe CBS integration channel (placeholder)",
+      "type": "CBS",
+      "vendor": "INTERNAL",
+      "version": "1.0",
+      "active": false,
+      "defaultRequestSchema": "ISO 8583 Generic",
+      "defaultResponseSchema": "ISO 8583 Generic",
+      "properties": {
+        "mqQueueManager": "CBS_QM",
+        "requestQueue": "CBS.REQUEST.QUEUE",
+        "responseQueue": "CBS.RESPONSE.QUEUE"
+      },
+      "tags": ["internal", "mainframe"],
+      "priority": 5
+    },
+    {
+      "id": "MOBILE_BANK_V1",
+      "name": "Mobile Banking Channel",
+      "description": "Mobile banking internal API protocol (placeholder)",
+      "type": "MOBILE",
+      "vendor": "INTERNAL",
+      "version": "1.0",
+      "active": false,
+      "defaultRequestSchema": "ISO 8583 Generic",
+      "defaultResponseSchema": "ISO 8583 Generic",
+      "tags": ["internal"],
+      "priority": 20
+    },
+    {
+      "id": "INTERNET_BANK_V1",
+      "name": "Internet Banking Channel",
+      "description": "Internet banking API protocol (placeholder)",
+      "type": "INTERNET",
+      "vendor": "INTERNAL",
+      "version": "1.0",
+      "active": false,
+      "defaultRequestSchema": "ISO 8583 Generic",
+      "defaultResponseSchema": "ISO 8583 Generic",
+      "tags": ["internal"],
+      "priority": 20
+    }
+  ],
+
+  "schemaOverrides": {
+    "FISC_INTERBANK_V1": {
+      "0100": {
+        "request": "FISC ATM Format",
+        "response": "FISC ATM Format"
+      },
+      "0200": {
+        "request": "FISC ATM Format",
+        "response": "FISC ATM Format"
+      },
+      "0400": {
+        "request": "FISC ATM Format",
+        "response": "FISC ATM Format"
+      },
+      "0800": {
+        "request": "FISC ATM Format",
+        "response": "FISC ATM Format"
+      }
+    }
+  },
+
+  "defaults": {
+    "fallbackChannel": "FISC_INTERBANK_V1",
+    "unknownChannelBehavior": "USE_FALLBACK",
+    "schemaNotFoundBehavior": "THROW_ERROR"
+  }
+}

@@ -71,6 +71,15 @@ spring:
       on-profile: dev
 
 fep:
+  # Channel-Schema Mapping Configuration
+  channel:
+    enabled: true
+    config-file: ${CHANNEL_CONFIG_FILE:config/channel-schema-mapping.json}
+    hot-reload: ${CHANNEL_HOT_RELOAD:false}
+    hot-reload-interval: 5000
+    fail-on-missing-config: false
+    validate-schema-references: false
+
   # FISC Connection Settings (Development)
   fisc:
     # Single-channel mode (legacy)
@@ -127,6 +136,15 @@ logging:
     com.fep: INFO
 
 fep:
+  # Channel-Schema Mapping Configuration (Production)
+  channel:
+    enabled: true
+    config-file: ${CHANNEL_CONFIG_FILE:config/channel-schema-mapping.json}
+    hot-reload: ${CHANNEL_HOT_RELOAD:true}
+    hot-reload-interval: 10000
+    fail-on-missing-config: true
+    validate-schema-references: true
+
   # FISC Connection Settings (Production)
   fisc:
     # Single-channel mode (legacy/fallback)
