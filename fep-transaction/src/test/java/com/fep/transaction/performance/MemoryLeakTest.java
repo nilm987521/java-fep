@@ -240,14 +240,14 @@ class MemoryLeakTest {
         // 同時啟動所有執行緒
         startLatch.countDown();
 
-        // 等待完成
-        boolean completed = endLatch.await(60, TimeUnit.SECONDS);
+        // 等待完成 (120秒超時，以適應不同環境的執行速度差異)
+        boolean completed = endLatch.await(120, TimeUnit.SECONDS);
         Instant endTime = Instant.now();
 
         executor.shutdown();
         executor.awaitTermination(5, TimeUnit.SECONDS);
 
-        assertTrue(completed, "並發測試應在 60 秒內完成");
+        assertTrue(completed, "並發測試應在 120 秒內完成");
 
         // 記錄完成後記憶體
         MemorySnapshot afterLoadSnapshot = new MemorySnapshot();

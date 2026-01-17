@@ -56,6 +56,10 @@
             <groupId>com.fep</groupId>
             <artifactId>fep-settlement</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.fep</groupId>
+            <artifactId>fep-common-db</artifactId>
+        </dependency>
 
         <!-- API Documentation -->
         <dependency>

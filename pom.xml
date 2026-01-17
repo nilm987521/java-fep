@@ -21,6 +21,7 @@
 
     <modules>
         <module>fep-common</module>
+        <module>fep-common-db</module>
         <module>fep-message</module>
         <module>fep-communication</module>
         <module>fep-transaction</module>
@@ -49,6 +50,9 @@
         <commons-lang3.version>3.14.0</commons-lang3.version>
         <commons-codec.version>1.16.0</commons-codec.version>
         <caffeine.version>3.1.8</caffeine.version>
+
+        <!-- Database -->
+        <oracle.version>23.3.0.23.09</oracle.version>
     </properties>
 
     <dependencyManagement>
@@ -88,6 +92,18 @@
                 <groupId>com.fep</groupId>
                 <artifactId>fep-jmeter-plugin</artifactId>
                 <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.fep</groupId>
+                <artifactId>fep-common-db</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+
+            <!-- Oracle JDBC Driver -->
+            <dependency>
+                <groupId>com.oracle.database.jdbc</groupId>
+                <artifactId>ojdbc11</artifactId>
+                <version>${oracle.version}</version>
             </dependency>
 
             <!-- Netty for high-performance network I/O -->

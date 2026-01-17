@@ -30,6 +30,16 @@
             <groupId>com.fep</groupId>
             <artifactId>fep-communication</artifactId>
         </dependency>
+        <dependency>
+            <groupId>com.fep</groupId>
+            <artifactId>fep-common-db</artifactId>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>com.fep</groupId>
+            <artifactId>fep-security</artifactId>
+            <optional>true</optional>
+        </dependency>
 
         <!-- Spring Boot -->
         <dependency>

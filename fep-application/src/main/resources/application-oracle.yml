@@ -1,0 +1,65 @@
+# ============================================================
+# FEP System - Oracle Database Profile Configuration
+# ============================================================
+# Usage:
+#   Development: java -jar fep-application.jar --spring.profiles.active=oracle
+#   Production:  java -jar fep-application.jar --spring.profiles.active=oracle-prod
+# ============================================================
+
+spring:
+  datasource:
+    # Oracle connection URL
+    url: jdbc:oracle:thin:@${ORACLE_HOST:localhost}:${ORACLE_PORT:1521}/${ORACLE_SERVICE:FEPDB}
+    username: ${ORACLE_USER:fep_user}
+    password: ${ORACLE_PASSWORD:fep_password}
+    driver-class-name: oracle.jdbc.OracleDriver
+
+    # HikariCP connection pool settings
+    hikari:
+      # Pool sizing for high TPS (>2000 TPS target)
+      minimum-idle: 20
+      maximum-pool-size: 50
+
+      # Connection timeout settings (milliseconds)
+      connection-timeout: 10000        # 10 seconds to get connection
+      validation-timeout: 5000         # 5 seconds for connection validation
+      idle-timeout: 300000             # 5 minutes idle before removal
+      max-lifetime: 1200000            # 20 minutes max connection lifetime
+
+      # Connection behavior
+      auto-commit: false               # Manual transaction control
+      pool-name: FEP-HikariCP
+
+      # Oracle specific optimizations
+      data-source-properties:
+        # Statement caching for performance
+        oracle.jdbc.implicitStatementCacheSize: 100
+        # Prefetch rows for batch reads
+        oracle.jdbc.defaultRowPrefetch: 100
+        # Network timeouts
+        oracle.net.CONNECT_TIMEOUT: 10000
+        oracle.net.READ_TIMEOUT: 30000
+
+  # JDBC Template settings
+  jdbc:
+    template:
+      fetch-size: 100
+      max-rows: 10000
+      query-timeout: 30  # seconds
+
+# FEP specific database settings
+fep:
+  database:
+    # Batch operation size
+    batch-size: 100
+    # Enable audit logging
+    enable-audit: true
+    # Slow query threshold for monitoring
+    slow-query-threshold-ms: 500
+
+logging:
+  level:
+    # Enable SQL logging for debugging (reduce in production)
+    org.springframework.jdbc: DEBUG
+    com.zaxxer.hikari: INFO
+    oracle.jdbc: WARN
