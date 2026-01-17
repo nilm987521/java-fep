@@ -22,8 +22,15 @@ public class TransactionContext {
     @Builder.Default
     private LocalDateTime startTime = LocalDateTime.now();
 
-    /** Source channel (ATM, POS, MOBILE, etc.) */
+    /** Source channel type (ATM, POS, MOBILE, etc.) */
     private String channel;
+
+    /**
+     * Channel configuration ID from ChannelSchemaRegistry.
+     * Examples: ATM_FISC_V1, ATM_NCR_V1, POS_GENERIC_V1
+     * Used for schema resolution and channel-specific properties.
+     */
+    private String channelId;
 
     /** Source IP address */
     private String sourceIp;
