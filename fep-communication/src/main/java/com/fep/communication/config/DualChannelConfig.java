@@ -120,6 +120,16 @@ public class DualChannelConfig {
 
     // ==================== Dual-Channel Specific Configuration ====================
 
+    /**
+     * Connection mode: CLIENT or SERVER.
+     * <ul>
+     *   <li>CLIENT: FEP connects to remote server (e.g., FEP → FISC)</li>
+     *   <li>SERVER: FEP listens for incoming connections (e.g., ATM → FEP)</li>
+     * </ul>
+     */
+    @Builder.Default
+    private ConnectionMode connectionMode = ConnectionMode.CLIENT;
+
     /** Strategy for handling single channel failure */
     @Builder.Default
     private ChannelFailureStrategy failureStrategy = ChannelFailureStrategy.FAIL_WHEN_BOTH_DOWN;
@@ -171,19 +181,41 @@ public class DualChannelConfig {
     }
 
     /**
+     * Checks if this configuration is for server mode.
+     *
+     * @return true if server mode
+     */
+    public boolean isServerMode() {
+        return connectionMode == ConnectionMode.SERVER;
+    }
+
+    /**
+     * Checks if this configuration is for client mode.
+     *
+     * @return true if client mode
+     */
+    public boolean isClientMode() {
+        return connectionMode == ConnectionMode.CLIENT;
+    }
+
+    /**
      * Validates the configuration.
      *
      * @throws IllegalArgumentException if configuration is invalid
      */
     public void validate() {
-        if (sendHost == null || sendHost.isEmpty()) {
-            throw new IllegalArgumentException("Send host is required");
+        if (isClientMode()) {
+            // Client mode requires host addresses
+            if (sendHost == null || sendHost.isEmpty()) {
+                throw new IllegalArgumentException("Send host is required for client mode");
+            }
+            if (receiveHost == null || receiveHost.isEmpty()) {
+                throw new IllegalArgumentException("Receive host is required for client mode");
+            }
         }
+        // Port validation is always required
         if (sendPort <= 0 || sendPort > 65535) {
             throw new IllegalArgumentException("Invalid send port: " + sendPort);
-        }
-        if (receiveHost == null || receiveHost.isEmpty()) {
-            throw new IllegalArgumentException("Receive host is required");
         }
         if (receivePort <= 0 || receivePort > 65535) {
             throw new IllegalArgumentException("Invalid receive port: " + receivePort);

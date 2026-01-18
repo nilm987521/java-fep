@@ -150,6 +150,17 @@ public class ConnectionProfile {
     private int keepAliveInterval = 30000;
 
     /**
+     * Connection mode: CLIENT or SERVER.
+     * <ul>
+     *   <li>CLIENT: FEP connects to remote server (e.g., FEP → FISC)</li>
+     *   <li>SERVER: FEP listens for incoming connections (e.g., ATM → FEP)</li>
+     * </ul>
+     * Default: CLIENT
+     */
+    @Builder.Default
+    private String connectionMode = "CLIENT";
+
+    /**
      * Additional connection properties.
      * (e.g., institutionId, encoding settings, etc.)
      */
@@ -177,6 +188,7 @@ public class ConnectionProfile {
             @JsonProperty("poolSize") Integer poolSize,
             @JsonProperty("autoReconnect") Boolean autoReconnect,
             @JsonProperty("keepAliveInterval") Integer keepAliveInterval,
+            @JsonProperty("connectionMode") String connectionMode,
             @JsonProperty("properties") Map<String, String> properties) {
         this.profileId = profileId;
         this.host = host;
@@ -195,6 +207,7 @@ public class ConnectionProfile {
         this.poolSize = poolSize != null && poolSize > 0 ? poolSize : 1;
         this.autoReconnect = autoReconnect == null || autoReconnect;
         this.keepAliveInterval = keepAliveInterval != null ? keepAliveInterval : 30000;
+        this.connectionMode = connectionMode != null ? connectionMode : "CLIENT";
         this.properties = properties;
     }
 
@@ -230,6 +243,26 @@ public class ConnectionProfile {
      */
     public boolean isDualChannel() {
         return sendPort != receivePort && receivePort > 0;
+    }
+
+    /**
+     * Checks if this profile is configured for server mode.
+     * In server mode, FEP listens for incoming connections.
+     *
+     * @return true if server mode
+     */
+    public boolean isServerMode() {
+        return "SERVER".equalsIgnoreCase(connectionMode);
+    }
+
+    /**
+     * Checks if this profile is configured for client mode.
+     * In client mode, FEP connects to remote servers.
+     *
+     * @return true if client mode
+     */
+    public boolean isClientMode() {
+        return !"SERVER".equalsIgnoreCase(connectionMode);
     }
 
     /**

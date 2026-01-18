@@ -53,6 +53,22 @@
       "properties": {
         "institutionId": "999"
       }
+    },
+    "ATM_SERVER": {
+      "host": "0.0.0.0",
+      "sendPort": 19001,
+      "receivePort": 19002,
+      "connectTimeout": 3000,
+      "responseTimeout": 10000,
+      "heartbeatInterval": 30000,
+      "maxRetries": 1,
+      "retryDelay": 1000,
+      "sslEnabled": false,
+      "autoReconnect": false,
+      "connectionMode": "SERVER",
+      "properties": {
+        "institutionId": "822"
+      }
     }
   },
 
@@ -103,8 +119,8 @@
       }
     },
     "ATM_FISC_V1": {
-      "connectionProfile": "FISC_PRIMARY",
-      "description": "Taiwan FISC standard ATM message format",
+      "connectionProfile": "ATM_SERVER",
+      "description": "ATM connection endpoint - FEP listens for ATM connections",
       "active": true,
       "priority": 1,
       "schemas": {
