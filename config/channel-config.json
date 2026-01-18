@@ -3,16 +3,15 @@
   "version": "2.0",
   "lastModified": "2026-01-18T10:00:00Z",
   "description": "Unified channel connection configuration combining logical channels with physical connections",
-
   "connectionProfiles": {
     "FISC_PRIMARY": {
-      "host": "fisc.bank.com",
+      "host": "localhost",
       "sendPort": 9001,
       "receivePort": 9002,
       "connectTimeout": 5000,
       "responseTimeout": 30000,
       "heartbeatInterval": 60000,
-      "maxRetries": 3,
+      "maxRetries": 60,
       "retryDelay": 5000,
       "sslEnabled": false,
       "poolSize": 1,
@@ -21,22 +20,6 @@
       "properties": {
         "institutionId": "012",
         "macAlgorithm": "ANSI_X9_19"
-      }
-    },
-    "FISC_BACKUP": {
-      "host": "fisc-backup.bank.com",
-      "sendPort": 9001,
-      "receivePort": 9002,
-      "connectTimeout": 5000,
-      "responseTimeout": 30000,
-      "heartbeatInterval": 60000,
-      "maxRetries": 3,
-      "retryDelay": 5000,
-      "sslEnabled": false,
-      "poolSize": 1,
-      "autoReconnect": true,
-      "properties": {
-        "institutionId": "012"
       }
     },
     "LOCAL_TEST": {
@@ -57,7 +40,8 @@
     "ATM_SERVER": {
       "host": "0.0.0.0",
       "sendPort": 19001,
-      "receivePort": 19002,
+      "receivePort": 19001,
+      "dualChannel": false,
       "connectTimeout": 3000,
       "responseTimeout": 10000,
       "heartbeatInterval": 30000,
@@ -71,7 +55,6 @@
       }
     }
   },
-
   "channels": {
     "FISC_INTERBANK_V1": {
       "connectionProfile": "FISC_PRIMARY",
@@ -94,28 +77,6 @@
         "institutionId": "822",
         "macAlgorithm": "ANSI_X9_19",
         "transactionTimeout": "30000"
-      }
-    },
-    "FISC_INTERBANK_BACKUP": {
-      "connectionProfile": "FISC_BACKUP",
-      "description": "FISC interbank backup channel for failover",
-      "active": true,
-      "priority": 2,
-      "schemas": {
-        "0100": "FISC ATM Format",
-        "0110": "FISC ATM Format",
-        "0200": "FISC ATM Format",
-        "0210": "FISC ATM Format",
-        "0400": "FISC ATM Format",
-        "0410": "FISC ATM Format",
-        "0800": "FISC ATM Format",
-        "0810": "FISC ATM Format"
-      },
-      "properties": {
-        "encoding": "ASCII",
-        "macRequired": "true",
-        "institutionId": "822",
-        "isBackup": "true"
       }
     },
     "ATM_FISC_V1": {
@@ -156,7 +117,6 @@
       }
     }
   },
-
   "defaults": {
     "fallbackProfile": "LOCAL_TEST",
     "fallbackChannel": "LOCAL_TEST_V1",

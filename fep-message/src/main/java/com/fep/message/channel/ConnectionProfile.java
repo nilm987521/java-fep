@@ -150,6 +150,17 @@ public class ConnectionProfile {
     private int keepAliveInterval = 30000;
 
     /**
+     * Explicit dual-channel mode setting.
+     * <ul>
+     *   <li>true: Force dual-channel mode (separate send/receive ports)</li>
+     *   <li>false: Force single-channel mode (same port for send/receive)</li>
+     *   <li>null: Auto-detect based on sendPort vs receivePort</li>
+     * </ul>
+     * Default: null (auto-detect)
+     */
+    private Boolean dualChannel;
+
+    /**
      * Connection mode: CLIENT or SERVER.
      * <ul>
      *   <li>CLIENT: FEP connects to remote server (e.g., FEP → FISC)</li>
@@ -188,6 +199,7 @@ public class ConnectionProfile {
             @JsonProperty("poolSize") Integer poolSize,
             @JsonProperty("autoReconnect") Boolean autoReconnect,
             @JsonProperty("keepAliveInterval") Integer keepAliveInterval,
+            @JsonProperty("dualChannel") Boolean dualChannel,
             @JsonProperty("connectionMode") String connectionMode,
             @JsonProperty("properties") Map<String, String> properties) {
         this.profileId = profileId;
@@ -207,6 +219,7 @@ public class ConnectionProfile {
         this.poolSize = poolSize != null && poolSize > 0 ? poolSize : 1;
         this.autoReconnect = autoReconnect == null || autoReconnect;
         this.keepAliveInterval = keepAliveInterval != null ? keepAliveInterval : 30000;
+        this.dualChannel = dualChannel;
         this.connectionMode = connectionMode != null ? connectionMode : "CLIENT";
         this.properties = properties;
     }
@@ -237,12 +250,46 @@ public class ConnectionProfile {
 
     /**
      * Checks if this is a dual-channel configuration.
-     * Dual-channel means send and receive ports are different.
+     * <p>Uses the explicit dualChannel setting if provided,
+     * otherwise auto-detects based on sendPort vs receivePort.
      *
-     * @return true if send and receive ports are different
+     * @return true if dual-channel mode (separate send/receive ports)
      */
     public boolean isDualChannel() {
+        if (dualChannel != null) {
+            return dualChannel;
+        }
+        // Auto-detect: dual-channel if ports are different
         return sendPort != receivePort && receivePort > 0;
+    }
+
+    /**
+     * Checks if this is a single-channel configuration.
+     * Single-channel means same port for send and receive.
+     *
+     * @return true if single-channel mode
+     */
+    public boolean isSingleChannel() {
+        return !isDualChannel();
+    }
+
+    /**
+     * Gets the unified port for single-channel mode.
+     * In single-channel mode, sendPort is used as the unified port.
+     *
+     * @return the unified port (sendPort)
+     */
+    public int getSingleChannelPort() {
+        return sendPort;
+    }
+
+    /**
+     * Gets the explicit dual-channel setting.
+     *
+     * @return Boolean.TRUE if explicitly dual-channel, Boolean.FALSE if explicitly single-channel, null if auto-detect
+     */
+    public Boolean getDualChannelSetting() {
+        return dualChannel;
     }
 
     /**

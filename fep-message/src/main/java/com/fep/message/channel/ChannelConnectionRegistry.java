@@ -207,6 +207,8 @@ public class ChannelConnectionRegistry {
                                 .poolSize(profile.getPoolSize())
                                 .autoReconnect(profile.isAutoReconnect())
                                 .keepAliveInterval(profile.getKeepAliveInterval())
+                                .dualChannel(profile.getDualChannelSetting())
+                                .connectionMode(profile.getConnectionMode())
                                 .properties(profile.getProperties())
                                 .build();
                     }

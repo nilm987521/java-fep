@@ -1,5 +1,6 @@
 package com.fep.communication.config;
 
+import com.fep.message.generic.schema.MessageSchema;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.Setter;
@@ -118,6 +119,13 @@ public class DualChannelConfig {
     @Builder.Default
     private boolean enableGenericMessageTransform = false;
 
+    /**
+     * Message schema for GenericMessage parsing.
+     * When set, the decoder will use GenericMessageParser with this schema
+     * instead of the default FiscMessageParser.
+     */
+    private MessageSchema messageSchema;
+
     // ==================== Dual-Channel Specific Configuration ====================
 
     /**
@@ -209,15 +217,17 @@ public class DualChannelConfig {
             if (sendHost == null || sendHost.isEmpty()) {
                 throw new IllegalArgumentException("Send host is required for client mode");
             }
-            if (receiveHost == null || receiveHost.isEmpty()) {
-                throw new IllegalArgumentException("Receive host is required for client mode");
+            // Receive host is only required for dual-channel mode
+            if (isDualChannelMode() && (receiveHost == null || receiveHost.isEmpty())) {
+                throw new IllegalArgumentException("Receive host is required for dual-channel client mode");
             }
         }
-        // Port validation is always required
+        // Port validation - sendPort is always required
         if (sendPort <= 0 || sendPort > 65535) {
             throw new IllegalArgumentException("Invalid send port: " + sendPort);
         }
-        if (receivePort <= 0 || receivePort > 65535) {
+        // receivePort is only required in dual-channel mode
+        if (isDualChannelMode() && (receivePort <= 0 || receivePort > 65535)) {
             throw new IllegalArgumentException("Invalid receive port: " + receivePort);
         }
         if (connectTimeoutMs <= 0) {
@@ -226,6 +236,79 @@ public class DualChannelConfig {
         if (readTimeoutMs <= 0) {
             throw new IllegalArgumentException("Read timeout must be positive");
         }
+    }
+
+    /**
+     * Checks if this configuration is for dual-channel mode.
+     * Dual-channel mode means separate send and receive ports.
+     *
+     * @return true if dual-channel mode
+     */
+    public boolean isDualChannelMode() {
+        return dualChannelMode;
+    }
+
+    /**
+     * Checks if this configuration is for single-channel mode.
+     * Single-channel mode means unified port for send and receive.
+     *
+     * @return true if single-channel mode
+     */
+    public boolean isSingleChannelMode() {
+        return !dualChannelMode;
+    }
+
+    /**
+     * Gets the effective receive port.
+     * In single-channel mode, returns sendPort.
+     *
+     * @return the effective receive port
+     */
+    public int getEffectiveReceivePort() {
+        if (isSingleChannelMode()) {
+            return sendPort;
+        }
+        return receivePort;
+    }
+
+    /**
+     * Gets the effective receive host.
+     * In single-channel mode, returns sendHost.
+     *
+     * @return the effective receive host
+     */
+    public String getEffectiveReceiveHost() {
+        if (isSingleChannelMode()) {
+            return sendHost;
+        }
+        return receiveHost;
+    }
+
+    /**
+     * Gets the unified port for single-channel mode.
+     *
+     * @return the unified port (sendPort)
+     */
+    public int getUnifiedPort() {
+        return sendPort;
+    }
+
+    /**
+     * Gets the unified host for single-channel mode.
+     *
+     * @return the unified host (sendHost)
+     */
+    public String getUnifiedHost() {
+        return sendHost;
+    }
+
+    /**
+     * Gets the unified channel name for logging.
+     *
+     * @return unified channel name
+     */
+    public String getUnifiedChannelName() {
+        return (connectionName != null ? connectionName : "CHANNEL") + "-UNIFIED";
     }
 
     /**
@@ -277,6 +360,37 @@ public class DualChannelConfig {
             .receiveHost("localhost")
             .receivePort(9002)
             .connectionName("default")
+            .build();
+    }
+
+    /**
+     * Creates a DualChannelConfig from a ConnectionProfile.
+     *
+     * <p>Maps ConnectionProfile fields to DualChannelConfig fields.
+     *
+     * @param profile the connection profile
+     * @param channelId the channel ID for message schema resolution
+     * @return a new DualChannelConfig
+     */
+    public static DualChannelConfig fromConnectionProfile(
+            com.fep.message.channel.ConnectionProfile profile,
+            String channelId) {
+        return DualChannelConfig.builder()
+            .sendHost(profile.getHost())
+            .sendPort(profile.getSendPort())
+            .receiveHost(profile.getHost())
+            .receivePort(profile.getEffectiveReceivePort())
+            .connectTimeoutMs(profile.getConnectTimeout())
+            .readTimeoutMs(profile.getResponseTimeout())
+            .heartbeatIntervalMs(profile.getHeartbeatInterval())
+            .maxRetryAttempts(profile.getMaxRetries())
+            .retryDelayMs(profile.getRetryDelay())
+            .autoReconnect(profile.isAutoReconnect())
+            .connectionMode(profile.isServerMode() ? ConnectionMode.SERVER : ConnectionMode.CLIENT)
+            .connectionName(profile.getProfileId())
+            .channelId(channelId)
+            .dualChannelMode(profile.isDualChannel())
+            .institutionId(profile.getProperty("institutionId"))
             .build();
     }
 

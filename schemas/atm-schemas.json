@@ -29,9 +29,9 @@
         {
           "id": "bitmap",
           "name": "Primary Bitmap",
-          "description": "Primary bitmap (64 bits)",
+          "description": "Primary bitmap (64 bits = 8 bytes)",
           "type": "BITMAP",
-          "length": 8,
+          "length": 64,
           "encoding": "BINARY",
           "controls": ["pan", "processingCode", "amount", "stan", "localTime", "localDate", "expiryDate", "posEntryMode", "cardSequence", "functionCode", "posConditionCode", "acquiringInstitution", "rrn", "authCode", "responseCode", "terminalId", "merchantId", "cardAcceptorName", "currencyCode", "pinBlock", "additionalData", "sourceAccount", "destAccount"]
         },

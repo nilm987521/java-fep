@@ -4,12 +4,18 @@ import com.fep.communication.client.DualChannelState;
 import com.fep.communication.client.FiscDualChannelClient;
 import com.fep.communication.config.ConnectionMode;
 import com.fep.communication.config.DualChannelConfig;
+import com.fep.communication.handler.DefaultServerMessageContext;
+import com.fep.communication.handler.DefaultServerMessageHandler;
+import com.fep.communication.handler.ServerMessageHandler;
 import com.fep.communication.server.FiscDualChannelServer;
 import com.fep.message.channel.ChannelConnection;
 import com.fep.message.channel.ChannelConnectionRegistry;
+import com.fep.message.channel.ChannelSchemaRegistry;
 import com.fep.message.channel.ConnectionProfile;
+import com.fep.message.generic.schema.MessageSchema;
 import com.fep.message.interfaces.ConnectionSubscriber;
 import com.fep.message.service.ChannelMessageService;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 import jakarta.annotation.PostConstruct;
@@ -91,6 +97,10 @@ public class DynamicConnectionManager implements ConnectionSubscriber {
     private volatile boolean autoSignOn = true;
     private volatile long gracefulShutdownTimeoutMs = 10000L;
 
+    /** Handler for processing messages received by servers */
+    @Setter
+    private ServerMessageHandler serverMessageHandler;
+
     /**
      * Creates a new DynamicConnectionManager.
      *
@@ -116,7 +126,19 @@ public class DynamicConnectionManager implements ConnectionSubscriber {
      */
     @PostConstruct
     public void init() {
+        // Initialize default server message handler BEFORE subscribing
+        // because subscribe() may trigger syncConnections() immediately
+        if (serverMessageHandler == null) {
+            DefaultServerMessageHandler defaultHandler = new DefaultServerMessageHandler();
+            // Provide FISC client lookup for forwarding transactions
+            defaultHandler.setFiscClientProvider(channelId -> getConnection(channelId).orElse(null));
+            serverMessageHandler = defaultHandler;
+            log.info("Initialized default ServerMessageHandler");
+        }
+
+        // Now subscribe - this may trigger onConnectionsUpdated() → syncConnections()
         registry.subscribe(this);
+
         log.info("DynamicConnectionManager initialized and subscribed to ChannelConnectionRegistry");
     }
 
@@ -693,6 +715,27 @@ public class DynamicConnectionManager implements ConnectionSubscriber {
 
         FiscDualChannelServer server = new FiscDualChannelServer(dualConfig);
         server.setChannelMessageService(channelMessageService);
+
+        // Set message handler to process incoming requests
+        log.info("Setting up messageHandler for server {}: serverMessageHandler is {}",
+                channelId, serverMessageHandler != null ? "SET" : "NULL");
+        if (serverMessageHandler != null) {
+            server.setMessageHandler((clientId, message) -> {
+                log.info("MessageHandler lambda invoked for channel={}, client={}, MTI={}",
+                        channelId, clientId, message.getMti());
+                ServerMessageHandler.ServerMessageContext context = DefaultServerMessageContext.builder()
+                        .channelId(channelId)
+                        .clientId(clientId)
+                        .message(message)
+                        .server(server)
+                        .build();
+                serverMessageHandler.handleMessage(context);
+            });
+            log.info("Configured message handler for server: {}", channelId);
+        } else {
+            log.warn("serverMessageHandler is NULL, server {} will not process messages!", channelId);
+        }
+
         boolean startSuccessful = false;
 
         try {
@@ -739,47 +782,40 @@ public class DynamicConnectionManager implements ConnectionSubscriber {
 
     /**
      * Creates and connects a new client (CLIENT mode) with explicit profile.
+     *
+     * <p>Even if initial connection fails, the client is still stored in the connections map
+     * because it has auto-reconnect capability and will retry in the background.
      */
     private FiscDualChannelClient createAndConnectClient(String channelId, ChannelConnection config,
                                                           ConnectionProfile profile) {
         DualChannelConfig dualConfig = buildDualChannelConfig(channelId, config, profile);
         FiscDualChannelClient client = new FiscDualChannelClient(dualConfig, channelMessageService);
-        boolean connectionSuccessful = false;
 
-        try {
-            if (autoConnect) {
-                try {
-                    client.connect().get(dualConfig.getConnectTimeoutMs() * 2L, TimeUnit.MILLISECONDS);
-                    log.info("Connection established for channel: {}", channelId);
+        // Always store the client first (it has auto-reconnect capability)
+        clientConnections.put(channelId, client);
+        notifyConnectionAdded(channelId, client);
+        log.info("Created client for channel: {} (autoReconnect={})", channelId, dualConfig.isAutoReconnect());
 
-                    if (autoSignOn) {
-                        client.signOn().get(dualConfig.getReadTimeoutMs(), TimeUnit.MILLISECONDS);
-                        log.info("Sign-on completed for channel: {}", channelId);
-                    }
-                } catch (InterruptedException e) {
-                    Thread.currentThread().interrupt(); // Restore interrupt status
-                    throw new IllegalStateException("Connection interrupted: " + channelId, e);
-                } catch (java.util.concurrent.ExecutionException | java.util.concurrent.TimeoutException e) {
-                    log.error("Failed to connect/sign-on channel {}: {}", channelId, e.getMessage());
-                    throw new IllegalStateException("Failed to establish connection: " + channelId, e);
+        if (autoConnect) {
+            try {
+                client.connect().get(dualConfig.getConnectTimeoutMs() * 2L, TimeUnit.MILLISECONDS);
+                log.info("Connection established for channel: {}", channelId);
+
+                if (autoSignOn) {
+                    client.signOn().get(dualConfig.getReadTimeoutMs(), TimeUnit.MILLISECONDS);
+                    log.info("Sign-on completed for channel: {}", channelId);
                 }
-            }
-
-            clientConnections.put(channelId, client);
-            notifyConnectionAdded(channelId, client);
-            connectionSuccessful = true;
-
-            return client;
-        } finally {
-            if (!connectionSuccessful) {
-                try {
-                    client.close();
-                } catch (Exception e) {
-                    log.warn("Error closing failed connection {}: {}", channelId, e.getMessage());
-                }
-                notifyConnectionFailed(channelId, new Exception("Connection setup failed for: " + channelId));
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                log.warn("Connection interrupted for channel: {} (will auto-reconnect)", channelId);
+            } catch (java.util.concurrent.ExecutionException | java.util.concurrent.TimeoutException e) {
+                // Don't remove the client - it will auto-reconnect in the background
+                log.warn("Initial connection failed for channel {}: {} (auto-reconnect enabled, will retry)",
+                        channelId, e.getMessage());
             }
         }
+
+        return client;
     }
 
     /**
@@ -787,6 +823,9 @@ public class DynamicConnectionManager implements ConnectionSubscriber {
      */
     private DualChannelConfig buildDualChannelConfig(String channelId, ChannelConnection config,
                                                      ConnectionProfile profile) {
+        // Try to load schema for GenericMessageDecoder
+        MessageSchema messageSchema = loadMessageSchema(channelId);
+
         return DualChannelConfig.builder()
                 .channelId(channelId)
                 .connectionName(channelId)
@@ -802,7 +841,28 @@ public class DynamicConnectionManager implements ConnectionSubscriber {
                 .autoReconnect(profile.isAutoReconnect())
                 .institutionId(config.getInstitutionId())
                 .enableGenericMessageTransform(channelMessageService != null)
+                .dualChannelMode(profile.isDualChannel())
+                .messageSchema(messageSchema)
                 .build();
+    }
+
+    /**
+     * Loads the MessageSchema for a channel from ChannelSchemaRegistry.
+     * Returns null if schema cannot be loaded (falls back to FiscMessageDecoder).
+     */
+    private MessageSchema loadMessageSchema(String channelId) {
+        try {
+            ChannelSchemaRegistry schemaRegistry = ChannelSchemaRegistry.getInstance();
+            MessageSchema schema = schemaRegistry.getDefaultRequestSchema(channelId);
+            if (schema != null) {
+                log.info("Loaded MessageSchema '{}' for channel: {}", schema.getName(), channelId);
+            }
+            return schema;
+        } catch (Exception e) {
+            log.debug("Could not load MessageSchema for channel {}: {} (will use default FiscMessageDecoder)",
+                    channelId, e.getMessage());
+            return null;
+        }
     }
 
     /**

@@ -131,12 +131,9 @@ public class JsonSchemaLoader {
             try {
                 String json = Files.readString(path);
                 JsonNode root = objectMapper.readTree(json);
+                JsonNode schemasNode = extractSchemasNodeFromPath(root, path);
 
-                if (root == null || !root.isArray()) {
-                    throw MessageException.parseError("Schema collection file must contain an array: " + path);
-                }
-
-                for (JsonNode schemaNode : root) {
+                for (JsonNode schemaNode : schemasNode) {
                     String name = schemaNode.has("name") ? schemaNode.get("name").asText() : null;
                     if (schemaName.equals(name)) {
                         MessageSchema schema = objectMapper.treeToValue(schemaNode, MessageSchema.class);
@@ -151,6 +148,23 @@ public class JsonSchemaLoader {
                 throw MessageException.parseError("Failed to load schema from collection file: " + path + " - " + e.getMessage());
             }
         });
+    }
+
+    /**
+     * Extracts the schemas array node from the root JSON (Path version).
+     */
+    private static JsonNode extractSchemasNodeFromPath(JsonNode root, Path path) {
+        if (root == null) {
+            throw MessageException.parseError("Schema collection file is empty: " + path);
+        }
+        if (root.isArray()) {
+            return root;
+        }
+        if (root.isObject() && root.has("schemas") && root.get("schemas").isArray()) {
+            return root.get("schemas");
+        }
+        throw MessageException.parseError(
+                "Schema collection file must contain an array or object with 'schemas' array: " + path);
     }
 
     /**
@@ -206,20 +220,36 @@ public class JsonSchemaLoader {
 
         try {
             JsonNode root = objectMapper.readTree(jsonFile);
-            // 規劃所有的 schema 都要放在一個json檔內，所以必須使用ArrayNode
-            if (!root.isArray()) {
-                throw MessageException.parseError("Schema json file must contain an array: " + filePath);
-            }
-            for (JsonNode schemaNode : root) {
+            JsonNode schemasNode = extractSchemasNode(root, filePath);
+
+            for (JsonNode schemaNode : schemasNode) {
                 String name = schemaNode.has("name") ? schemaNode.get("name").asText() : null;
                 MessageSchema schema = objectMapper.treeToValue(schemaNode, MessageSchema.class);
                 validateSchema(schema);
                 schemaCache.put(name, schema);
             }
+            log.info("Loaded {} schemas from {}", schemaCache.size(), filePath);
             publishSchemaMap();
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
+    }
+
+    /**
+     * Extracts the schemas array node from the root JSON.
+     * Supports two formats:
+     * 1. Direct array: [{...}, {...}]
+     * 2. Object with schemas property: { "schemas": [{...}, {...}] }
+     */
+    private static JsonNode extractSchemasNode(JsonNode root, String filePath) {
+        if (root.isArray()) {
+            return root;
+        }
+        if (root.isObject() && root.has("schemas") && root.get("schemas").isArray()) {
+            return root.get("schemas");
+        }
+        throw MessageException.parseError(
+                "Schema json file must contain an array or object with 'schemas' array: " + filePath);
     }
 
     public static Map<String, MessageSchema> getSchemaMap() {

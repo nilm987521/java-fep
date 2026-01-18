@@ -1,13 +1,17 @@
 package com.fep.communication.config;
 
 import com.fep.communication.manager.DynamicConnectionManager;
+import com.fep.message.channel.ChannelConnectionConfiguration;
 import com.fep.message.channel.ChannelConnectionRegistry;
+import com.fep.message.channel.ChannelSchemaConfiguration;
 import com.fep.message.service.ChannelMessageService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.autoconfigure.AutoConfigureAfter;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.DependsOn;
 
 /**
  * Spring Configuration for Dynamic Connection Management.
@@ -44,6 +48,7 @@ import org.springframework.context.annotation.Configuration;
 @Slf4j
 @Configuration
 @ConditionalOnProperty(name = "fep.connection.dynamic-management.enabled", havingValue = "true", matchIfMissing = false)
+@AutoConfigureAfter({ChannelSchemaConfiguration.class, ChannelConnectionConfiguration.class})
 public class DynamicConnectionConfiguration {
 
     @Value("${fep.connection.auto-connect:true}")
@@ -66,6 +71,7 @@ public class DynamicConnectionConfiguration {
      * @return configured DynamicConnectionManager
      */
     @Bean
+    @DependsOn("channelSchemaRegistry")
     public DynamicConnectionManager dynamicConnectionManager(
             ChannelConnectionRegistry registry,
             @org.springframework.beans.factory.annotation.Autowired(required = false)

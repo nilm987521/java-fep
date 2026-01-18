@@ -7,6 +7,7 @@ import com.fep.communication.config.DualChannelConfig;
 import com.fep.communication.exception.CommunicationException;
 import com.fep.communication.handler.ReceiveChannelHandler;
 import com.fep.communication.handler.SendChannelHandler;
+import com.fep.communication.handler.UnifiedChannelHandler;
 import com.fep.communication.manager.PendingRequestManager;
 import com.fep.message.iso8583.Iso8583Message;
 import com.fep.message.iso8583.Iso8583MessageFactory;
@@ -99,6 +100,11 @@ public class FiscDualChannelClient implements AutoCloseable {
     private volatile ReceiveChannelHandler receiveHandler;
     private final Bootstrap receiveBootstrap;
 
+    // Unified Channel (for single-channel mode)
+    private volatile Channel unifiedChannel;
+    private volatile UnifiedChannelHandler unifiedHandler;
+    private final Bootstrap unifiedBootstrap;
+
     // State management
     @Getter
     private volatile DualChannelState state = DualChannelState.DISCONNECTED;
@@ -143,11 +149,20 @@ public class FiscDualChannelClient implements AutoCloseable {
         this.workerGroup = new NioEventLoopGroup();
         this.scheduler = workerGroup;
 
-        this.sendBootstrap = createBootstrap(ChannelRole.SEND);
-        this.receiveBootstrap = createBootstrap(ChannelRole.RECEIVE);
-
-        log.info("[{}] FiscDualChannelClient initialized (channelId={}, genericMessageTransform={})",
-            config.getConnectionName(), config.getChannelId(), config.isEnableGenericMessageTransform());
+        // Initialize bootstraps based on mode
+        if (config.isDualChannelMode()) {
+            this.sendBootstrap = createBootstrap(ChannelRole.SEND);
+            this.receiveBootstrap = createBootstrap(ChannelRole.RECEIVE);
+            this.unifiedBootstrap = null;
+            log.info("[{}] FiscDualChannelClient initialized in DUAL-CHANNEL mode (channelId={}, sendPort={}, receivePort={})",
+                config.getConnectionName(), config.getChannelId(), config.getSendPort(), config.getReceivePort());
+        } else {
+            this.sendBootstrap = null;
+            this.receiveBootstrap = null;
+            this.unifiedBootstrap = createUnifiedBootstrap();
+            log.info("[{}] FiscDualChannelClient initialized in SINGLE-CHANNEL mode (channelId={}, unifiedPort={})",
+                config.getConnectionName(), config.getChannelId(), config.getUnifiedPort());
+        }
     }
 
     /**
@@ -228,28 +243,86 @@ public class FiscDualChannelClient implements AutoCloseable {
             });
     }
 
+    /**
+     * Creates a Netty bootstrap for unified single-channel mode.
+     */
+    private Bootstrap createUnifiedBootstrap() {
+        return new Bootstrap()
+            .group(workerGroup)
+            .channel(NioSocketChannel.class)
+            .option(ChannelOption.SO_KEEPALIVE, config.isTcpKeepAlive())
+            .option(ChannelOption.TCP_NODELAY, config.isTcpNoDelay())
+            .option(ChannelOption.SO_RCVBUF, config.getReceiveBufferSize())
+            .option(ChannelOption.SO_SNDBUF, config.getSendBufferSize())
+            .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, config.getConnectTimeoutMs())
+            .handler(new ChannelInitializer<SocketChannel>() {
+                @Override
+                protected void initChannel(SocketChannel ch) {
+                    ChannelPipeline pipeline = ch.pipeline();
+
+                    // Idle state handler - monitor both read and write for unified channel
+                    int idleSeconds = config.getIdleTimeoutMs() / 1000;
+                    pipeline.addLast("idleStateHandler",
+                        new IdleStateHandler(idleSeconds * 2, idleSeconds, 0));
+
+                    // Message codec
+                    pipeline.addLast("decoder", new FiscMessageDecoder());
+                    pipeline.addLast("encoder", new FiscMessageEncoder());
+
+                    // Unified handler
+                    unifiedHandler = new UnifiedChannelHandler(
+                        config.getUnifiedChannelName(),
+                        pendingRequestManager,
+                        listener,
+                        FiscDualChannelClient.this::onUnifiedChannelStateChanged,
+                        unsolicitedMessageHandler,
+                        channelMessageService,
+                        config.getChannelId(),
+                        config.isEnableGenericMessageTransform()
+                    );
+                    pipeline.addLast("handler", unifiedHandler);
+                }
+            });
+    }
+
     // ==================== Connection Management ====================
 
     /**
-     * Connects both channels to FISC.
+     * Connects channels based on the configured mode.
+     * In dual-channel mode, connects both send and receive channels.
+     * In single-channel mode, connects the unified channel.
      *
-     * @return CompletableFuture that completes when both channels are connected
+     * @return CompletableFuture that completes when connected
      */
     public CompletableFuture<Void> connect() {
-        log.info("[{}] Connecting dual channels", config.getConnectionName());
         updateState(DualChannelState.CONNECTING);
 
-        return CompletableFuture.allOf(
-            connectSendChannel(),
-            connectReceiveChannel()
-        ).thenRun(() -> {
-            updateState(DualChannelState.BOTH_CONNECTED);
-            log.info("[{}] Both channels connected", config.getConnectionName());
-        }).exceptionally(ex -> {
-            log.error("[{}] Failed to connect channels: {}", config.getConnectionName(), ex.getMessage());
-            handleConnectionFailure();
-            throw new RuntimeException(ex);
-        });
+        if (config.isDualChannelMode()) {
+            log.info("[{}] Connecting dual channels", config.getConnectionName());
+            return CompletableFuture.allOf(
+                connectSendChannel(),
+                connectReceiveChannel()
+            ).thenRun(() -> {
+                updateState(DualChannelState.BOTH_CONNECTED);
+                log.info("[{}] Both channels connected", config.getConnectionName());
+            }).exceptionally(ex -> {
+                log.error("[{}] Failed to connect channels: {}", config.getConnectionName(), ex.getMessage());
+                handleConnectionFailure();
+                throw new RuntimeException(ex);
+            });
+        } else {
+            log.info("[{}] Connecting unified channel", config.getConnectionName());
+            return connectUnifiedChannel()
+                .thenRun(() -> {
+                    updateState(DualChannelState.BOTH_CONNECTED);
+                    log.info("[{}] Unified channel connected", config.getConnectionName());
+                })
+                .exceptionally(ex -> {
+                    log.error("[{}] Failed to connect unified channel: {}", config.getConnectionName(), ex.getMessage());
+                    handleConnectionFailure();
+                    throw new RuntimeException(ex);
+                });
+        }
     }
 
     /**
@@ -268,6 +341,36 @@ public class FiscDualChannelClient implements AutoCloseable {
      */
     public CompletableFuture<Void> connectReceiveChannel() {
         return connectChannel(ChannelRole.RECEIVE, config.getReceiveHost(), config.getReceivePort(), false);
+    }
+
+    /**
+     * Connects the unified channel (for single-channel mode).
+     *
+     * @return CompletableFuture that completes when connected
+     */
+    public CompletableFuture<Void> connectUnifiedChannel() {
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        String channelName = config.getUnifiedChannelName();
+        String host = config.getUnifiedHost();
+        int port = config.getUnifiedPort();
+
+        log.info("[{}] Connecting to {}:{}", channelName, host, port);
+
+        unifiedBootstrap.connect(host, port).addListener((ChannelFutureListener) connectFuture -> {
+            if (connectFuture.isSuccess()) {
+                unifiedChannel = connectFuture.channel();
+                sendReconnectAttempts.set(0);
+                receiveReconnectAttempts.set(0);
+                log.info("[{}] Connected successfully", channelName);
+                future.complete(null);
+            } else {
+                Throwable cause = connectFuture.cause();
+                log.error("[{}] Connection failed: {}", channelName, cause.getMessage());
+                future.completeExceptionally(CommunicationException.connectionFailed(host, port, cause));
+            }
+        });
+
+        return future;
     }
 
     /**
@@ -324,12 +427,12 @@ public class FiscDualChannelClient implements AutoCloseable {
     }
 
     /**
-     * Performs sign-on via both channels.
+     * Performs sign-on.
      *
      * @return CompletableFuture that completes with the response
      */
     public CompletableFuture<Iso8583Message> signOn() {
-        log.info("[{}] Signing on to FISC", config.getConnectionName());
+        log.info("[{}] Signing on", config.getConnectionName());
 
         Iso8583Message signOnRequest = messageFactory.createSignOnMessage();
         return sendAndReceive(signOnRequest)
@@ -337,8 +440,12 @@ public class FiscDualChannelClient implements AutoCloseable {
                 String responseCode = response.getFieldAsString(39);
                 if ("00".equals(responseCode)) {
                     log.info("[{}] Sign-on successful", config.getConnectionName());
-                    if (sendHandler != null) sendHandler.setSignedOn();
-                    if (receiveHandler != null) receiveHandler.setSignedOn();
+                    if (config.isDualChannelMode()) {
+                        if (sendHandler != null) sendHandler.setSignedOn();
+                        if (receiveHandler != null) receiveHandler.setSignedOn();
+                    } else {
+                        if (unifiedHandler != null) unifiedHandler.setSignedOn();
+                    }
                     updateState(DualChannelState.SIGNED_ON);
                     startHeartbeat();
                 } else {
@@ -392,9 +499,20 @@ public class FiscDualChannelClient implements AutoCloseable {
      * @return CompletableFuture that completes with the response
      */
     public CompletableFuture<Iso8583Message> sendAndReceive(Iso8583Message request, long timeoutMs) {
-        if (sendChannel == null || !sendChannel.isActive()) {
+        // Determine which channel to use
+        Channel outChannel;
+        String channelName;
+        if (config.isDualChannelMode()) {
+            outChannel = sendChannel;
+            channelName = config.getSendChannelName();
+        } else {
+            outChannel = unifiedChannel;
+            channelName = config.getUnifiedChannelName();
+        }
+
+        if (outChannel == null || !outChannel.isActive()) {
             return CompletableFuture.failedFuture(
-                CommunicationException.channelClosed("Send channel is not connected"));
+                CommunicationException.channelClosed("Channel is not connected"));
         }
 
         // Ensure transaction fields are set
@@ -408,16 +526,16 @@ public class FiscDualChannelClient implements AutoCloseable {
         CompletableFuture<Iso8583Message> responseFuture =
             pendingRequestManager.register(stan, timeoutMs);
 
-        // Send via Send Channel (fire-and-forget)
-        sendChannel.writeAndFlush(request).addListener((ChannelFutureListener) writeFuture -> {
+        // Send via appropriate channel (fire-and-forget)
+        outChannel.writeAndFlush(request).addListener((ChannelFutureListener) writeFuture -> {
             if (!writeFuture.isSuccess()) {
                 // Cancel pending request on send failure
                 pendingRequestManager.cancel(stan, writeFuture.cause());
                 log.error("[{}] Failed to send message STAN={}: {}",
-                    config.getSendChannelName(), stan, writeFuture.cause().getMessage());
+                    channelName, stan, writeFuture.cause().getMessage());
             } else {
                 log.debug("[{}] Message sent: MTI={}, STAN={}",
-                    config.getSendChannelName(), request.getMti(), stan);
+                    channelName, request.getMti(), stan);
             }
         });
 
@@ -431,13 +549,21 @@ public class FiscDualChannelClient implements AutoCloseable {
      * @return CompletableFuture that completes when sent
      */
     public CompletableFuture<Void> send(Iso8583Message message) {
-        if (sendChannel == null || !sendChannel.isActive()) {
+        // Determine which channel to use
+        Channel outChannel;
+        if (config.isDualChannelMode()) {
+            outChannel = sendChannel;
+        } else {
+            outChannel = unifiedChannel;
+        }
+
+        if (outChannel == null || !outChannel.isActive()) {
             return CompletableFuture.failedFuture(
-                CommunicationException.channelClosed("Send channel is not connected"));
+                CommunicationException.channelClosed("Channel is not connected"));
         }
 
         CompletableFuture<Void> future = new CompletableFuture<>();
-        sendChannel.writeAndFlush(message).addListener((ChannelFutureListener) writeFuture -> {
+        outChannel.writeAndFlush(message).addListener((ChannelFutureListener) writeFuture -> {
             if (writeFuture.isSuccess()) {
                 future.complete(null);
             } else {
@@ -520,6 +646,61 @@ public class FiscDualChannelClient implements AutoCloseable {
     }
 
     /**
+     * Called when Unified channel state changes (for single-channel mode).
+     */
+    private void onUnifiedChannelStateChanged(ConnectionState newState) {
+        log.debug("[{}] Unified channel state: {}", config.getUnifiedChannelName(), newState);
+
+        if (newState == ConnectionState.DISCONNECTED) {
+            log.warn("[{}] Unified channel disconnected", config.getConnectionName());
+            updateState(DualChannelState.FAILED);
+            pendingRequestManager.cancelAll(
+                CommunicationException.channelClosed("Unified channel disconnected"));
+
+            // Schedule reconnection if enabled
+            if (config.isAutoReconnect() && state != DualChannelState.CLOSED) {
+                scheduleUnifiedReconnect();
+            }
+        }
+    }
+
+    /**
+     * Schedules a reconnection attempt for unified channel.
+     */
+    private void scheduleUnifiedReconnect() {
+        int attempt = sendReconnectAttempts.incrementAndGet();
+
+        if (attempt > config.getMaxRetryAttempts()) {
+            log.error("[{}] Max reconnect attempts ({}) exceeded for unified channel",
+                config.getConnectionName(), config.getMaxRetryAttempts());
+            return;
+        }
+
+        String channelName = config.getUnifiedChannelName();
+        log.info("[{}] Scheduling unified channel reconnect attempt {} in {}ms",
+            channelName, attempt, config.getRetryDelayMs());
+
+        if (listener != null) {
+            listener.onReconnecting(channelName, attempt);
+        }
+
+        scheduler.schedule(() -> {
+            connectUnifiedChannel()
+                .thenRun(() -> {
+                    signOn().exceptionally(ex -> {
+                        log.error("[{}] Re-sign-on failed: {}", config.getConnectionName(), ex.getMessage());
+                        return null;
+                    });
+                })
+                .exceptionally(ex -> {
+                    log.error("[{}] Reconnect failed: {}", channelName, ex.getMessage());
+                    scheduleUnifiedReconnect();
+                    return null;
+                });
+        }, config.getRetryDelayMs(), TimeUnit.MILLISECONDS);
+    }
+
+    /**
      * Handles a channel failure based on the configured strategy.
      */
     private void handleChannelFailure(ChannelRole role) {
@@ -565,11 +746,25 @@ public class FiscDualChannelClient implements AutoCloseable {
 
     /**
      * Handles overall connection failure.
+     * Now includes automatic reconnection when enabled.
      */
     private void handleConnectionFailure() {
         updateState(DualChannelState.FAILED);
         pendingRequestManager.cancelAll(
             CommunicationException.channelClosed("Connection failed"));
+
+        // Schedule reconnection if enabled (handles initial connection failure)
+        if (config.isAutoReconnect() && state != DualChannelState.CLOSED) {
+            log.info("[{}] Initial connection failed, scheduling reconnection...", config.getConnectionName());
+            if (config.isDualChannelMode()) {
+                // For dual-channel mode, reconnect both channels
+                scheduleReconnect(ChannelRole.SEND);
+                scheduleReconnect(ChannelRole.RECEIVE);
+            } else {
+                // For single-channel mode, reconnect unified channel
+                scheduleUnifiedReconnect();
+            }
+        }
     }
 
     /**
@@ -659,7 +854,7 @@ public class FiscDualChannelClient implements AutoCloseable {
     // ==================== Status Methods ====================
 
     /**
-     * Checks if Send channel is connected.
+     * Checks if Send channel is connected (dual-channel mode only).
      *
      * @return true if connected
      */
@@ -668,7 +863,7 @@ public class FiscDualChannelClient implements AutoCloseable {
     }
 
     /**
-     * Checks if Receive channel is connected.
+     * Checks if Receive channel is connected (dual-channel mode only).
      *
      * @return true if connected
      */
@@ -677,12 +872,27 @@ public class FiscDualChannelClient implements AutoCloseable {
     }
 
     /**
-     * Checks if both channels are connected.
+     * Checks if Unified channel is connected (single-channel mode only).
      *
-     * @return true if both connected
+     * @return true if connected
+     */
+    public boolean isUnifiedChannelConnected() {
+        return unifiedChannel != null && unifiedChannel.isActive();
+    }
+
+    /**
+     * Checks if the client is connected.
+     * In dual-channel mode, checks both send and receive channels.
+     * In single-channel mode, checks the unified channel.
+     *
+     * @return true if connected
      */
     public boolean isConnected() {
-        return isSendChannelConnected() && isReceiveChannelConnected();
+        if (config.isDualChannelMode()) {
+            return isSendChannelConnected() && isReceiveChannelConnected();
+        } else {
+            return isUnifiedChannelConnected();
+        }
     }
 
     /**
@@ -733,23 +943,34 @@ public class FiscDualChannelClient implements AutoCloseable {
     // ==================== Disconnect and Close ====================
 
     /**
-     * Disconnects both channels.
+     * Disconnects channel(s).
+     * In dual-channel mode, disconnects both send and receive channels.
+     * In single-channel mode, disconnects the unified channel.
      *
      * @return CompletableFuture that completes when disconnected
      */
     public CompletableFuture<Void> disconnect() {
-        log.info("[{}] Disconnecting dual channels", config.getConnectionName());
         updateState(DualChannelState.CLOSING);
         stopHeartbeat();
 
-        CompletableFuture<Void> sendClose = disconnectChannel(sendChannel, config.getSendChannelName());
-        CompletableFuture<Void> recvClose = disconnectChannel(receiveChannel, config.getReceiveChannelName());
+        if (config.isDualChannelMode()) {
+            log.info("[{}] Disconnecting dual channels", config.getConnectionName());
+            CompletableFuture<Void> sendClose = disconnectChannel(sendChannel, config.getSendChannelName());
+            CompletableFuture<Void> recvClose = disconnectChannel(receiveChannel, config.getReceiveChannelName());
 
-        return CompletableFuture.allOf(sendClose, recvClose)
-            .thenRun(() -> {
-                updateState(DualChannelState.DISCONNECTED);
-                log.info("[{}] Both channels disconnected", config.getConnectionName());
-            });
+            return CompletableFuture.allOf(sendClose, recvClose)
+                .thenRun(() -> {
+                    updateState(DualChannelState.DISCONNECTED);
+                    log.info("[{}] Both channels disconnected", config.getConnectionName());
+                });
+        } else {
+            log.info("[{}] Disconnecting unified channel", config.getConnectionName());
+            return disconnectChannel(unifiedChannel, config.getUnifiedChannelName())
+                .thenRun(() -> {
+                    updateState(DualChannelState.DISCONNECTED);
+                    log.info("[{}] Unified channel disconnected", config.getConnectionName());
+                });
+        }
     }
 
     /**

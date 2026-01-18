@@ -1,0 +1,448 @@
+package com.fep.communication.handler;
+
+import com.fep.communication.client.ConnectionListener;
+import com.fep.communication.client.ConnectionState;
+import com.fep.communication.manager.PendingRequestManager;
+import com.fep.message.generic.message.GenericMessage;
+import com.fep.message.iso8583.Iso8583Message;
+import com.fep.message.service.ChannelMessageService;
+import io.netty.channel.ChannelDuplexHandler;
+import io.netty.channel.ChannelHandlerContext;
+import io.netty.channel.ChannelPromise;
+import io.netty.handler.timeout.IdleState;
+import io.netty.handler.timeout.IdleStateEvent;
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
+
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.function.BiConsumer;
+import java.util.function.Consumer;
+
+/**
+ * Netty handler for unified single-channel communication.
+ *
+ * <p>In single-channel mode, both sending and receiving happen on the same connection.
+ * This handler combines the functionality of SendChannelHandler and ReceiveChannelHandler.
+ *
+ * <p>Responsibilities:
+ * <ul>
+ *   <li>Send all outgoing messages (requests)</li>
+ *   <li>Receive all incoming messages (responses)</li>
+ *   <li>Match responses to pending requests via PendingRequestManager</li>
+ *   <li>Handle unsolicited messages</li>
+ *   <li>Track connection state</li>
+ *   <li>Handle idle events for heartbeat triggering</li>
+ * </ul>
+ *
+ * <p>This is used for ATM connections where a single TCP connection handles bidirectional communication.
+ */
+@Slf4j
+public class UnifiedChannelHandler extends ChannelDuplexHandler {
+
+    private final String connectionName;
+    private final PendingRequestManager pendingRequestManager;
+    private final ConnectionListener listener;
+    private final Consumer<ConnectionState> stateCallback;
+
+    /** Callback for unsolicited messages */
+    private final BiConsumer<String, Iso8583Message> unsolicitedMessageHandler;
+
+    /** Channel message service for schema-based message processing */
+    private final ChannelMessageService channelMessageService;
+
+    /** Channel ID for schema resolution */
+    private final String channelId;
+
+    /** Whether to enable GenericMessage transformation */
+    private final boolean enableGenericMessageTransform;
+
+    @Getter
+    private volatile ConnectionState state = ConnectionState.DISCONNECTED;
+
+    /** Statistics: messages sent */
+    private final AtomicLong messagesSent = new AtomicLong(0);
+
+    /** Statistics: messages received */
+    private final AtomicLong messagesReceived = new AtomicLong(0);
+
+    /** Statistics: messages matched */
+    private final AtomicLong messagesMatched = new AtomicLong(0);
+
+    /** Statistics: unsolicited messages */
+    private final AtomicLong unsolicitedMessages = new AtomicLong(0);
+
+    /**
+     * Creates a UnifiedChannelHandler.
+     *
+     * @param connectionName the connection name for logging
+     * @param pendingRequestManager the shared pending request manager for STAN matching
+     * @param listener the connection event listener (may be null)
+     * @param stateCallback callback for state changes
+     */
+    public UnifiedChannelHandler(String connectionName,
+                                 PendingRequestManager pendingRequestManager,
+                                 ConnectionListener listener,
+                                 Consumer<ConnectionState> stateCallback) {
+        this(connectionName, pendingRequestManager, listener, stateCallback, null, null, null, false);
+    }
+
+    /**
+     * Creates a UnifiedChannelHandler with unsolicited message handler.
+     *
+     * @param connectionName the connection name for logging
+     * @param pendingRequestManager the shared pending request manager for STAN matching
+     * @param listener the connection event listener (may be null)
+     * @param stateCallback callback for state changes
+     * @param unsolicitedMessageHandler callback for unsolicited messages
+     */
+    public UnifiedChannelHandler(String connectionName,
+                                 PendingRequestManager pendingRequestManager,
+                                 ConnectionListener listener,
+                                 Consumer<ConnectionState> stateCallback,
+                                 BiConsumer<String, Iso8583Message> unsolicitedMessageHandler) {
+        this(connectionName, pendingRequestManager, listener, stateCallback, unsolicitedMessageHandler, null, null, false);
+    }
+
+    /**
+     * Creates a UnifiedChannelHandler with ChannelMessageService support.
+     *
+     * @param connectionName the connection name for logging
+     * @param pendingRequestManager the shared pending request manager for STAN matching
+     * @param listener the connection event listener (may be null)
+     * @param stateCallback callback for state changes
+     * @param unsolicitedMessageHandler callback for unsolicited messages
+     * @param channelMessageService the channel message service for schema-based processing (may be null)
+     * @param channelId the channel ID for schema resolution (may be null)
+     * @param enableGenericMessageTransform whether to transform messages to GenericMessage
+     */
+    public UnifiedChannelHandler(String connectionName,
+                                 PendingRequestManager pendingRequestManager,
+                                 ConnectionListener listener,
+                                 Consumer<ConnectionState> stateCallback,
+                                 BiConsumer<String, Iso8583Message> unsolicitedMessageHandler,
+                                 ChannelMessageService channelMessageService,
+                                 String channelId,
+                                 boolean enableGenericMessageTransform) {
+        this.connectionName = connectionName;
+        this.pendingRequestManager = pendingRequestManager;
+        this.listener = listener;
+        this.stateCallback = stateCallback;
+        this.unsolicitedMessageHandler = unsolicitedMessageHandler;
+        this.channelMessageService = channelMessageService;
+        this.channelId = channelId;
+        this.enableGenericMessageTransform = enableGenericMessageTransform;
+    }
+
+    @Override
+    public void channelActive(ChannelHandlerContext ctx) throws Exception {
+        log.info("[{}] Unified channel active: {}", connectionName, ctx.channel().remoteAddress());
+        updateState(ConnectionState.CONNECTED);
+        if (listener != null) {
+            listener.onConnected(connectionName);
+        }
+        super.channelActive(ctx);
+    }
+
+    @Override
+    public void channelInactive(ChannelHandlerContext ctx) throws Exception {
+        log.info("[{}] Unified channel inactive", connectionName);
+        updateState(ConnectionState.DISCONNECTED);
+        if (listener != null) {
+            listener.onDisconnected(connectionName, null);
+        }
+        super.channelInactive(ctx);
+    }
+
+    @Override
+    public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+        if (msg instanceof Iso8583Message message) {
+            handleMessage(message);
+        } else {
+            log.warn("[{}] Unexpected message type on Unified channel: {}",
+                connectionName, msg.getClass());
+            super.channelRead(ctx, msg);
+        }
+    }
+
+    @Override
+    public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
+        if (msg instanceof Iso8583Message message) {
+            String mti = message.getMti();
+            String stan = message.getFieldAsString(11);
+            log.debug("[{}] Sending Iso8583Message: MTI={}, STAN={}", connectionName, mti, stan);
+
+            promise.addListener(future -> {
+                if (future.isSuccess()) {
+                    messagesSent.incrementAndGet();
+                    log.trace("[{}] Message sent successfully: STAN={}", connectionName, stan);
+                } else {
+                    log.error("[{}] Failed to send message: STAN={}, error={}",
+                        connectionName, stan, future.cause().getMessage());
+                }
+            });
+            super.write(ctx, msg, promise);
+        } else if (msg instanceof GenericMessage genericMessage) {
+            // Handle GenericMessage - assemble to bytes using ChannelMessageService
+            if (channelMessageService != null && channelId != null) {
+                try {
+                    String mti = genericMessage.getFieldAsString("mti");
+                    byte[] data = channelMessageService.assembleMessage(channelId, mti, genericMessage);
+                    log.debug("[{}] Sending GenericMessage: MTI={}, schema={}, bytes={}",
+                        connectionName, mti, genericMessage.getSchema().getName(), data.length);
+
+                    promise.addListener(future -> {
+                        if (future.isSuccess()) {
+                            messagesSent.incrementAndGet();
+                            log.trace("[{}] GenericMessage sent successfully: MTI={}", connectionName, mti);
+                        } else {
+                            log.error("[{}] Failed to send GenericMessage: MTI={}, error={}",
+                                connectionName, mti, future.cause().getMessage());
+                        }
+                    });
+                    ctx.write(ctx.alloc().buffer().writeBytes(data), promise);
+                } catch (Exception e) {
+                    log.error("[{}] Failed to assemble GenericMessage: {}", connectionName, e.getMessage());
+                    promise.setFailure(e);
+                }
+            } else {
+                log.warn("[{}] Cannot send GenericMessage: ChannelMessageService or channelId not configured",
+                    connectionName);
+                promise.setFailure(new IllegalStateException("ChannelMessageService not configured"));
+            }
+        } else {
+            super.write(ctx, msg, promise);
+        }
+    }
+
+    @Override
+    public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
+        if (evt instanceof IdleStateEvent idleEvent) {
+            handleIdleEvent(ctx, idleEvent);
+        } else {
+            super.userEventTriggered(ctx, evt);
+        }
+    }
+
+    @Override
+    public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
+        log.error("[{}] Exception caught on Unified channel: {}", connectionName, cause.getMessage(), cause);
+        if (listener != null) {
+            listener.onError(connectionName, cause);
+        }
+        ctx.close();
+    }
+
+    /**
+     * Handles an incoming message by matching it with pending requests.
+     */
+    private void handleMessage(Iso8583Message message) {
+        String mti = message.getMti();
+        String stan = message.getFieldAsString(11);
+
+        log.debug("[{}] Received message: MTI={}, STAN={}", connectionName, mti, stan);
+        messagesReceived.incrementAndGet();
+
+        // Notify listener
+        if (listener != null) {
+            listener.onMessageReceived(connectionName, message);
+        }
+
+        // Try to match with pending request
+        if (stan != null && !stan.isEmpty()) {
+            boolean matched = pendingRequestManager.complete(stan, message);
+            if (matched) {
+                messagesMatched.incrementAndGet();
+                log.debug("[{}] Response matched for STAN={}", connectionName, stan);
+                return;
+            }
+        }
+
+        // Handle as unsolicited message
+        handleUnsolicitedMessage(message);
+    }
+
+    /**
+     * Handles unsolicited messages.
+     *
+     * <p>These include:
+     * <ul>
+     *   <li>0800 - Network management requests (e.g., heartbeat check)</li>
+     *   <li>Responses with no matching pending request</li>
+     * </ul>
+     */
+    private void handleUnsolicitedMessage(Iso8583Message message) {
+        String mti = message.getMti();
+        String stan = message.getFieldAsString(11);
+        unsolicitedMessages.incrementAndGet();
+
+        log.info("[{}] Received unsolicited message: MTI={}, STAN={}", connectionName, mti, stan);
+
+        // Call custom handler if provided
+        if (unsolicitedMessageHandler != null) {
+            try {
+                unsolicitedMessageHandler.accept(connectionName, message);
+            } catch (Exception e) {
+                log.error("[{}] Error in unsolicited message handler: {}", connectionName, e.getMessage(), e);
+            }
+        }
+    }
+
+    /**
+     * Handles idle state events.
+     * In unified mode, we monitor both read and write idle.
+     */
+    private void handleIdleEvent(ChannelHandlerContext ctx, IdleStateEvent event) {
+        if (event.state() == IdleState.WRITER_IDLE) {
+            log.debug("[{}] Unified channel write idle, heartbeat may be needed", connectionName);
+        } else if (event.state() == IdleState.READER_IDLE) {
+            log.warn("[{}] Unified channel read idle, no data received. Connection may be stale.", connectionName);
+        } else if (event.state() == IdleState.ALL_IDLE) {
+            log.debug("[{}] Unified channel all idle", connectionName);
+        }
+    }
+
+    /**
+     * Updates the connection state.
+     */
+    private void updateState(ConnectionState newState) {
+        ConnectionState oldState = this.state;
+        this.state = newState;
+        log.debug("[{}] Unified channel state changed: {} -> {}", connectionName, oldState, newState);
+        if (stateCallback != null) {
+            stateCallback.accept(newState);
+        }
+        if (listener != null) {
+            listener.onStateChanged(connectionName, oldState, newState);
+        }
+    }
+
+    /**
+     * Sets the state to signed on.
+     */
+    public void setSignedOn() {
+        updateState(ConnectionState.SIGNED_ON);
+        if (listener != null) {
+            listener.onSignedOn(connectionName);
+        }
+    }
+
+    /**
+     * Sets the state to reconnecting.
+     */
+    public void setReconnecting() {
+        updateState(ConnectionState.RECONNECTING);
+    }
+
+    /**
+     * Transforms an Iso8583Message to GenericMessage if enabled and configured.
+     *
+     * @param message the ISO 8583 message to transform
+     * @return the transformed GenericMessage, or null if transformation is disabled or fails
+     */
+    public GenericMessage transformToGenericMessage(Iso8583Message message) {
+        if (!enableGenericMessageTransform || channelMessageService == null || channelId == null) {
+            return null;
+        }
+
+        try {
+            String mti = message.getMti();
+            byte[] rawData = message.getRawData();
+
+            if (rawData == null || rawData.length == 0) {
+                log.debug("[{}] Cannot transform message: no raw data available", connectionName);
+                return null;
+            }
+
+            if (!channelMessageService.hasChannel(channelId)) {
+                log.debug("[{}] Cannot transform message: channel '{}' not found in registry",
+                    connectionName, channelId);
+                return null;
+            }
+
+            GenericMessage genericMessage = channelMessageService.parseMessage(channelId, mti, rawData);
+            log.debug("[{}] Message transformed to GenericMessage: MTI={}, schema={}",
+                connectionName, mti, genericMessage.getSchema().getName());
+            return genericMessage;
+
+        } catch (Exception e) {
+            log.warn("[{}] Failed to transform message to GenericMessage: {}",
+                connectionName, e.getMessage());
+            return null;
+        }
+    }
+
+    // ==================== Getters ====================
+
+    /**
+     * Gets the number of messages sent.
+     *
+     * @return messages sent count
+     */
+    public long getMessagesSent() {
+        return messagesSent.get();
+    }
+
+    /**
+     * Gets the number of messages received.
+     *
+     * @return messages received count
+     */
+    public long getMessagesReceived() {
+        return messagesReceived.get();
+    }
+
+    /**
+     * Gets the number of messages matched.
+     *
+     * @return messages matched count
+     */
+    public long getMessagesMatched() {
+        return messagesMatched.get();
+    }
+
+    /**
+     * Gets the number of unsolicited messages.
+     *
+     * @return unsolicited messages count
+     */
+    public long getUnsolicitedMessages() {
+        return unsolicitedMessages.get();
+    }
+
+    /**
+     * Resets statistics.
+     */
+    public void resetStatistics() {
+        messagesSent.set(0);
+        messagesReceived.set(0);
+        messagesMatched.set(0);
+        unsolicitedMessages.set(0);
+    }
+
+    /**
+     * Gets the channel message service.
+     *
+     * @return the channel message service (may be null)
+     */
+    public ChannelMessageService getChannelMessageService() {
+        return channelMessageService;
+    }
+
+    /**
+     * Gets the channel ID.
+     *
+     * @return the channel ID (may be null)
+     */
+    public String getChannelId() {
+        return channelId;
+    }
+
+    /**
+     * Checks if GenericMessage transformation is enabled.
+     *
+     * @return true if transformation is enabled
+     */
+    public boolean isEnableGenericMessageTransform() {
+        return enableGenericMessageTransform;
+    }
+}
