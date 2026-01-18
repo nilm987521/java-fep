@@ -119,6 +119,16 @@ camunda.bpm:
     password: admin
 
 fep:
+  # Dynamic Connection Management
+  connection:
+    dynamic-management:
+      enabled: true                    # 啟用動態連線管理
+    config-path: ${CONNECTION_CONFIG_FILE:config/channel-config.json}
+    hot-reload-enabled: ${CONNECTION_HOT_RELOAD:false}
+    auto-connect: true                 # 開發環境不自動連線
+    auto-sign-on: false
+    graceful-shutdown-timeout-ms: 5000
+
   # Channel-Schema Mapping Configuration
   channel:
     enabled: true
