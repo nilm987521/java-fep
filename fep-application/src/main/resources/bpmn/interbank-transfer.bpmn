@@ -1,0 +1,535 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="Definitions_InterbankTransfer"
+                  targetNamespace="http://fep.com/bpmn/interbank-transfer">
+
+  <!-- 跨行轉帳流程 - 來源銀行 FEP -->
+  <bpmn:process id="Process_InterbankTransfer" name="跨行轉帳流程" isExecutable="true"
+                camunda:historyTimeToLive="P180D">
+
+    <!-- 開始事件 -->
+    <bpmn:startEvent id="StartEvent_ReceiveRequest" name="收到轉帳請求">
+      <bpmn:outgoing>Flow_ToValidation</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- 1. 驗證請求 -->
+    <bpmn:serviceTask id="Task_ValidateRequest" name="驗證請求"
+                      camunda:delegateExpression="${validateRequestDelegate}">
+      <bpmn:incoming>Flow_ToValidation</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToValidationGateway</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- 驗證結果判斷 -->
+    <bpmn:exclusiveGateway id="Gateway_ValidationResult" name="驗證通過?">
+      <bpmn:incoming>Flow_ToValidationGateway</bpmn:incoming>
+      <bpmn:outgoing>Flow_ValidationOK</bpmn:outgoing>
+      <bpmn:outgoing>Flow_ValidationFail</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- 2. 檢查限額 -->
+    <bpmn:serviceTask id="Task_CheckLimit" name="檢查限額"
+                      camunda:delegateExpression="${checkLimitDelegate}">
+      <bpmn:incoming>Flow_ValidationOK</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToLimitGateway</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- 限額結果判斷 -->
+    <bpmn:exclusiveGateway id="Gateway_LimitCheck" name="限額通過?">
+      <bpmn:incoming>Flow_ToLimitGateway</bpmn:incoming>
+      <bpmn:outgoing>Flow_LimitOK</bpmn:outgoing>
+      <bpmn:outgoing>Flow_LimitExceeded</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- 3. 扣款凍結 -->
+    <bpmn:serviceTask id="Task_FreezeAmount" name="扣款凍結"
+                      camunda:delegateExpression="${freezeAmountDelegate}">
+      <bpmn:incoming>Flow_LimitOK</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToAssemble</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- 4. 組裝電文 -->
+    <bpmn:serviceTask id="Task_AssembleMessage" name="組裝0200電文"
+                      camunda:delegateExpression="${assembleMessageDelegate}">
+      <bpmn:incoming>Flow_ToAssemble</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToSend</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- 5. 發送至 FISC -->
+    <bpmn:sendTask id="Task_SendToFISC" name="發送至FISC"
+                   camunda:delegateExpression="${sendToFiscDelegate}">
+      <bpmn:incoming>Flow_ToSend</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToWaitResponse</bpmn:outgoing>
+    </bpmn:sendTask>
+
+    <!-- 6. 等待回應 (非同步) -->
+    <bpmn:intermediateCatchEvent id="Event_ReceiveResponse" name="等待回應">
+      <bpmn:incoming>Flow_ToWaitResponse</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToResponseCheck</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MsgEventDef_Response"
+                                   messageRef="Message_FiscResponse" />
+    </bpmn:intermediateCatchEvent>
+
+    <!-- 超時 Boundary Event -->
+    <bpmn:boundaryEvent id="Event_Timeout" name="超時30秒" attachedToRef="Event_ReceiveResponse">
+      <bpmn:outgoing>Flow_ToReversal</bpmn:outgoing>
+      <bpmn:timerEventDefinition id="TimerEventDef_Timeout">
+        <bpmn:timeDuration>PT30S</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:boundaryEvent>
+
+    <!-- 回應碼判斷 -->
+    <bpmn:exclusiveGateway id="Gateway_ResponseCode" name="回應碼?">
+      <bpmn:incoming>Flow_ToResponseCheck</bpmn:incoming>
+      <bpmn:outgoing>Flow_ResponseSuccess</bpmn:outgoing>
+      <bpmn:outgoing>Flow_ResponseFail</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- 7a. 成功路徑: 確認扣款 -->
+    <bpmn:serviceTask id="Task_ConfirmDebit" name="確認扣款"
+                      camunda:delegateExpression="${confirmDebitDelegate}">
+      <bpmn:incoming>Flow_ResponseSuccess</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToLogSuccess</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- 8a. 記錄交易日誌 -->
+    <bpmn:serviceTask id="Task_LogSuccess" name="記錄交易日誌"
+                      camunda:delegateExpression="${logTransactionDelegate}">
+      <bpmn:incoming>Flow_ToLogSuccess</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToSuccessEnd</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- 成功結束 -->
+    <bpmn:endEvent id="EndEvent_Success" name="交易成功">
+      <bpmn:incoming>Flow_ToSuccessEnd</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- 7b. 失敗路徑: 解凍款項 -->
+    <bpmn:serviceTask id="Task_UnfreezeAmount" name="解凍款項"
+                      camunda:delegateExpression="${unfreezeAmountDelegate}">
+      <bpmn:incoming>Flow_ResponseFail</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToFailResponse</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- 8b. 組失敗回應 -->
+    <bpmn:serviceTask id="Task_BuildFailResponse" name="組失敗回應"
+                      camunda:delegateExpression="${buildFailResponseDelegate}">
+      <bpmn:incoming>Flow_ToFailResponse</bpmn:incoming>
+      <bpmn:incoming>Flow_ValidationFail</bpmn:incoming>
+      <bpmn:incoming>Flow_LimitExceeded</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToFailEnd</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- 失敗結束 -->
+    <bpmn:endEvent id="EndEvent_Fail" name="交易失敗">
+      <bpmn:incoming>Flow_ToFailEnd</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- 9. 超時處理: 發送沖正 -->
+    <bpmn:serviceTask id="Task_SendReversal" name="發送沖正(0400)"
+                      camunda:delegateExpression="${sendReversalDelegate}">
+      <bpmn:incoming>Flow_ToReversal</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToReversalWait</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- 10. 等待沖正回應 -->
+    <bpmn:intermediateCatchEvent id="Event_ReversalResponse" name="等待沖正回應">
+      <bpmn:incoming>Flow_ToReversalWait</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToReversalCheck</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MsgEventDef_ReversalResponse"
+                                   messageRef="Message_ReversalResponse" />
+    </bpmn:intermediateCatchEvent>
+
+    <!-- 沖正超時 Boundary Event -->
+    <bpmn:boundaryEvent id="Event_ReversalTimeout" name="沖正超時" attachedToRef="Event_ReversalResponse">
+      <bpmn:outgoing>Flow_ToPendingAdjust</bpmn:outgoing>
+      <bpmn:timerEventDefinition id="TimerEventDef_ReversalTimeout">
+        <bpmn:timeDuration>PT30S</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:boundaryEvent>
+
+    <!-- 沖正結果判斷 -->
+    <bpmn:exclusiveGateway id="Gateway_ReversalResult" name="沖正成功?">
+      <bpmn:incoming>Flow_ToReversalCheck</bpmn:incoming>
+      <bpmn:outgoing>Flow_ReversalSuccess</bpmn:outgoing>
+      <bpmn:outgoing>Flow_ReversalFail</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- 11a. 沖正成功: 解凍款項 -->
+    <bpmn:serviceTask id="Task_UnfreezeAfterReversal" name="解凍款項"
+                      camunda:delegateExpression="${unfreezeAmountDelegate}">
+      <bpmn:incoming>Flow_ReversalSuccess</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToTimeoutEnd</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- 超時失敗結束 -->
+    <bpmn:endEvent id="EndEvent_Timeout" name="超時失敗">
+      <bpmn:incoming>Flow_ToTimeoutEnd</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- 11b. 沖正失敗/超時: 標記待調帳 -->
+    <bpmn:serviceTask id="Task_MarkPendingAdjust" name="標記待調帳"
+                      camunda:delegateExpression="${markPendingAdjustDelegate}">
+      <bpmn:incoming>Flow_ToPendingAdjust</bpmn:incoming>
+      <bpmn:incoming>Flow_ReversalFail</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToPendingEnd</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- 待人工處理結束 -->
+    <bpmn:endEvent id="EndEvent_PendingAdjust" name="待人工處理">
+      <bpmn:incoming>Flow_ToPendingEnd</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- ===== Sequence Flows ===== -->
+
+    <!-- 主流程 -->
+    <bpmn:sequenceFlow id="Flow_ToValidation" sourceRef="StartEvent_ReceiveRequest" targetRef="Task_ValidateRequest" />
+    <bpmn:sequenceFlow id="Flow_ToValidationGateway" sourceRef="Task_ValidateRequest" targetRef="Gateway_ValidationResult" />
+
+    <!-- 驗證結果分支 -->
+    <bpmn:sequenceFlow id="Flow_ValidationOK" name="通過" sourceRef="Gateway_ValidationResult" targetRef="Task_CheckLimit">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${validationResult == 'OK'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_ValidationFail" name="失敗" sourceRef="Gateway_ValidationResult" targetRef="Task_BuildFailResponse">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${validationResult != 'OK'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+
+    <!-- 限額檢查 -->
+    <bpmn:sequenceFlow id="Flow_ToLimitGateway" sourceRef="Task_CheckLimit" targetRef="Gateway_LimitCheck" />
+    <bpmn:sequenceFlow id="Flow_LimitOK" name="通過" sourceRef="Gateway_LimitCheck" targetRef="Task_FreezeAmount">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${limitCheck == 'OK'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_LimitExceeded" name="超限" sourceRef="Gateway_LimitCheck" targetRef="Task_BuildFailResponse">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${limitCheck != 'OK'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+
+    <!-- 發送電文 -->
+    <bpmn:sequenceFlow id="Flow_ToAssemble" sourceRef="Task_FreezeAmount" targetRef="Task_AssembleMessage" />
+    <bpmn:sequenceFlow id="Flow_ToSend" sourceRef="Task_AssembleMessage" targetRef="Task_SendToFISC" />
+    <bpmn:sequenceFlow id="Flow_ToWaitResponse" sourceRef="Task_SendToFISC" targetRef="Event_ReceiveResponse" />
+
+    <!-- 回應處理 -->
+    <bpmn:sequenceFlow id="Flow_ToResponseCheck" sourceRef="Event_ReceiveResponse" targetRef="Gateway_ResponseCode" />
+    <bpmn:sequenceFlow id="Flow_ResponseSuccess" name="RC=00" sourceRef="Gateway_ResponseCode" targetRef="Task_ConfirmDebit">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${responseCode == '00'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_ResponseFail" name="RC!=00" sourceRef="Gateway_ResponseCode" targetRef="Task_UnfreezeAmount">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${responseCode != '00'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+
+    <!-- 成功路徑 -->
+    <bpmn:sequenceFlow id="Flow_ToLogSuccess" sourceRef="Task_ConfirmDebit" targetRef="Task_LogSuccess" />
+    <bpmn:sequenceFlow id="Flow_ToSuccessEnd" sourceRef="Task_LogSuccess" targetRef="EndEvent_Success" />
+
+    <!-- 失敗路徑 -->
+    <bpmn:sequenceFlow id="Flow_ToFailResponse" sourceRef="Task_UnfreezeAmount" targetRef="Task_BuildFailResponse" />
+    <bpmn:sequenceFlow id="Flow_ToFailEnd" sourceRef="Task_BuildFailResponse" targetRef="EndEvent_Fail" />
+
+    <!-- 超時沖正路徑 -->
+    <bpmn:sequenceFlow id="Flow_ToReversal" sourceRef="Event_Timeout" targetRef="Task_SendReversal" />
+    <bpmn:sequenceFlow id="Flow_ToReversalWait" sourceRef="Task_SendReversal" targetRef="Event_ReversalResponse" />
+    <bpmn:sequenceFlow id="Flow_ToReversalCheck" sourceRef="Event_ReversalResponse" targetRef="Gateway_ReversalResult" />
+
+    <!-- 沖正結果分支 -->
+    <bpmn:sequenceFlow id="Flow_ReversalSuccess" name="成功" sourceRef="Gateway_ReversalResult" targetRef="Task_UnfreezeAfterReversal">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${reversalResult == 'OK'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_ReversalFail" name="失敗" sourceRef="Gateway_ReversalResult" targetRef="Task_MarkPendingAdjust">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${reversalResult != 'OK'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+
+    <bpmn:sequenceFlow id="Flow_ToTimeoutEnd" sourceRef="Task_UnfreezeAfterReversal" targetRef="EndEvent_Timeout" />
+    <bpmn:sequenceFlow id="Flow_ToPendingAdjust" sourceRef="Event_ReversalTimeout" targetRef="Task_MarkPendingAdjust" />
+    <bpmn:sequenceFlow id="Flow_ToPendingEnd" sourceRef="Task_MarkPendingAdjust" targetRef="EndEvent_PendingAdjust" />
+  </bpmn:process>
+
+  <!-- Message 定義 -->
+  <bpmn:message id="Message_FiscResponse" name="FiscResponse" />
+  <bpmn:message id="Message_ReversalResponse" name="ReversalResponse" />
+
+  <!-- BPMN Diagram (視覺化佈局) -->
+  <bpmndi:BPMNDiagram id="BPMNDiagram_InterbankTransfer">
+    <bpmndi:BPMNPlane id="BPMNPlane_Process" bpmnElement="Process_InterbankTransfer">
+
+      <!-- Start Event -->
+      <bpmndi:BPMNShape id="Shape_Start" bpmnElement="StartEvent_ReceiveRequest">
+        <dc:Bounds x="152" y="102" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="135" y="145" width="71" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Task: Validate Request -->
+      <bpmndi:BPMNShape id="Shape_ValidateRequest" bpmnElement="Task_ValidateRequest">
+        <dc:Bounds x="230" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- Gateway: Validation Result -->
+      <bpmndi:BPMNShape id="Shape_Gateway_Validation" bpmnElement="Gateway_ValidationResult" isMarkerVisible="true">
+        <dc:Bounds x="375" y="95" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="371" y="71" width="56" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Task: Check Limit -->
+      <bpmndi:BPMNShape id="Shape_CheckLimit" bpmnElement="Task_CheckLimit">
+        <dc:Bounds x="470" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- Gateway: Limit Check -->
+      <bpmndi:BPMNShape id="Shape_Gateway_Limit" bpmnElement="Gateway_LimitCheck" isMarkerVisible="true">
+        <dc:Bounds x="615" y="95" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="611" y="71" width="56" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Task: Freeze Amount -->
+      <bpmndi:BPMNShape id="Shape_FreezeAmount" bpmnElement="Task_FreezeAmount">
+        <dc:Bounds x="710" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- Task: Assemble Message -->
+      <bpmndi:BPMNShape id="Shape_AssembleMessage" bpmnElement="Task_AssembleMessage">
+        <dc:Bounds x="850" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- Task: Send To FISC -->
+      <bpmndi:BPMNShape id="Shape_SendToFISC" bpmnElement="Task_SendToFISC">
+        <dc:Bounds x="990" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- Event: Receive Response -->
+      <bpmndi:BPMNShape id="Shape_ReceiveResponse" bpmnElement="Event_ReceiveResponse">
+        <dc:Bounds x="1132" y="102" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1125" y="145" width="51" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Gateway: Response Code -->
+      <bpmndi:BPMNShape id="Shape_Gateway_Response" bpmnElement="Gateway_ResponseCode" isMarkerVisible="true">
+        <dc:Bounds x="1215" y="95" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1218" y="71" width="45" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Task: Confirm Debit -->
+      <bpmndi:BPMNShape id="Shape_ConfirmDebit" bpmnElement="Task_ConfirmDebit">
+        <dc:Bounds x="1310" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- Task: Log Success -->
+      <bpmndi:BPMNShape id="Shape_LogSuccess" bpmnElement="Task_LogSuccess">
+        <dc:Bounds x="1450" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- End Event: Success -->
+      <bpmndi:BPMNShape id="Shape_EndSuccess" bpmnElement="EndEvent_Success">
+        <dc:Bounds x="1592" y="102" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1585" y="145" width="51" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Task: Unfreeze Amount -->
+      <bpmndi:BPMNShape id="Shape_UnfreezeAmount" bpmnElement="Task_UnfreezeAmount">
+        <dc:Bounds x="1310" y="200" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- Task: Build Fail Response -->
+      <bpmndi:BPMNShape id="Shape_BuildFailResponse" bpmnElement="Task_BuildFailResponse">
+        <dc:Bounds x="1450" y="200" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- End Event: Fail -->
+      <bpmndi:BPMNShape id="Shape_EndFail" bpmnElement="EndEvent_Fail">
+        <dc:Bounds x="1592" y="222" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1585" y="265" width="51" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Task: Send Reversal -->
+      <bpmndi:BPMNShape id="Shape_SendReversal" bpmnElement="Task_SendReversal">
+        <dc:Bounds x="990" y="330" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- Event: Reversal Response -->
+      <bpmndi:BPMNShape id="Shape_ReversalResponse" bpmnElement="Event_ReversalResponse">
+        <dc:Bounds x="1132" y="352" width="36" height="36" />
+      </bpmndi:BPMNShape>
+
+      <!-- Gateway: Reversal Result -->
+      <bpmndi:BPMNShape id="Shape_Gateway_Reversal" bpmnElement="Gateway_ReversalResult" isMarkerVisible="true">
+        <dc:Bounds x="1215" y="345" width="50" height="50" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1214" y="321" width="51" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Task: Unfreeze After Reversal -->
+      <bpmndi:BPMNShape id="Shape_UnfreezeAfterReversal" bpmnElement="Task_UnfreezeAfterReversal">
+        <dc:Bounds x="1310" y="330" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- End Event: Timeout -->
+      <bpmndi:BPMNShape id="Shape_EndTimeout" bpmnElement="EndEvent_Timeout">
+        <dc:Bounds x="1452" y="352" width="36" height="36" />
+      </bpmndi:BPMNShape>
+
+      <!-- Task: Mark Pending Adjust -->
+      <bpmndi:BPMNShape id="Shape_MarkPendingAdjust" bpmnElement="Task_MarkPendingAdjust">
+        <dc:Bounds x="1310" y="440" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- End Event: Pending Adjust -->
+      <bpmndi:BPMNShape id="Shape_EndPending" bpmnElement="EndEvent_PendingAdjust">
+        <dc:Bounds x="1452" y="462" width="36" height="36" />
+      </bpmndi:BPMNShape>
+
+      <!-- ===== Edges ===== -->
+
+      <!-- Main Flow -->
+      <bpmndi:BPMNEdge id="Edge_ToValidation" bpmnElement="Flow_ToValidation">
+        <di:waypoint x="188" y="120" />
+        <di:waypoint x="230" y="120" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_ToValidationGateway" bpmnElement="Flow_ToValidationGateway">
+        <di:waypoint x="330" y="120" />
+        <di:waypoint x="375" y="120" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_ValidationOK" bpmnElement="Flow_ValidationOK">
+        <di:waypoint x="425" y="120" />
+        <di:waypoint x="470" y="120" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_ValidationFail" bpmnElement="Flow_ValidationFail">
+        <di:waypoint x="400" y="145" />
+        <di:waypoint x="400" y="240" />
+        <di:waypoint x="1450" y="240" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_ToLimitGateway" bpmnElement="Flow_ToLimitGateway">
+        <di:waypoint x="570" y="120" />
+        <di:waypoint x="615" y="120" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_LimitOK" bpmnElement="Flow_LimitOK">
+        <di:waypoint x="665" y="120" />
+        <di:waypoint x="710" y="120" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_LimitExceeded" bpmnElement="Flow_LimitExceeded">
+        <di:waypoint x="640" y="145" />
+        <di:waypoint x="640" y="260" />
+        <di:waypoint x="1450" y="260" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_ToAssemble" bpmnElement="Flow_ToAssemble">
+        <di:waypoint x="810" y="120" />
+        <di:waypoint x="850" y="120" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_ToSend" bpmnElement="Flow_ToSend">
+        <di:waypoint x="950" y="120" />
+        <di:waypoint x="990" y="120" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_ToWaitResponse" bpmnElement="Flow_ToWaitResponse">
+        <di:waypoint x="1090" y="120" />
+        <di:waypoint x="1132" y="120" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_ToResponseCheck" bpmnElement="Flow_ToResponseCheck">
+        <di:waypoint x="1168" y="120" />
+        <di:waypoint x="1215" y="120" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_ResponseSuccess" bpmnElement="Flow_ResponseSuccess">
+        <di:waypoint x="1265" y="120" />
+        <di:waypoint x="1310" y="120" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_ResponseFail" bpmnElement="Flow_ResponseFail">
+        <di:waypoint x="1240" y="145" />
+        <di:waypoint x="1240" y="240" />
+        <di:waypoint x="1310" y="240" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_ToLogSuccess" bpmnElement="Flow_ToLogSuccess">
+        <di:waypoint x="1410" y="120" />
+        <di:waypoint x="1450" y="120" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_ToSuccessEnd" bpmnElement="Flow_ToSuccessEnd">
+        <di:waypoint x="1550" y="120" />
+        <di:waypoint x="1592" y="120" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_ToFailResponse" bpmnElement="Flow_ToFailResponse">
+        <di:waypoint x="1410" y="240" />
+        <di:waypoint x="1450" y="240" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_ToFailEnd" bpmnElement="Flow_ToFailEnd">
+        <di:waypoint x="1550" y="240" />
+        <di:waypoint x="1592" y="240" />
+      </bpmndi:BPMNEdge>
+
+      <!-- Timeout/Reversal Flow -->
+      <bpmndi:BPMNEdge id="Edge_ToReversal" bpmnElement="Flow_ToReversal">
+        <di:waypoint x="1150" y="138" />
+        <di:waypoint x="1150" y="280" />
+        <di:waypoint x="1040" y="280" />
+        <di:waypoint x="1040" y="330" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_ToReversalWait" bpmnElement="Flow_ToReversalWait">
+        <di:waypoint x="1090" y="370" />
+        <di:waypoint x="1132" y="370" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_ToReversalCheck" bpmnElement="Flow_ToReversalCheck">
+        <di:waypoint x="1168" y="370" />
+        <di:waypoint x="1215" y="370" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_ReversalSuccess" bpmnElement="Flow_ReversalSuccess">
+        <di:waypoint x="1265" y="370" />
+        <di:waypoint x="1310" y="370" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_ReversalFail" bpmnElement="Flow_ReversalFail">
+        <di:waypoint x="1240" y="395" />
+        <di:waypoint x="1240" y="480" />
+        <di:waypoint x="1310" y="480" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_ToTimeoutEnd" bpmnElement="Flow_ToTimeoutEnd">
+        <di:waypoint x="1410" y="370" />
+        <di:waypoint x="1452" y="370" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_ToPendingAdjust" bpmnElement="Flow_ToPendingAdjust">
+        <di:waypoint x="1150" y="388" />
+        <di:waypoint x="1150" y="500" />
+        <di:waypoint x="1310" y="500" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_ToPendingEnd" bpmnElement="Flow_ToPendingEnd">
+        <di:waypoint x="1410" y="480" />
+        <di:waypoint x="1452" y="480" />
+      </bpmndi:BPMNEdge>
+
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

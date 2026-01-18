@@ -38,6 +38,36 @@ info:
     description: Front-End Processor for FISC Interbank Transactions
     version: 1.0.0-SNAPSHOT
 
+# Camunda BPM Configuration
+camunda.bpm:
+  admin-user:
+    id: admin
+    password: ${CAMUNDA_ADMIN_PASSWORD:admin}
+    first-name: Admin
+    last-name: User
+  filter:
+    create: All tasks
+  authorization:
+    enabled: false
+  history-level: full
+  database:
+    schema-update: true
+  job-execution:
+    enabled: true
+    max-jobs-per-acquisition: 5
+  metrics:
+    enabled: true
+    db-reporter-activate: false
+  webapp:
+    index-redirect-enabled: true
+  generic-properties:
+    properties:
+      # History Time To Live (TTL) - required in Camunda 7.22+
+      # 保留歷史資料 180 天
+      historyTimeToLive: P180D
+      # 或者關閉 TTL 強制檢查 (不建議用於生產環境)
+      # enforceHistoryTimeToLive: false
+
 # Logging Configuration
 logging:
   level:
@@ -69,6 +99,24 @@ spring:
   config:
     activate:
       on-profile: dev
+
+  # H2 Database for Camunda (Development)
+  datasource:
+    url: jdbc:h2:mem:camunda;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  h2:
+    console:
+      enabled: true
+      path: /h2-console
+
+# Camunda Dev Settings
+camunda.bpm:
+  database:
+    type: h2
+  admin-user:
+    password: admin
 
 fep:
   # Channel-Schema Mapping Configuration
@@ -129,6 +177,31 @@ spring:
   config:
     activate:
       on-profile: prod
+
+  # Oracle Database for Camunda (Production)
+  datasource:
+    url: ${DATABASE_URL:jdbc:oracle:thin:@localhost:1521:ORCL}
+    driver-class-name: oracle.jdbc.OracleDriver
+    username: ${DATABASE_USERNAME:fep}
+    password: ${DATABASE_PASSWORD:fep}
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+
+# Camunda Production Settings
+camunda.bpm:
+  database:
+    type: oracle
+    schema-update: false  # Use Flyway or manual migration in production
+  admin-user:
+    password: ${CAMUNDA_ADMIN_PASSWORD}
+  authorization:
+    enabled: true
+  job-execution:
+    max-jobs-per-acquisition: 10
 
 logging:
   level:
