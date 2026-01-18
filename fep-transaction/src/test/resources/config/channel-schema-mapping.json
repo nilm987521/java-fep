@@ -1,0 +1,58 @@
+{
+  "$schema": "fep-channel-schema-mapping-v1",
+  "version": "1.0.0",
+  "lastModified": "2026-01-18T10:00:00Z",
+
+  "schemaFiles": [],
+
+  "channels": [
+    {
+      "id": "ATM_FISC_V1",
+      "name": "FISC ATM Channel",
+      "description": "Taiwan FISC standard ATM message format (test)",
+      "type": "ATM",
+      "vendor": "FISC",
+      "version": "1.0",
+      "active": true,
+      "requestSchemas": ["FISC ATM Format"],
+      "responseSchemas": ["FISC ATM Format"],
+      "defaultRequestSchema": "FISC ATM Format",
+      "defaultResponseSchema": "FISC ATM Format",
+      "properties": {
+        "encoding": "ASCII",
+        "macRequired": "false",
+        "institutionId": "822"
+      },
+      "tags": ["test"],
+      "priority": 1
+    },
+    {
+      "id": "FISC_INTERBANK_V1",
+      "name": "FISC Interbank Channel",
+      "description": "Taiwan FISC interbank protocol (test)",
+      "type": "INTERBANK",
+      "vendor": "FISC",
+      "version": "1.0",
+      "active": true,
+      "requestSchemas": ["FISC ATM Format"],
+      "responseSchemas": ["FISC ATM Format"],
+      "defaultRequestSchema": "FISC ATM Format",
+      "defaultResponseSchema": "FISC ATM Format",
+      "properties": {
+        "encoding": "ASCII",
+        "macRequired": "false",
+        "institutionId": "822"
+      },
+      "tags": ["test"],
+      "priority": 1
+    }
+  ],
+
+  "schemaOverrides": {},
+
+  "defaults": {
+    "fallbackChannel": "FISC_INTERBANK_V1",
+    "unknownChannelBehavior": "USE_FALLBACK",
+    "schemaNotFoundBehavior": "THROW_ERROR"
+  }
+}

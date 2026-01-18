@@ -1,0 +1,45 @@
+# Test configuration for BPMN workflow integration tests
+spring:
+  main:
+    allow-bean-definition-overriding: true
+
+  # H2 in-memory database for testing
+  datasource:
+    url: jdbc:h2:mem:camunda-test;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+  h2:
+    console:
+      enabled: false
+
+# Camunda BPM Test Configuration
+camunda.bpm:
+  admin-user:
+    id: admin
+    password: admin
+  authorization:
+    enabled: false
+  history-level: full
+  database:
+    schema-update: true
+  job-execution:
+    enabled: false  # Disable async job execution for predictable tests
+  metrics:
+    enabled: false
+  generic-properties:
+    properties:
+      historyTimeToLive: P1D
+      # Disable TTL enforcement for tests
+      enforceHistoryTimeToLive: false
+  # Auto-deploy BPMN files from test resources
+  deployment-resource-pattern: classpath*:bpmn/*.bpmn
+
+# Logging for tests
+logging:
+  level:
+    root: WARN
+    com.fep: DEBUG
+    org.camunda: INFO
+    org.springframework: WARN

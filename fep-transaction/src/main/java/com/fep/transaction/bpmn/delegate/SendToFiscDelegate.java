@@ -19,7 +19,7 @@ import java.util.concurrent.TimeoutException;
  * <p>整合 FiscDualChannelClient 進行實際的電文發送
  */
 @Slf4j
-@Component("sendToFISCDelegate")
+@Component("sendToFiscDelegate")
 @RequiredArgsConstructor
 public class SendToFiscDelegate implements JavaDelegate {
 
