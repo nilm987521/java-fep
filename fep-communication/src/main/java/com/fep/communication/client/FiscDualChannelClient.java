@@ -10,6 +10,7 @@ import com.fep.communication.handler.SendChannelHandler;
 import com.fep.communication.manager.PendingRequestManager;
 import com.fep.message.iso8583.Iso8583Message;
 import com.fep.message.iso8583.Iso8583MessageFactory;
+import com.fep.message.service.ChannelMessageService;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
@@ -86,6 +87,7 @@ public class FiscDualChannelClient implements AutoCloseable {
     private final PendingRequestManager pendingRequestManager;
     private final EventLoopGroup workerGroup;
     private final ScheduledExecutorService scheduler;
+    private final ChannelMessageService channelMessageService;
 
     // Send Channel
     private volatile Channel sendChannel;
@@ -118,8 +120,22 @@ public class FiscDualChannelClient implements AutoCloseable {
      * @param config the dual-channel configuration
      */
     public FiscDualChannelClient(DualChannelConfig config) {
+        this(config, null);
+    }
+
+    /**
+     * Creates a new FISC dual-channel client with ChannelMessageService.
+     *
+     * <p>When ChannelMessageService is provided and config.enableGenericMessageTransform is true,
+     * incoming messages will be transformed to GenericMessage using the configured channel schema.
+     *
+     * @param config the dual-channel configuration
+     * @param channelMessageService the channel message service for schema-based message processing (may be null)
+     */
+    public FiscDualChannelClient(DualChannelConfig config, ChannelMessageService channelMessageService) {
         config.validate();
         this.config = config;
+        this.channelMessageService = channelMessageService;
         this.messageFactory = new Iso8583MessageFactory();
         this.messageFactory.setInstitutionId(config.getInstitutionId());
         this.pendingRequestManager = new PendingRequestManager(
@@ -130,7 +146,8 @@ public class FiscDualChannelClient implements AutoCloseable {
         this.sendBootstrap = createBootstrap(ChannelRole.SEND);
         this.receiveBootstrap = createBootstrap(ChannelRole.RECEIVE);
 
-        log.info("[{}] FiscDualChannelClient initialized", config.getConnectionName());
+        log.info("[{}] FiscDualChannelClient initialized (channelId={}, genericMessageTransform={})",
+            config.getConnectionName(), config.getChannelId(), config.isEnableGenericMessageTransform());
     }
 
     /**
@@ -189,7 +206,9 @@ public class FiscDualChannelClient implements AutoCloseable {
                         sendHandler = new SendChannelHandler(
                             config.getSendChannelName(),
                             listener,
-                            FiscDualChannelClient.this::onSendChannelStateChanged
+                            FiscDualChannelClient.this::onSendChannelStateChanged,
+                            channelMessageService,
+                            config.getChannelId()
                         );
                         pipeline.addLast("handler", sendHandler);
                     } else {
@@ -198,7 +217,10 @@ public class FiscDualChannelClient implements AutoCloseable {
                             pendingRequestManager,
                             listener,
                             FiscDualChannelClient.this::onReceiveChannelStateChanged,
-                            unsolicitedMessageHandler
+                            unsolicitedMessageHandler,
+                            channelMessageService,
+                            config.getChannelId(),
+                            config.isEnableGenericMessageTransform()
                         );
                         pipeline.addLast("handler", receiveHandler);
                     }
@@ -697,6 +719,15 @@ public class FiscDualChannelClient implements AutoCloseable {
      */
     public Iso8583MessageFactory getMessageFactory() {
         return messageFactory;
+    }
+
+    /**
+     * Gets the channel message service.
+     *
+     * @return channel message service (may be null if not configured)
+     */
+    public ChannelMessageService getChannelMessageService() {
+        return channelMessageService;
     }
 
     // ==================== Disconnect and Close ====================

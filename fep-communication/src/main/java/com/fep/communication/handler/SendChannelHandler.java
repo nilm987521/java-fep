@@ -3,7 +3,9 @@ package com.fep.communication.handler;
 import com.fep.communication.client.ChannelRole;
 import com.fep.communication.client.ConnectionListener;
 import com.fep.communication.client.ConnectionState;
+import com.fep.message.generic.message.GenericMessage;
 import com.fep.message.iso8583.Iso8583Message;
+import com.fep.message.service.ChannelMessageService;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
@@ -33,6 +35,12 @@ public class SendChannelHandler extends ChannelDuplexHandler {
     private final ConnectionListener listener;
     private final Consumer<ConnectionState> stateCallback;
 
+    /** Channel message service for schema-based message processing */
+    private final ChannelMessageService channelMessageService;
+
+    /** Channel ID for schema resolution */
+    private final String channelId;
+
     @Getter
     private volatile ConnectionState state = ConnectionState.DISCONNECTED;
 
@@ -55,9 +63,27 @@ public class SendChannelHandler extends ChannelDuplexHandler {
      */
     public SendChannelHandler(String connectionName, ConnectionListener listener,
                               Consumer<ConnectionState> stateCallback) {
+        this(connectionName, listener, stateCallback, null, null);
+    }
+
+    /**
+     * Creates a SendChannelHandler with ChannelMessageService support.
+     *
+     * @param connectionName the connection name for logging
+     * @param listener the connection event listener (may be null)
+     * @param stateCallback callback for state changes
+     * @param channelMessageService the channel message service for schema-based processing (may be null)
+     * @param channelId the channel ID for schema resolution (may be null)
+     */
+    public SendChannelHandler(String connectionName, ConnectionListener listener,
+                              Consumer<ConnectionState> stateCallback,
+                              ChannelMessageService channelMessageService,
+                              String channelId) {
         this.connectionName = connectionName;
         this.listener = listener;
         this.stateCallback = stateCallback;
+        this.channelMessageService = channelMessageService;
+        this.channelId = channelId;
     }
 
     @Override
@@ -97,7 +123,7 @@ public class SendChannelHandler extends ChannelDuplexHandler {
         if (msg instanceof Iso8583Message message) {
             String mti = message.getMti();
             String stan = message.getFieldAsString(11);
-            log.debug("[{}] Sending message: MTI={}, STAN={}", connectionName, mti, stan);
+            log.debug("[{}] Sending Iso8583Message: MTI={}, STAN={}", connectionName, mti, stan);
 
             // Add write completion listener for statistics
             promise.addListener(future -> {
@@ -109,8 +135,39 @@ public class SendChannelHandler extends ChannelDuplexHandler {
                         connectionName, stan, future.cause().getMessage());
                 }
             });
+            super.write(ctx, msg, promise);
+        } else if (msg instanceof GenericMessage genericMessage) {
+            // Handle GenericMessage - assemble to bytes using ChannelMessageService
+            if (channelMessageService != null && channelId != null) {
+                try {
+                    String mti = genericMessage.getFieldAsString("mti");
+                    byte[] data = channelMessageService.assembleMessage(channelId, mti, genericMessage);
+                    log.debug("[{}] Sending GenericMessage: MTI={}, schema={}, bytes={}",
+                        connectionName, mti, genericMessage.getSchema().getName(), data.length);
+
+                    promise.addListener(future -> {
+                        if (future.isSuccess()) {
+                            messagesSent.incrementAndGet();
+                            log.trace("[{}] GenericMessage sent successfully: MTI={}", connectionName, mti);
+                        } else {
+                            log.error("[{}] Failed to send GenericMessage: MTI={}, error={}",
+                                connectionName, mti, future.cause().getMessage());
+                        }
+                    });
+                    // Write the assembled bytes
+                    ctx.write(ctx.alloc().buffer().writeBytes(data), promise);
+                } catch (Exception e) {
+                    log.error("[{}] Failed to assemble GenericMessage: {}", connectionName, e.getMessage());
+                    promise.setFailure(e);
+                }
+            } else {
+                log.warn("[{}] Cannot send GenericMessage: ChannelMessageService or channelId not configured",
+                    connectionName);
+                promise.setFailure(new IllegalStateException("ChannelMessageService not configured"));
+            }
+        } else {
+            super.write(ctx, msg, promise);
         }
-        super.write(ctx, msg, promise);
     }
 
     @Override
@@ -194,5 +251,23 @@ public class SendChannelHandler extends ChannelDuplexHandler {
     public void resetStatistics() {
         messagesSent.set(0);
         bytesSent.set(0);
+    }
+
+    /**
+     * Gets the channel message service.
+     *
+     * @return the channel message service (may be null)
+     */
+    public ChannelMessageService getChannelMessageService() {
+        return channelMessageService;
+    }
+
+    /**
+     * Gets the channel ID.
+     *
+     * @return the channel ID (may be null)
+     */
+    public String getChannelId() {
+        return channelId;
     }
 }

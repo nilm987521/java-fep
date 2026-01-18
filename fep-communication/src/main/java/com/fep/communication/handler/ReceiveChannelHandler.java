@@ -4,7 +4,9 @@ import com.fep.communication.client.ChannelRole;
 import com.fep.communication.client.ConnectionListener;
 import com.fep.communication.client.ConnectionState;
 import com.fep.communication.manager.PendingRequestManager;
+import com.fep.message.generic.message.GenericMessage;
 import com.fep.message.iso8583.Iso8583Message;
+import com.fep.message.service.ChannelMessageService;
 import io.netty.channel.ChannelDuplexHandler;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelPromise;
@@ -39,6 +41,15 @@ public class ReceiveChannelHandler extends ChannelDuplexHandler {
     /** Callback for unsolicited messages */
     private final BiConsumer<String, Iso8583Message> unsolicitedMessageHandler;
 
+    /** Channel message service for schema-based message processing */
+    private final ChannelMessageService channelMessageService;
+
+    /** Channel ID for schema resolution */
+    private final String channelId;
+
+    /** Whether to enable GenericMessage transformation */
+    private final boolean enableGenericMessageTransform;
+
     @Getter
     private volatile ConnectionState state = ConnectionState.DISCONNECTED;
 
@@ -67,7 +78,7 @@ public class ReceiveChannelHandler extends ChannelDuplexHandler {
                                  PendingRequestManager pendingRequestManager,
                                  ConnectionListener listener,
                                  Consumer<ConnectionState> stateCallback) {
-        this(connectionName, pendingRequestManager, listener, stateCallback, null);
+        this(connectionName, pendingRequestManager, listener, stateCallback, null, null, null, false);
     }
 
     /**
@@ -84,11 +95,40 @@ public class ReceiveChannelHandler extends ChannelDuplexHandler {
                                  ConnectionListener listener,
                                  Consumer<ConnectionState> stateCallback,
                                  BiConsumer<String, Iso8583Message> unsolicitedMessageHandler) {
+        this(connectionName, pendingRequestManager, listener, stateCallback, unsolicitedMessageHandler, null, null, false);
+    }
+
+    /**
+     * Creates a ReceiveChannelHandler with ChannelMessageService support.
+     *
+     * <p>When channelMessageService and channelId are provided and enableGenericMessageTransform is true,
+     * incoming Iso8583Message will be transformed to GenericMessage before notifying listeners.
+     *
+     * @param connectionName the connection name for logging
+     * @param pendingRequestManager the shared pending request manager for STAN matching
+     * @param listener the connection event listener (may be null)
+     * @param stateCallback callback for state changes
+     * @param unsolicitedMessageHandler callback for unsolicited messages
+     * @param channelMessageService the channel message service for schema-based processing (may be null)
+     * @param channelId the channel ID for schema resolution (may be null)
+     * @param enableGenericMessageTransform whether to transform messages to GenericMessage
+     */
+    public ReceiveChannelHandler(String connectionName,
+                                 PendingRequestManager pendingRequestManager,
+                                 ConnectionListener listener,
+                                 Consumer<ConnectionState> stateCallback,
+                                 BiConsumer<String, Iso8583Message> unsolicitedMessageHandler,
+                                 ChannelMessageService channelMessageService,
+                                 String channelId,
+                                 boolean enableGenericMessageTransform) {
         this.connectionName = connectionName;
         this.pendingRequestManager = pendingRequestManager;
         this.listener = listener;
         this.stateCallback = stateCallback;
         this.unsolicitedMessageHandler = unsolicitedMessageHandler;
+        this.channelMessageService = channelMessageService;
+        this.channelId = channelId;
+        this.enableGenericMessageTransform = enableGenericMessageTransform;
     }
 
     @Override
@@ -299,5 +339,73 @@ public class ReceiveChannelHandler extends ChannelDuplexHandler {
         messagesReceived.set(0);
         messagesMatched.set(0);
         unsolicitedMessages.set(0);
+    }
+
+    /**
+     * Transforms an Iso8583Message to GenericMessage if enabled and configured.
+     *
+     * <p>This method attempts to transform the message using ChannelMessageService.
+     * If transformation fails or is not configured, returns null.
+     *
+     * @param message the ISO 8583 message to transform
+     * @return the transformed GenericMessage, or null if transformation is disabled or fails
+     */
+    public GenericMessage transformToGenericMessage(Iso8583Message message) {
+        if (!enableGenericMessageTransform || channelMessageService == null || channelId == null) {
+            return null;
+        }
+
+        try {
+            String mti = message.getMti();
+            byte[] rawData = message.getRawData();
+
+            if (rawData == null || rawData.length == 0) {
+                log.debug("[{}] Cannot transform message: no raw data available", connectionName);
+                return null;
+            }
+
+            if (!channelMessageService.hasChannel(channelId)) {
+                log.debug("[{}] Cannot transform message: channel '{}' not found in registry",
+                    connectionName, channelId);
+                return null;
+            }
+
+            GenericMessage genericMessage = channelMessageService.parseMessage(channelId, mti, rawData);
+            log.debug("[{}] Message transformed to GenericMessage: MTI={}, schema={}",
+                connectionName, mti, genericMessage.getSchema().getName());
+            return genericMessage;
+
+        } catch (Exception e) {
+            log.warn("[{}] Failed to transform message to GenericMessage: {}",
+                connectionName, e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Gets the channel message service.
+     *
+     * @return the channel message service (may be null)
+     */
+    public ChannelMessageService getChannelMessageService() {
+        return channelMessageService;
+    }
+
+    /**
+     * Gets the channel ID.
+     *
+     * @return the channel ID (may be null)
+     */
+    public String getChannelId() {
+        return channelId;
+    }
+
+    /**
+     * Checks if GenericMessage transformation is enabled.
+     *
+     * @return true if transformation is enabled
+     */
+    public boolean isEnableGenericMessageTransform() {
+        return enableGenericMessageTransform;
     }
 }

@@ -104,6 +104,20 @@ public class DualChannelConfig {
     /** Connection name for logging */
     private String connectionName;
 
+    /**
+     * Channel ID for schema resolution.
+     * Used by ChannelMessageService to select appropriate message schema.
+     * Examples: ATM_FISC_V1, POS_GENERIC_V1, FISC_INTERBANK_V1
+     */
+    private String channelId;
+
+    /**
+     * Whether to enable GenericMessage transformation.
+     * When enabled, messages will be transformed using ChannelMessageService.
+     */
+    @Builder.Default
+    private boolean enableGenericMessageTransform = false;
+
     // ==================== Dual-Channel Specific Configuration ====================
 
     /** Strategy for handling single channel failure */
