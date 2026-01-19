@@ -17,6 +17,12 @@
     <description>Shared utilities, constants, and common classes for FEP system</description>
 
     <dependencies>
+        <!-- Spring Context for ApplicationEvent -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-context</artifactId>
+        </dependency>
+
         <!-- Utilities -->
         <dependency>
             <groupId>com.google.guava</groupId>

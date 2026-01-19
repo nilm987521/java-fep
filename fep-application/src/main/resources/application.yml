@@ -181,6 +181,17 @@ fep:
     pin-block-format: FORMAT_0
     mac-algorithm: ANSI_X9_19
 
+  # BPMN Integration Settings (Development)
+  communication:
+    server:
+      # 訊息處理模式：
+      # - default: 使用 DefaultServerMessageHandler (直接轉發到 FISC)
+      # - bpmn: 使用 BpmnServerMessageHandler (透過 BPMN 流程處理)
+      message-handler: ${MESSAGE_HANDLER_TYPE:default}
+    fisc:
+      default-channel: FISC_INTERBANK_V1
+      timeout-ms: 30000
+
 ---
 # Production Profile
 spring:
@@ -270,3 +281,12 @@ fep:
     enabled: true
     max-tps: 5000
     algorithm: TOKEN_BUCKET
+
+  # BPMN Integration Settings (Production)
+  communication:
+    server:
+      # 生產環境建議使用 BPMN 模式，確保交易流程可追蹤
+      message-handler: ${MESSAGE_HANDLER_TYPE:bpmn}
+    fisc:
+      default-channel: ${FISC_DEFAULT_CHANNEL:FISC_INTERBANK_V1}
+      timeout-ms: ${FISC_TIMEOUT_MS:30000}

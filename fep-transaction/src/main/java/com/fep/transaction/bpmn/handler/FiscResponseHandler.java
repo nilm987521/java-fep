@@ -48,9 +48,21 @@ public class FiscResponseHandler {
     }
 
     /**
+     * BPMN 訊息名稱常數
+     *
+     * <p>這些名稱必須與 interbank-transfer.bpmn 中定義的 Message name 一致：
+     * <ul>
+     *   <li>Message_FiscResponse: name="FiscResponse"</li>
+     *   <li>Message_ReversalResponse: name="ReversalResponse"</li>
+     * </ul>
+     */
+    public static final String MESSAGE_FISC_RESPONSE = "FiscResponse";
+    public static final String MESSAGE_REVERSAL_RESPONSE = "ReversalResponse";
+
+    /**
      * 處理 FISC 0210 回應
      *
-     * <p>此方法由 ReceiveChannelHandler 呼叫
+     * <p>此方法由 ReceiveChannelHandler 或 TransactionEventListener 呼叫
      *
      * @param stan STAN
      * @param responseCode 回應碼
@@ -74,13 +86,15 @@ public class FiscResponseHandler {
             variables.put("fiscResponseTime", System.currentTimeMillis());
 
             // 發送訊息至流程 (觸發 Message Catch Event)
+            // 使用與 BPMN 定義一致的訊息名稱: "FiscResponse"
             processService.correlateMessage(
                 processId,
-                "TransferResponse0210",  // 對應 BPMN 中的 Message name
+                MESSAGE_FISC_RESPONSE,
                 variables
             );
 
-            log.info("已通知流程回應: processId={}, RC={}", processId, responseCode);
+            log.info("已通知流程回應: processId={}, message={}, RC={}",
+                    processId, MESSAGE_FISC_RESPONSE, responseCode);
 
         } catch (Exception e) {
             log.error("通知流程失敗: STAN={}, error={}", stan, e.getMessage(), e);
@@ -111,11 +125,15 @@ public class FiscResponseHandler {
             variables.put("reversalResult", "00".equals(responseCode) ? "OK" : "FAIL");
             variables.put("reversalResponseCode", responseCode);
 
+            // 使用與 BPMN 定義一致的訊息名稱: "ReversalResponse"
             processService.correlateMessage(
                 processId,
-                "ReversalResponse0410",
+                MESSAGE_REVERSAL_RESPONSE,
                 variables
             );
+
+            log.info("已通知流程沖正回應: processId={}, message={}, RC={}",
+                    processId, MESSAGE_REVERSAL_RESPONSE, responseCode);
 
         } catch (Exception e) {
             log.error("通知沖正回應失敗: STAN={}, error={}", stan, e.getMessage(), e);

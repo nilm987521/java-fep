@@ -21,7 +21,13 @@ public class TransferProcessService {
 
     private final RuntimeService runtimeService;
 
-    private static final String PROCESS_KEY = "Process_SourceBankFEP";
+    /**
+     * BPMN Process Key
+     *
+     * <p>必須與 interbank-transfer.bpmn 中定義的 process id 一致：
+     * {@code <bpmn:process id="Process_InterbankTransfer" ...>}
+     */
+    private static final String PROCESS_KEY = "Process_InterbankTransfer";
 
     /**
      * 啟動跨行轉帳流程

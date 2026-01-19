@@ -31,7 +31,9 @@ import java.util.Set;
 @Slf4j
 @Getter
 @Setter
-public class Iso8583Message {
+public class Iso8583Message implements java.io.Serializable {
+
+    private static final long serialVersionUID = 1L;
 
     /** Maximum number of fields in ISO 8583 (including secondary bitmap) */
     public static final int MAX_FIELDS = 128;

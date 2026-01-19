@@ -1,5 +1,7 @@
 package com.fep.transaction.bpmn.delegate;
 
+import com.fep.transaction.bpmn.handler.FiscResponseHandler;
+import com.fep.transaction.bpmn.service.FiscCommunicationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.camunda.bpm.engine.delegate.BpmnError;
@@ -8,31 +10,51 @@ import org.camunda.bpm.engine.delegate.JavaDelegate;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * BPMN Service Task Delegate: 發送電文至財金公司
+ * BPMN Send Task Delegate: 發送電文至財金公司
  *
- * <p>整合 FiscDualChannelClient 進行實際的電文發送
+ * <p>此 Delegate 負責將組裝好的 0200 電文發送至 FISC。
+ * 使用非同步模式，發送後立即返回，回應由 Message Catch Event 接收。
+ *
+ * <p>流程：
+ * <pre>
+ * SendToFiscDelegate.execute()
+ *        │
+ *        ├── 1. 取得組裝好的電文 (assembledMessage)
+ *        │
+ *        ├── 2. 產生/取得 STAN
+ *        │
+ *        ├── 3. 透過 FiscCommunicationService 發送 (非同步)
+ *        │
+ *        └── 4. 返回 (不等待回應)
+ *               └── 回應將由 Event_ReceiveResponse (Message Catch Event) 接收
+ * </pre>
+ *
+ * <p>注意事項：
+ * <ul>
+ *   <li>此 Delegate 不等待 FISC 回應，回應由後續的 Message Catch Event 處理</li>
+ *   <li>如果 FISC 連線不可用，會拋出 BPMN Error</li>
+ *   <li>STAN 會存入流程變數，供回應匹配使用</li>
+ * </ul>
  */
 @Slf4j
 @Component("sendToFiscDelegate")
 @RequiredArgsConstructor
 public class SendToFiscDelegate implements JavaDelegate {
 
-    // 實際整合時注入
-    // private final FiscDualChannelClient fiscClient;
-    // private final Iso8583MessageFactory messageFactory;
-    // private final StanGenerator stanGenerator;
+    private final FiscCommunicationService fiscCommunicationService;
+    private final FiscResponseHandler fiscResponseHandler;
 
-    private static final long FISC_TIMEOUT_SECONDS = 30L;
+    /**
+     * STAN 產生器 (簡易實作，正式環境應使用獨立的 StanGenerator)
+     */
+    private static final AtomicInteger stanCounter = new AtomicInteger(0);
 
     @Override
     public void execute(DelegateExecution execution) throws Exception {
-        String transactionId = execution.getProcessInstanceId();
+        String processId = execution.getProcessInstanceId();
         String sourceAccount = (String) execution.getVariable("sourceAccount");
         String targetAccount = (String) execution.getVariable("targetAccount");
         Long amount = (Long) execution.getVariable("amount");
@@ -40,96 +62,84 @@ public class SendToFiscDelegate implements JavaDelegate {
         String targetBankCode = (String) execution.getVariable("targetBankCode");
 
         log.info("[{}] 準備發送至 FISC: {} -> {}, 金額={}",
-            transactionId, sourceBankCode, targetBankCode, amount);
+                processId, sourceBankCode, targetBankCode, amount);
 
         try {
-            // 1. 產生 STAN
-            String stan = generateStan();
+            // 1. 檢查 FISC 連線狀態
+            if (!fiscCommunicationService.isConnected()) {
+                log.error("[{}] FISC 連線不可用", processId);
+                throw new BpmnError("FISC_UNAVAILABLE", "FISC 連線不可用");
+            }
+
+            // 2. 取得或產生 STAN
+            String stan = getOrGenerateStan(execution);
             execution.setVariable("stan", stan);
 
-            // 2. 組裝 0200 電文
-            // Iso8583Message request = buildTransferRequest(
-            //     stan, sourceAccount, targetAccount, amount, sourceBankCode, targetBankCode);
-
-            // 3. 發送並等待回應
-            log.info("[{}] 發送 0200 電文: STAN={}", transactionId, stan);
-
-            // CompletableFuture<Iso8583Message> future = fiscClient.sendAsync(request);
-            // Iso8583Message response = future.get(FISC_TIMEOUT_SECONDS, TimeUnit.SECONDS);
-
-            // 模擬回應 (實際整合時移除)
-            String responseCode = simulateFiscResponse();
-
-            // 4. 解析回應
-            // String responseCode = response.getFieldAsString(39);
-            execution.setVariable("responseCode", responseCode);
-            execution.setVariable("fiscResponseTime", LocalDateTime.now().toString());
-
-            log.info("[{}] 收到 FISC 回應: RC={}", transactionId, responseCode);
-
-        } catch (Exception e) {
-            if (e instanceof TimeoutException) {
-                log.error("[{}] FISC 回應超時", transactionId);
-                // 拋出 BPMN Error 觸發超時處理流程
-                throw new BpmnError("FISC_TIMEOUT", "財金回應超時");
+            // 3. 取得組裝好的電文
+            byte[] assembledMessage = (byte[]) execution.getVariable("assembledMessage");
+            if (assembledMessage == null || assembledMessage.length == 0) {
+                log.error("[{}] 找不到組裝好的電文", processId);
+                throw new BpmnError("MESSAGE_NOT_FOUND", "找不到組裝好的電文");
             }
-            log.error("[{}] 發送至 FISC 失敗: {}", transactionId, e.getMessage(), e);
+
+            // 4. 註冊 STAN 與流程的關聯 (用於回應匹配)
+            fiscResponseHandler.registerStan(stan, processId);
+
+            // 5. 發送電文 (非同步，不等待回應)
+            log.info("[{}] 發送 0200 電文: STAN={}", processId, stan);
+
+            fiscCommunicationService.sendAsync(assembledMessage, processId, stan)
+                    .whenComplete((response, throwable) -> {
+                        if (throwable != null) {
+                            log.error("[{}] FISC 發送失敗: STAN={}, error={}",
+                                    processId, stan, throwable.getMessage());
+                            // 注意：這裡不能拋出 BpmnError，因為是在非同步 callback 中
+                            // 超時或錯誤將由 BPMN 的 Timer Boundary Event 處理
+                        }
+                    });
+
+            // 6. 記錄發送時間
+            execution.setVariable("fiscSendTime", LocalDateTime.now().toString());
+            execution.setVariable("fiscRequestSent", true);
+
+            log.info("[{}] 0200 電文已發送，等待 FISC 回應: STAN={}", processId, stan);
+
+            // 此 Delegate 返回後，流程會繼續到 Message Catch Event (Event_ReceiveResponse)
+            // 等待 FISC 回應或超時
+
+        } catch (BpmnError e) {
+            throw e; // 重新拋出 BPMN 錯誤
+        } catch (Exception e) {
+            log.error("[{}] 發送至 FISC 失敗: {}", processId, e.getMessage(), e);
             throw new BpmnError("FISC_ERROR", "發送失敗: " + e.getMessage());
         }
     }
 
     /**
+     * 取得或產生 STAN
+     *
+     * <p>如果流程變數中已有 STAN（例如由 AssembleMessageDelegate 設定），則使用該值；
+     * 否則產生新的 STAN。
+     */
+    private String getOrGenerateStan(DelegateExecution execution) {
+        String existingStan = (String) execution.getVariable("stan");
+        if (existingStan != null && !existingStan.isEmpty()) {
+            return existingStan;
+        }
+        return generateStan();
+    }
+
+    /**
      * 產生 STAN (System Trace Audit Number)
+     *
+     * <p>STAN 是 6 位數字，範圍 000001-999999，循環使用
      */
     private String generateStan() {
-        // 實際應使用 StanGenerator
-        // return stanGenerator.next();
-        return String.format("%06d", (int) (Math.random() * 999999));
-    }
-
-    /**
-     * 組裝跨行轉帳請求電文 (0200)
-     */
-    /*
-    private Iso8583Message buildTransferRequest(String stan, String sourceAccount,
-            String targetAccount, Long amount, String sourceBankCode, String targetBankCode) {
-
-        Iso8583Message message = messageFactory.createRequest("0200");
-
-        // 主要欄位
-        message.setField(2, sourceAccount);                           // 主帳號
-        message.setField(3, "400000");                                // 處理碼: 轉帳
-        message.setField(4, String.format("%012d", amount));          // 交易金額
-        message.setField(11, stan);                                   // STAN
-        message.setField(12, LocalDateTime.now().format(
-            DateTimeFormatter.ofPattern("HHmmss")));                  // 本地時間
-        message.setField(13, LocalDateTime.now().format(
-            DateTimeFormatter.ofPattern("MMdd")));                    // 本地日期
-        message.setField(32, sourceBankCode);                         // 收單行代碼
-        message.setField(41, "ATM00001");                             // 終端機代號
-        message.setField(42, sourceBankCode + "000000001");           // 商店代號
-        message.setField(100, targetBankCode);                        // 目標銀行代碼
-        message.setField(103, targetAccount);                         // 目標帳號
-
-        return message;
-    }
-    */
-
-    /**
-     * 模擬 FISC 回應 (測試用)
-     */
-    private String simulateFiscResponse() throws InterruptedException {
-        // 模擬網路延遲
-        Thread.sleep(100);
-
-        // 90% 成功率
-        double random = Math.random();
-        if (random < 0.9) {
-            return "00"; // 成功
-        } else if (random < 0.95) {
-            return "51"; // 餘額不足
-        } else {
-            return "96"; // 系統異常
+        int stan = stanCounter.incrementAndGet();
+        if (stan > 999999) {
+            stanCounter.set(1);
+            stan = 1;
         }
+        return String.format("%06d", stan);
     }
 }
