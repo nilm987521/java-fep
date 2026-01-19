@@ -1,0 +1,212 @@
+{
+  "$schema": "./delegate-mapping.schema.json",
+  "description": "FEP Java Delegate mapping configuration",
+  "version": "1.0.0",
+
+  "delegates": [
+    {
+      "name": "validateRequestDelegate",
+      "displayName": "驗證請求",
+      "description": "驗證轉帳請求的基本資料完整性",
+      "category": "Validate",
+      "bpmnTaskId": "Task_ValidateRequest",
+      "inputs": [
+        { "name": "sourceAccount", "type": "String", "required": true, "description": "來源帳號" },
+        { "name": "targetAccount", "type": "String", "required": true, "description": "目標帳號" },
+        { "name": "amount", "type": "Long", "required": true, "description": "交易金額" },
+        { "name": "channel", "type": "String", "required": false, "description": "交易通道 (ATM/WEB/MOBILE)" }
+      ],
+      "outputs": [
+        { "name": "validationResult", "type": "String", "values": ["OK", "FAIL"] },
+        { "name": "validationMessage", "type": "String" },
+        { "name": "responseCode", "type": "String" }
+      ]
+    },
+    {
+      "name": "checkLimitDelegate",
+      "displayName": "檢查限額",
+      "description": "檢查交易金額是否超過單筆/日累計限額",
+      "category": "Validate",
+      "bpmnTaskId": "Task_CheckLimit",
+      "inputs": [
+        { "name": "sourceAccount", "type": "String", "required": true },
+        { "name": "amount", "type": "Long", "required": true },
+        { "name": "isDesignated", "type": "Boolean", "required": false, "description": "是否為約定轉帳" }
+      ],
+      "outputs": [
+        { "name": "limitCheck", "type": "String", "values": ["OK", "FAIL"] },
+        { "name": "limitMessage", "type": "String" }
+      ]
+    },
+    {
+      "name": "freezeAmountDelegate",
+      "displayName": "扣款凍結",
+      "description": "凍結來源帳戶的交易金額",
+      "category": "Account",
+      "bpmnTaskId": "Task_FreezeAmount",
+      "inputs": [
+        { "name": "sourceAccount", "type": "String", "required": true },
+        { "name": "amount", "type": "Long", "required": true }
+      ],
+      "outputs": [
+        { "name": "freezeId", "type": "String", "description": "凍結交易編號" },
+        { "name": "freezeResult", "type": "String", "values": ["OK", "FAIL"] }
+      ]
+    },
+    {
+      "name": "unfreezeAmountDelegate",
+      "displayName": "解凍款項",
+      "description": "解除凍結的款項（用於交易失敗時）",
+      "category": "Account",
+      "bpmnTaskId": "Task_UnfreezeAmount",
+      "inputs": [
+        { "name": "freezeId", "type": "String", "required": true },
+        { "name": "sourceAccount", "type": "String", "required": true }
+      ],
+      "outputs": [
+        { "name": "unfreezeResult", "type": "String", "values": ["OK", "FAIL"] }
+      ]
+    },
+    {
+      "name": "confirmDebitDelegate",
+      "displayName": "確認扣款",
+      "description": "確認扣款並將凍結款項正式扣除",
+      "category": "Account",
+      "bpmnTaskId": "Task_ConfirmDebit",
+      "inputs": [
+        { "name": "freezeId", "type": "String", "required": true },
+        { "name": "sourceAccount", "type": "String", "required": true },
+        { "name": "amount", "type": "Long", "required": true }
+      ],
+      "outputs": [
+        { "name": "debitResult", "type": "String", "values": ["OK", "FAIL"] },
+        { "name": "transactionId", "type": "String" }
+      ]
+    },
+    {
+      "name": "assembleMessageDelegate",
+      "displayName": "組裝電文",
+      "description": "組裝 ISO 8583 0200 電文",
+      "category": "Message",
+      "bpmnTaskId": "Task_AssembleMessage",
+      "inputs": [
+        { "name": "sourceAccount", "type": "String", "required": true },
+        { "name": "targetAccount", "type": "String", "required": true },
+        { "name": "amount", "type": "Long", "required": true },
+        { "name": "sourceBankCode", "type": "String", "required": true },
+        { "name": "targetBankCode", "type": "String", "required": true }
+      ],
+      "outputs": [
+        { "name": "assembledMessage", "type": "byte[]", "description": "組裝完成的電文" },
+        { "name": "stan", "type": "String", "description": "系統追蹤號" }
+      ]
+    },
+    {
+      "name": "sendToFiscDelegate",
+      "displayName": "發送至FISC",
+      "description": "將電文發送至財金公司",
+      "category": "Communication",
+      "bpmnTaskId": "Task_SendToFISC",
+      "inputs": [
+        { "name": "assembledMessage", "type": "byte[]", "required": true }
+      ],
+      "outputs": [
+        { "name": "sendResult", "type": "String", "values": ["OK", "FAIL"] },
+        { "name": "sendTime", "type": "Long" }
+      ]
+    },
+    {
+      "name": "buildFailResponseDelegate",
+      "displayName": "組失敗回應",
+      "description": "組裝交易失敗的回應電文",
+      "category": "Message",
+      "bpmnTaskId": "Task_BuildFailResponse",
+      "inputs": [
+        { "name": "responseCode", "type": "String", "required": true },
+        { "name": "errorMessage", "type": "String", "required": false }
+      ],
+      "outputs": [
+        { "name": "responseMessage", "type": "byte[]" }
+      ]
+    },
+    {
+      "name": "sendReversalDelegate",
+      "displayName": "發送沖正",
+      "description": "發送 0400 沖正電文",
+      "category": "Communication",
+      "bpmnTaskId": "Task_SendReversal",
+      "inputs": [
+        { "name": "originalStan", "type": "String", "required": true },
+        { "name": "amount", "type": "Long", "required": true }
+      ],
+      "outputs": [
+        { "name": "reversalResult", "type": "String", "values": ["OK", "FAIL"] }
+      ]
+    },
+    {
+      "name": "logTransactionDelegate",
+      "displayName": "記錄日誌",
+      "description": "記錄交易日誌至資料庫",
+      "category": "Other",
+      "bpmnTaskId": "Task_LogSuccess",
+      "inputs": [
+        { "name": "transactionId", "type": "String", "required": true },
+        { "name": "status", "type": "String", "required": true },
+        { "name": "responseCode", "type": "String", "required": false }
+      ],
+      "outputs": []
+    },
+    {
+      "name": "markPendingAdjustDelegate",
+      "displayName": "標記待調帳",
+      "description": "將交易標記為待人工調帳處理",
+      "category": "Other",
+      "bpmnTaskId": "Task_MarkPendingAdjust",
+      "inputs": [
+        { "name": "transactionId", "type": "String", "required": true },
+        { "name": "reason", "type": "String", "required": true }
+      ],
+      "outputs": [
+        { "name": "adjustmentId", "type": "String" }
+      ]
+    }
+  ],
+
+  "categories": [
+    {
+      "id": "Validate",
+      "name": "驗證類",
+      "description": "交易驗證相關的 Delegate",
+      "color": "#4CAF50",
+      "icon": "check-circle"
+    },
+    {
+      "id": "Account",
+      "name": "帳務類",
+      "description": "帳戶操作相關的 Delegate",
+      "color": "#2196F3",
+      "icon": "credit-card"
+    },
+    {
+      "id": "Message",
+      "name": "電文類",
+      "description": "電文組裝和解析的 Delegate",
+      "color": "#FF9800",
+      "icon": "mail"
+    },
+    {
+      "id": "Communication",
+      "name": "通訊類",
+      "description": "與外部系統通訊的 Delegate",
+      "color": "#9C27B0",
+      "icon": "broadcast"
+    },
+    {
+      "id": "Other",
+      "name": "其他",
+      "description": "其他類型的 Delegate",
+      "color": "#607D8B",
+      "icon": "package"
+    }
+  ]
+}

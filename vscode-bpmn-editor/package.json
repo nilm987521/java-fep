@@ -1,0 +1,247 @@
+{
+  "name": "fep-bpmn-editor",
+  "displayName": "FEP BPMN Editor",
+  "description": "Visual BPMN editor with Java Delegate integration for FEP (Front-End Processor) workflow design",
+  "version": "1.0.0",
+  "publisher": "fep",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Visualization",
+    "Other"
+  ],
+  "keywords": [
+    "bpmn",
+    "camunda",
+    "workflow",
+    "java",
+    "delegate",
+    "fep"
+  ],
+  "icon": "resources/icons/extension-icon.png",
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "onLanguage:bpmn",
+    "workspaceContains:**/*.bpmn"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "fep-bpmn.openEditor",
+        "title": "Open BPMN Editor",
+        "category": "FEP BPMN",
+        "icon": "$(symbol-event)"
+      },
+      {
+        "command": "fep-bpmn.scanDelegates",
+        "title": "Scan Java Delegates",
+        "category": "FEP BPMN",
+        "icon": "$(search)"
+      },
+      {
+        "command": "fep-bpmn.newBpmnFile",
+        "title": "New BPMN File",
+        "category": "FEP BPMN",
+        "icon": "$(new-file)"
+      },
+      {
+        "command": "fep-bpmn.exportSvg",
+        "title": "Export as SVG",
+        "category": "FEP BPMN",
+        "icon": "$(export)"
+      },
+      {
+        "command": "fep-bpmn.exportPng",
+        "title": "Export as PNG",
+        "category": "FEP BPMN",
+        "icon": "$(file-media)"
+      }
+    ],
+    "customEditors": [
+      {
+        "viewType": "fep-bpmn.editor",
+        "displayName": "FEP BPMN Editor",
+        "selector": [
+          {
+            "filenamePattern": "*.bpmn"
+          }
+        ],
+        "priority": "default"
+      }
+    ],
+    "menus": {
+      "editor/title": [
+        {
+          "when": "resourceExtname == .bpmn",
+          "command": "fep-bpmn.exportSvg",
+          "group": "navigation"
+        }
+      ],
+      "explorer/context": [
+        {
+          "when": "resourceExtname == .bpmn",
+          "command": "fep-bpmn.openEditor",
+          "group": "navigation"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "FEP BPMN Editor",
+      "properties": {
+        "fep-bpmn.scanPaths": {
+          "type": "array",
+          "default": [
+            "**/delegate/**/*.java",
+            "**/bpmn/**/*.java",
+            "**/processor/**/*.java"
+          ],
+          "description": "Glob patterns for scanning Java Delegate files"
+        },
+        "fep-bpmn.delegateAnnotations": {
+          "type": "array",
+          "default": [
+            "@Component",
+            "@Service",
+            "@Named"
+          ],
+          "description": "Annotations that mark a class as a Delegate"
+        },
+        "fep-bpmn.delegateInterface": {
+          "type": "string",
+          "default": "JavaDelegate",
+          "description": "Interface that Delegate classes must implement"
+        },
+        "fep-bpmn.categories": {
+          "type": "object",
+          "default": {
+            "Validate": {
+              "name": "驗證類",
+              "color": "#4CAF50",
+              "icon": "check-circle"
+            },
+            "Account": {
+              "name": "帳務類",
+              "color": "#2196F3",
+              "icon": "credit-card"
+            },
+            "Message": {
+              "name": "電文類",
+              "color": "#FF9800",
+              "icon": "mail"
+            },
+            "Communication": {
+              "name": "通訊類",
+              "color": "#9C27B0",
+              "icon": "broadcast"
+            },
+            "Other": {
+              "name": "其他",
+              "color": "#607D8B",
+              "icon": "package"
+            }
+          },
+          "description": "Delegate category definitions"
+        },
+        "fep-bpmn.autoScan": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically scan for delegates when opening a BPMN file"
+        },
+        "fep-bpmn.showMinimap": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show minimap in BPMN editor"
+        }
+      }
+    },
+    "languages": [
+      {
+        "id": "bpmn",
+        "extensions": [
+          ".bpmn"
+        ],
+        "aliases": [
+          "BPMN",
+          "bpmn"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "bpmn",
+        "scopeName": "text.xml.bpmn",
+        "path": "./syntaxes/bpmn.tmLanguage.json"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "fep-bpmn-explorer",
+          "title": "BPMN Explorer",
+          "icon": "resources/icons/bpmn-icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "fep-bpmn-explorer": [
+        {
+          "id": "fep-bpmn.delegatesView",
+          "name": "Java Delegates",
+          "icon": "$(symbol-class)"
+        },
+        {
+          "id": "fep-bpmn.bpmnFilesView",
+          "name": "BPMN Files",
+          "icon": "$(file)"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run package",
+    "compile": "webpack",
+    "watch": "webpack --watch",
+    "package": "webpack --mode production --devtool hidden-source-map",
+    "compile-tests": "tsc -p . --outDir out",
+    "watch-tests": "tsc -p . -w --outDir out",
+    "pretest": "npm run compile-tests && npm run compile && npm run lint",
+    "lint": "eslint src --ext ts,tsx",
+    "test": "node ./out/test/runTest.js",
+    "build:webview": "webpack --config webpack.webview.config.js"
+  },
+  "devDependencies": {
+    "@types/glob": "^8.1.0",
+    "@types/mocha": "^10.0.6",
+    "@types/node": "^20.11.0",
+    "@types/react": "^18.2.48",
+    "@types/react-dom": "^18.2.18",
+    "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^6.19.0",
+    "@typescript-eslint/parser": "^6.19.0",
+    "@vscode/test-electron": "^2.3.8",
+    "css-loader": "^6.9.1",
+    "eslint": "^8.56.0",
+    "glob": "^10.3.10",
+    "mocha": "^10.2.0",
+    "style-loader": "^3.3.4",
+    "ts-loader": "^9.5.1",
+    "typescript": "^5.3.3",
+    "webpack": "^5.89.0",
+    "webpack-cli": "^5.1.4"
+  },
+  "dependencies": {
+    "bpmn-js": "^17.0.2",
+    "bpmn-js-properties-panel": "^5.7.0",
+    "@bpmn-io/properties-panel": "^3.13.0",
+    "camunda-bpmn-moddle": "^7.0.1",
+    "diagram-js": "^14.1.0",
+    "min-dash": "^4.2.1",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "zustand": "^4.5.0"
+  }
+}

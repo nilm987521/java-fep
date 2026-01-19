@@ -1,0 +1,171 @@
+{
+  "name": "BPMN",
+  "scopeName": "text.xml.bpmn",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#doctype" },
+    { "include": "#cdata" },
+    { "include": "#element" }
+  ],
+  "repository": {
+    "comments": {
+      "begin": "<!--",
+      "end": "-->",
+      "name": "comment.block.bpmn",
+      "patterns": [
+        {
+          "match": "--",
+          "name": "invalid.illegal.double-hyphen.bpmn"
+        }
+      ]
+    },
+    "doctype": {
+      "begin": "<!(DOCTYPE|doctype)",
+      "end": ">",
+      "name": "meta.tag.doctype.bpmn",
+      "patterns": [
+        { "include": "#string" }
+      ]
+    },
+    "cdata": {
+      "begin": "<!\\[CDATA\\[",
+      "end": "\\]\\]>",
+      "name": "string.unquoted.cdata.bpmn"
+    },
+    "element": {
+      "patterns": [
+        { "include": "#bpmn-elements" },
+        { "include": "#camunda-elements" },
+        { "include": "#bpmndi-elements" },
+        { "include": "#generic-element" }
+      ]
+    },
+    "bpmn-elements": {
+      "begin": "(</?)(bpmn:)(process|startEvent|endEvent|serviceTask|sendTask|receiveTask|userTask|scriptTask|businessRuleTask|exclusiveGateway|parallelGateway|inclusiveGateway|eventBasedGateway|sequenceFlow|messageFlow|intermediateCatchEvent|intermediateThrowEvent|boundaryEvent|subProcess|callActivity|participant|collaboration|lane|laneSet|dataObject|dataStore|message|signal|error|escalation|definitions)",
+      "beginCaptures": {
+        "1": { "name": "punctuation.definition.tag.bpmn" },
+        "2": { "name": "entity.name.tag.namespace.bpmn" },
+        "3": { "name": "entity.name.tag.bpmn.element" }
+      },
+      "end": "(/>|>)",
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.tag.bpmn" }
+      },
+      "patterns": [
+        { "include": "#attribute" }
+      ]
+    },
+    "camunda-elements": {
+      "begin": "(</?)(camunda:)(inputOutput|inputParameter|outputParameter|formData|formField|properties|property|executionListener|taskListener|in|out)",
+      "beginCaptures": {
+        "1": { "name": "punctuation.definition.tag.bpmn" },
+        "2": { "name": "entity.name.tag.namespace.camunda" },
+        "3": { "name": "entity.name.tag.camunda.element" }
+      },
+      "end": "(/>|>)",
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.tag.bpmn" }
+      },
+      "patterns": [
+        { "include": "#attribute" }
+      ]
+    },
+    "bpmndi-elements": {
+      "begin": "(</?)(bpmndi:|dc:|di:)(\\w+)",
+      "beginCaptures": {
+        "1": { "name": "punctuation.definition.tag.bpmn" },
+        "2": { "name": "entity.name.tag.namespace.bpmndi" },
+        "3": { "name": "entity.name.tag.bpmndi.element" }
+      },
+      "end": "(/>|>)",
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.tag.bpmn" }
+      },
+      "patterns": [
+        { "include": "#attribute" }
+      ]
+    },
+    "generic-element": {
+      "begin": "(</?)(\\w+:)?(\\w+)",
+      "beginCaptures": {
+        "1": { "name": "punctuation.definition.tag.bpmn" },
+        "2": { "name": "entity.name.tag.namespace.bpmn" },
+        "3": { "name": "entity.name.tag.localname.bpmn" }
+      },
+      "end": "(/>|>)",
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.tag.bpmn" }
+      },
+      "patterns": [
+        { "include": "#attribute" }
+      ]
+    },
+    "attribute": {
+      "patterns": [
+        {
+          "match": "(camunda:)(delegateExpression|class|expression|resultVariable|asyncBefore|asyncAfter|exclusive|jobPriority)",
+          "captures": {
+            "1": { "name": "entity.other.attribute-name.namespace.camunda" },
+            "2": { "name": "entity.other.attribute-name.camunda" }
+          }
+        },
+        {
+          "match": "(\\w+:)?(id|name|processRef|sourceRef|targetRef|bpmnElement|isExecutable|default)\\s*(=)",
+          "captures": {
+            "1": { "name": "entity.other.attribute-name.namespace.bpmn" },
+            "2": { "name": "entity.other.attribute-name.bpmn" },
+            "3": { "name": "punctuation.separator.key-value.bpmn" }
+          }
+        },
+        {
+          "match": "(xmlns)(:\\w+)?\\s*(=)",
+          "captures": {
+            "1": { "name": "entity.other.attribute-name.namespace.xmlns" },
+            "2": { "name": "entity.other.attribute-name.xmlns" },
+            "3": { "name": "punctuation.separator.key-value.bpmn" }
+          }
+        },
+        {
+          "match": "(\\w+)\\s*(=)",
+          "captures": {
+            "1": { "name": "entity.other.attribute-name.bpmn" },
+            "2": { "name": "punctuation.separator.key-value.bpmn" }
+          }
+        },
+        { "include": "#string" }
+      ]
+    },
+    "string": {
+      "patterns": [
+        {
+          "begin": "\"",
+          "end": "\"",
+          "name": "string.quoted.double.bpmn",
+          "patterns": [
+            {
+              "match": "\\$\\{[^}]+\\}",
+              "name": "variable.other.expression.bpmn"
+            },
+            { "include": "#entity" }
+          ]
+        },
+        {
+          "begin": "'",
+          "end": "'",
+          "name": "string.quoted.single.bpmn",
+          "patterns": [
+            {
+              "match": "\\$\\{[^}]+\\}",
+              "name": "variable.other.expression.bpmn"
+            },
+            { "include": "#entity" }
+          ]
+        }
+      ]
+    },
+    "entity": {
+      "match": "&(\\w+|#\\d+|#x[0-9a-fA-F]+);",
+      "name": "constant.character.entity.bpmn"
+    }
+  }
+}
