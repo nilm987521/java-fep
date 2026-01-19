@@ -121,15 +121,16 @@ export class JavaDelegateScanner {
     const packageName = this.extractPackage(content);
     const className = this.extractClassName(content);
     const componentName = this.extractComponentName(content);
+
+    if (!className || !componentName) {
+      return null;
+    }
+
     const javadoc = this.extractJavadoc(content);
     const lineNumber = this.findClassLineNumber(lines);
     const inputVariables = this.extractInputVariables(content);
     const outputVariables = this.extractOutputVariables(content);
     const category = this.determineCategory(className, componentName);
-
-    if (!className || !componentName) {
-      return null;
-    }
 
     const stats = await fs.promises.stat(uri.fsPath);
 
