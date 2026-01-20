@@ -52,7 +52,9 @@ public class SendResponseToClientDelegate implements JavaDelegate {
         String stan = (String) execution.getVariable("stan");
         String responseCode = (String) execution.getVariable("responseCode");
 
-        log.info("[{}] 準備發送回應給客戶端: STAN={}, RC={}", processId, stan, responseCode);
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] 準備發送回應給客戶端: STAN={}, RC={}", processId, stan, responseCode);
+        }
 
         try {
             // 取得組裝好的回應訊息
@@ -72,7 +74,9 @@ public class SendResponseToClientDelegate implements JavaDelegate {
             }
 
             if (sent) {
-                log.info("[{}] 回應已發送給客戶端: STAN={}, RC={}", processId, stan, responseCode);
+                if (log.isDebugEnabled()) {
+                    log.debug("[{}] 回應已發送給客戶端: STAN={}, RC={}", processId, stan, responseCode);
+                }
                 execution.setVariable("responseSent", true);
             } else {
                 log.warn("[{}] 發送回應失敗，找不到對應的 callback: STAN={}", processId, stan);

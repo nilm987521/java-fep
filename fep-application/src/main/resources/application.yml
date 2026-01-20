@@ -49,12 +49,16 @@ camunda.bpm:
     create: All tasks
   authorization:
     enabled: false
-  history-level: full
+  # history-level: full 會記錄所有歷史到 DB，影響效能
+  # activity: 只記錄活動層級，平衡效能與追蹤需求
+  # none: 完全不記錄（最高效能，但無法查詢歷史）
+  history-level: ${CAMUNDA_HISTORY_LEVEL:activity}
   database:
     schema-update: true
   job-execution:
     enabled: true
-    max-jobs-per-acquisition: 5
+    # 每次取得的最大作業數（提高並行處理能力）
+    max-jobs-per-acquisition: ${CAMUNDA_MAX_JOBS:20}
   metrics:
     enabled: true
     db-reporter-activate: false

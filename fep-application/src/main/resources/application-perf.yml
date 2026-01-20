@@ -1,7 +1,13 @@
 # Performance Testing Profile
-# Usage: -Dspring.profiles.active=perf
-# Or in IDEA: Active profiles = perf
+# Usage: -Dspring.profiles.active=dev,perf
+# Or in IDEA: Active profiles = dev,perf
+#
+# 此 profile 用於效能測試，最大化 TPS：
+# - 關閉所有日誌輸出
+# - 使用最輕量的 Camunda 歷史記錄
+# - 增加執行緒池和連線池大小
 
+# 完全關閉日誌（最高效能）
 logging:
   level:
     root: ERROR
@@ -10,3 +16,26 @@ logging:
     org.springframework: ERROR
     io.netty: ERROR
     org.hibernate: ERROR
+    com.zaxxer.hikari: ERROR
+
+# Camunda 效能優化
+camunda.bpm:
+  # 完全關閉歷史記錄（最高效能）
+  history-level: none
+  # 增加作業取得數量
+  job-execution:
+    max-jobs-per-acquisition: 50
+  # 關閉指標收集
+  metrics:
+    enabled: false
+    db-reporter-activate: false
+
+# 資料庫連線池優化 (H2 for dev)
+spring:
+  datasource:
+    hikari:
+      # 增加連線池大小
+      maximum-pool-size: 30
+      minimum-idle: 10
+      # 減少連線取得等待時間
+      connection-timeout: 5000

@@ -80,15 +80,17 @@ public class TransactionEventListener {
      *
      * @param event 交易請求事件
      */
-    @Async
+    @Async("transactionExecutor")
     @EventListener
     public void handleTransactionRequest(TransactionRequestEvent event) {
         String stan = event.getStan();
         String channelId = event.getChannelId();
         String processKey = event.getProcessKey();
 
-        log.info("[{}] 收到交易請求事件: STAN={}, type={}, MTI={}, processKey={}",
-                channelId, stan, event.getTransactionType(), event.getMti(), processKey);
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] 收到交易請求事件: STAN={}, type={}, MTI={}, processKey={}",
+                    channelId, stan, event.getTransactionType(), event.getMti(), processKey);
+        }
 
         try {
             // 重要：先註冊 callback，因為 Camunda 流程是同步執行的
@@ -101,8 +103,10 @@ public class TransactionEventListener {
             // 補充註冊 processId 映射（用於 FISC 回應關聯）
             registerProcessMapping(stan, processId);
 
-            log.info("[{}] BPMN 流程已啟動: STAN={}, processId={}, processKey={}",
-                    channelId, stan, processId, processKey);
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] BPMN 流程已啟動: STAN={}, processId={}, processKey={}",
+                        channelId, stan, processId, processKey);
+            }
 
         } catch (Exception e) {
             log.error("[{}] 啟動 BPMN 流程失敗: STAN={}, processKey={}, error={}",
@@ -123,7 +127,7 @@ public class TransactionEventListener {
      *
      * @param event FISC 回應事件
      */
-    @Async
+    @Async("bpmnExecutor")
     @EventListener
     public void handleFiscResponse(FiscResponseEvent event) {
         String stan = event.getStan();
@@ -134,8 +138,10 @@ public class TransactionEventListener {
             return;
         }
 
-        log.info("處理 FISC 回應: STAN={}, RC={}, processId={}, type={}",
-                stan, event.getResponseCode(), processId, event.getResponseType());
+        if (log.isDebugEnabled()) {
+            log.debug("處理 FISC 回應: STAN={}, RC={}, processId={}, type={}",
+                    stan, event.getResponseCode(), processId, event.getResponseType());
+        }
 
         try {
             // 根據回應類型決定訊息名稱
@@ -147,8 +153,10 @@ public class TransactionEventListener {
             // 發送訊息至流程 (觸發 Message Catch Event)
             processService.correlateMessage(processId, messageName, variables);
 
-            log.info("已通知流程回應: processId={}, message={}, RC={}",
-                    processId, messageName, event.getResponseCode());
+            if (log.isDebugEnabled()) {
+                log.debug("已通知流程回應: processId={}, message={}, RC={}",
+                        processId, messageName, event.getResponseCode());
+            }
 
         } catch (Exception e) {
             log.error("通知流程失敗: STAN={}, processId={}, error={}",
@@ -180,7 +188,9 @@ public class TransactionEventListener {
 
         try {
             callback.accept(responseData);
-            log.info("已發送回應給客戶端: STAN={}, processId={}", stan, processId);
+            if (log.isDebugEnabled()) {
+                log.debug("已發送回應給客戶端: STAN={}, processId={}", stan, processId);
+            }
             return true;
         } catch (Exception e) {
             log.error("發送回應失敗: STAN={}, processId={}, error={}",
@@ -210,7 +220,9 @@ public class TransactionEventListener {
 
         try {
             callback.accept(responseData);
-            log.info("已發送回應給客戶端: STAN={}", stan);
+            if (log.isDebugEnabled()) {
+                log.debug("已發送回應給客戶端: STAN={}", stan);
+            }
             return true;
         } catch (Exception e) {
             log.error("發送回應失敗: STAN={}, error={}", stan, e.getMessage(), e);

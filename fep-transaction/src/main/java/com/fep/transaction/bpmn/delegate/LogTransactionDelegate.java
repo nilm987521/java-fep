@@ -29,7 +29,9 @@ public class LogTransactionDelegate implements JavaDelegate {
     public void execute(DelegateExecution execution) throws Exception {
         String transactionId = execution.getProcessInstanceId();
 
-        log.info("[{}] 開始記錄交易日誌", transactionId);
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] 開始記錄交易日誌", transactionId);
+        }
 
         try {
             // 1. 收集交易資訊
@@ -62,14 +64,18 @@ public class LogTransactionDelegate implements JavaDelegate {
             // auditLogService.logTransaction(transactionLog);
 
             // 模擬記錄成功
-            log.info("[{}] 交易日誌內容: {}", transactionId, transactionLog);
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] 交易日誌內容: {}", transactionId, transactionLog);
+            }
 
             // 3. 設定完成標記
             execution.setVariable("logStatus", "LOGGED");
             execution.setVariable("transactionStatus", "SUCCESS");
             execution.setVariable("completionTime", LocalDateTime.now().toString());
 
-            log.info("[{}] 交易日誌記錄完成", transactionId);
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] 交易日誌記錄完成", transactionId);
+            }
 
         } catch (Exception e) {
             log.error("[{}] 交易日誌記錄失敗: {}", transactionId, e.getMessage());

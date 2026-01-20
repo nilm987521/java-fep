@@ -73,9 +73,11 @@ public class TransferProcessService {
      */
     public String startProcessWithKey(TransferRequest request, String processKey,
                                        String channelId, String mti, String processingCode) {
-        log.info("啟動流程: processKey={}, channel={}, mti={}, {} -> {}, 金額={}",
-            processKey, channelId, mti,
-            request.getSourceAccount(), request.getTargetAccount(), request.getAmount());
+        if (log.isDebugEnabled()) {
+            log.debug("啟動流程: processKey={}, channel={}, mti={}, {} -> {}, 金額={}",
+                processKey, channelId, mti,
+                request.getSourceAccount(), request.getTargetAccount(), request.getAmount());
+        }
 
         // 準備流程變數
         Map<String, Object> variables = new HashMap<>();
@@ -103,8 +105,10 @@ public class TransferProcessService {
             variables
         );
 
-        log.info("流程已啟動: processId={}, processKey={}, businessKey={}",
-            instance.getId(), processKey, request.getBusinessKey());
+        if (log.isDebugEnabled()) {
+            log.debug("流程已啟動: processId={}, processKey={}, businessKey={}",
+                instance.getId(), processKey, request.getBusinessKey());
+        }
 
         return instance.getId();
     }
@@ -161,7 +165,9 @@ public class TransferProcessService {
      * @param variables 變數
      */
     public void correlateMessage(String processId, String messageName, Map<String, Object> variables) {
-        log.info("發送訊息至流程: processId={}, message={}", processId, messageName);
+        if (log.isDebugEnabled()) {
+            log.debug("發送訊息至流程: processId={}, message={}", processId, messageName);
+        }
         runtimeService.createMessageCorrelation(messageName)
             .processInstanceId(processId)
             .setVariables(variables)
