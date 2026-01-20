@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                  id="Definitions_NetworkManagement"
+                  targetNamespace="http://bpmn.io/schema/bpmn">
+
+  <bpmn:process id="Process_NetworkManagement" name="網路管理流程" isExecutable="true"
+                camunda:historyTimeToLive="P180D">
+
+    <bpmn:documentation>
+      網路管理流程 (MTI: 0800)
+
+      此流程處理 FISC 網路管理訊息，包括：
+      - Sign-On (301): 簽到
+      - Sign-Off (302): 簽退
+      - Echo Test (300): 回音測試
+      - Key Exchange: 換鑰
+
+      流程步驟：
+      1. 驗證網路管理請求
+      2. 處理網路管理訊息
+      3. 組裝並發送回應
+
+      配置化說明：
+      此流程由 application.yml 中的 process-routing 規則觸發，
+      當 MTI=0800 時自動路由至此流程。
+    </bpmn:documentation>
+
+    <!-- 開始事件 -->
+    <bpmn:startEvent id="StartEvent_NetworkManagement" name="收到網路管理請求">
+      <bpmn:outgoing>Flow_Start_To_Log</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- 記錄請求 -->
+    <bpmn:serviceTask id="Task_LogRequest" name="記錄網路管理請求"
+                      camunda:delegateExpression="${logTransactionDelegate}">
+      <bpmn:incoming>Flow_Start_To_Log</bpmn:incoming>
+      <bpmn:outgoing>Flow_Log_To_Handle</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- 處理網路管理訊息 -->
+    <bpmn:serviceTask id="Task_HandleNetworkMessage" name="處理網路管理訊息"
+                      camunda:delegateExpression="${handleNetworkMessageDelegate}">
+      <bpmn:incoming>Flow_Log_To_Handle</bpmn:incoming>
+      <bpmn:outgoing>Flow_Handle_To_Response</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- 發送回應 -->
+    <bpmn:serviceTask id="Task_SendResponse" name="發送回應"
+                      camunda:delegateExpression="${sendResponseToClientDelegate}">
+      <bpmn:incoming>Flow_Handle_To_Response</bpmn:incoming>
+      <bpmn:outgoing>Flow_Response_To_End</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- 結束事件 -->
+    <bpmn:endEvent id="EndEvent_Success" name="完成">
+      <bpmn:incoming>Flow_Response_To_End</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- 序列流 -->
+    <bpmn:sequenceFlow id="Flow_Start_To_Log" sourceRef="StartEvent_NetworkManagement" targetRef="Task_LogRequest"/>
+    <bpmn:sequenceFlow id="Flow_Log_To_Handle" sourceRef="Task_LogRequest" targetRef="Task_HandleNetworkMessage"/>
+    <bpmn:sequenceFlow id="Flow_Handle_To_Response" sourceRef="Task_HandleNetworkMessage" targetRef="Task_SendResponse"/>
+    <bpmn:sequenceFlow id="Flow_Response_To_End" sourceRef="Task_SendResponse" targetRef="EndEvent_Success"/>
+
+  </bpmn:process>
+
+  <!-- BPMN 圖形定義 -->
+  <bpmndi:BPMNDiagram id="BPMNDiagram_NetworkManagement">
+    <bpmndi:BPMNPlane id="BPMNPlane_NetworkManagement" bpmnElement="Process_NetworkManagement">
+
+      <bpmndi:BPMNShape id="StartEvent_NetworkManagement_di" bpmnElement="StartEvent_NetworkManagement">
+        <dc:Bounds x="152" y="102" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="128" y="145" width="84" height="27"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_LogRequest_di" bpmnElement="Task_LogRequest">
+        <dc:Bounds x="240" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_HandleNetworkMessage_di" bpmnElement="Task_HandleNetworkMessage">
+        <dc:Bounds x="390" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="Task_SendResponse_di" bpmnElement="Task_SendResponse">
+        <dc:Bounds x="540" y="80" width="100" height="80"/>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNShape id="EndEvent_Success_di" bpmnElement="EndEvent_Success">
+        <dc:Bounds x="692" y="102" width="36" height="36"/>
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="700" y="145" width="22" height="14"/>
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <bpmndi:BPMNEdge id="Flow_Start_To_Log_di" bpmnElement="Flow_Start_To_Log">
+        <di:waypoint x="188" y="120"/>
+        <di:waypoint x="240" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Log_To_Handle_di" bpmnElement="Flow_Log_To_Handle">
+        <di:waypoint x="340" y="120"/>
+        <di:waypoint x="390" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Handle_To_Response_di" bpmnElement="Flow_Handle_To_Response">
+        <di:waypoint x="490" y="120"/>
+        <di:waypoint x="540" y="120"/>
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Flow_Response_To_End_di" bpmnElement="Flow_Response_To_End">
+        <di:waypoint x="640" y="120"/>
+        <di:waypoint x="692" y="120"/>
+      </bpmndi:BPMNEdge>
+
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+
+</bpmn:definitions>

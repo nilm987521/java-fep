@@ -3,12 +3,10 @@ package com.fep.communication.handler;
 import com.fep.common.event.TransactionRequestEvent;
 import com.fep.common.event.TransactionRequestEvent.TransactionType;
 import com.fep.message.iso8583.Iso8583Message;
-import lombok.RequiredArgsConstructor;
+import com.fep.message.iso8583.Iso8583MessageFactory;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 
-import java.io.ByteArrayOutputStream;
-import java.io.ObjectOutputStream;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Map;
@@ -18,28 +16,49 @@ import java.util.function.Consumer;
 /**
  * BPMN 整合的 ServerMessageHandler 實作
  *
- * <p>此 Handler 將收到的交易請求 (0200/0400) 透過 Spring Application Events
+ * <p>此 Handler 將所有收到的交易請求透過 Spring Application Events
  * 發布給 fep-transaction 模組，觸發 BPMN 流程處理。
  *
- * <p>架構設計：
+ * <p><b>完全配置化設計</b>：
  * <ul>
- *   <li>0200/0400 交易：發布 {@link TransactionRequestEvent}，由 BPMN 流程處理</li>
- *   <li>0800 網路管理：委派給 {@link DefaultServerMessageHandler} 本地處理</li>
+ *   <li>所有 MTI（包含 0800 網路管理）統一走 BPMN 流程</li>
+ *   <li>具體走哪個流程，完全由 {@code ProcessRoutingProperties} 決定</li>
+ *   <li>新增 MTI 時，只需在 application.yml 加入規則 + 部署對應 BPMN 流程</li>
  * </ul>
+ *
+ * <p>配置範例：
+ * <pre>
+ * fep:
+ *   bpmn:
+ *     process-routing:
+ *       enabled: true
+ *       default-process: Process_Default
+ *       rules:
+ *         - name: 跨行轉帳
+ *           mti: "0200"
+ *           processing-code: "40"
+ *           process-key: Process_InterbankTransfer
+ *         - name: 網路管理
+ *           mti: "0800"
+ *           process-key: Process_NetworkManagement
+ * </pre>
  *
  * <p>流程：
  * <pre>
- * ATM ──0200──► BpmnServerMessageHandler
- *                    │
- *                    ├── 0200/0400 → publish TransactionRequestEvent
- *                    │                  └── BPMN 流程處理
- *                    │                        └── 完成後呼叫 responseCallback
- *                    │
- *                    └── 0800 → DefaultServerMessageHandler (本地處理)
+ * ATM/POS Request (任意 MTI)
+ *         ↓
+ * BpmnServerMessageHandler.handleMessage()
+ *         ↓
+ * ProcessRouterService.resolveProcessKey(channelId, mti, processingCode)
+ *         ↓ (從 application.yml 規則中匹配)
+ * TransactionRequestEvent (含 processKey)
+ *         ↓
+ * TransactionEventListener.handleTransactionRequest()
+ *         ↓
+ * Camunda: startProcessInstanceByKey(processKey, ...)
  * </pre>
  */
 @Slf4j
-@RequiredArgsConstructor
 public class BpmnServerMessageHandler implements ServerMessageHandler {
 
     private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofPattern("HHmmss");
@@ -51,9 +70,14 @@ public class BpmnServerMessageHandler implements ServerMessageHandler {
     private final ApplicationEventPublisher eventPublisher;
 
     /**
-     * 預設 Handler (用於處理 0800 網路管理訊息)
+     * 流程路由解析器 - 根據 MTI/processingCode 決定啟動哪個 BPMN 流程
      */
-    private final DefaultServerMessageHandler defaultHandler;
+    private final ProcessKeyResolver processKeyResolver;
+
+    /**
+     * ISO 8583 電文工廠 - 用於序列化/反序列化電文
+     */
+    private final Iso8583MessageFactory messageFactory;
 
     /**
      * STAN → Response Callback 映射
@@ -66,6 +90,51 @@ public class BpmnServerMessageHandler implements ServerMessageHandler {
      */
     private static final long CALLBACK_TTL_MS = 60000; // 60 秒
 
+    /**
+     * 流程 Key 解析器介面
+     * <p>由 fep-application 模組實作並注入
+     */
+    @FunctionalInterface
+    public interface ProcessKeyResolver {
+        /**
+         * 解析流程 Key
+         *
+         * @param channelId 通道 ID
+         * @param mti MTI
+         * @param processingCode Processing Code
+         * @return BPMN 流程 Key
+         */
+        String resolve(String channelId, String mti, String processingCode);
+    }
+
+    /**
+     * 建構函數
+     *
+     * @param eventPublisher Spring 事件發布器
+     * @param processKeyResolver 流程 Key 解析器
+     */
+    public BpmnServerMessageHandler(ApplicationEventPublisher eventPublisher,
+                                     ProcessKeyResolver processKeyResolver) {
+        this(eventPublisher, processKeyResolver, new Iso8583MessageFactory());
+    }
+
+    /**
+     * 建構函數（含自訂 MessageFactory）
+     *
+     * @param eventPublisher Spring 事件發布器
+     * @param processKeyResolver 流程 Key 解析器
+     * @param messageFactory ISO 8583 電文工廠
+     */
+    public BpmnServerMessageHandler(ApplicationEventPublisher eventPublisher,
+                                     ProcessKeyResolver processKeyResolver,
+                                     Iso8583MessageFactory messageFactory) {
+        this.eventPublisher = eventPublisher;
+        this.processKeyResolver = processKeyResolver;
+        this.messageFactory = messageFactory;
+
+        log.info("BpmnServerMessageHandler 初始化完成，所有 MTI 統一走 BPMN 流程");
+    }
+
     @Override
     public void handleMessage(ServerMessageContext context) {
         Iso8583Message request = context.getMessage();
@@ -73,17 +142,21 @@ public class BpmnServerMessageHandler implements ServerMessageHandler {
         String channelId = context.getChannelId();
         String clientId = context.getClientId();
         String stan = request.getFieldAsString(11);
+        String processingCode = extractProcessingCode(request);
 
-        log.info("[{}] BPMN Handler 收到訊息: MTI={}, STAN={}, client={}",
-                channelId, mti, stan, clientId);
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] BPMN Handler 收到訊息: MTI={}, STAN={}, processingCode={}, client={}",
+                    channelId, mti, stan, processingCode, clientId);
+        }
 
         try {
-            switch (mti) {
-                case "0200" -> handleFinancialRequest(context);
-                case "0400" -> handleReversalRequest(context);
-                case "0800" -> defaultHandler.handleMessage(context); // 委派給預設 Handler
-                default -> handleUnknownMti(context);
-            }
+            // 透過 ProcessKeyResolver 解析流程 Key
+            String processKey = processKeyResolver.resolve(channelId, mti, processingCode);
+            log.debug("[{}] MTI={} 路由至流程: {}", channelId, mti, processKey);
+
+            // 統一走 BPMN 流程
+            handleBpmnRequest(context, processKey);
+
         } catch (Exception e) {
             log.error("[{}] 處理訊息失敗: MTI={}, STAN={}, error={}",
                     channelId, mti, stan, e.getMessage(), e);
@@ -92,18 +165,18 @@ public class BpmnServerMessageHandler implements ServerMessageHandler {
     }
 
     /**
-     * 處理 0200 金融交易請求
+     * 統一的 BPMN 請求處理
+     *
+     * @param context 訊息上下文
+     * @param processKey BPMN 流程 Key
      */
-    private void handleFinancialRequest(ServerMessageContext context) {
+    private void handleBpmnRequest(ServerMessageContext context, String processKey) {
         Iso8583Message request = context.getMessage();
         String stan = request.getFieldAsString(11);
-        String processingCode = request.getFieldAsString(3);
+        String processingCode = extractProcessingCode(request);
 
-        // 判斷交易類型
-        TransactionType transactionType = determineTransactionType(processingCode);
-
-        log.info("[{}] 金融交易請求: STAN={}, processingCode={}, type={}",
-                context.getChannelId(), stan, processingCode, transactionType);
+        // 判斷交易類型 (用於日誌和監控)
+        TransactionType transactionType = determineTransactionType(request.getMti(), processingCode);
 
         // 建立 response callback
         Consumer<byte[]> responseCallback = createResponseCallback(context, stan);
@@ -111,42 +184,33 @@ public class BpmnServerMessageHandler implements ServerMessageHandler {
         // 註冊 callback
         registerCallback(stan, context, responseCallback);
 
-        // 發布事件
-        publishTransactionEvent(context, transactionType, responseCallback);
+        // 發布事件 (含 processKey)
+        publishTransactionEvent(context, transactionType, processKey, responseCallback);
     }
 
     /**
-     * 處理 0400 沖正請求
+     * 提取 Processing Code
      */
-    private void handleReversalRequest(ServerMessageContext context) {
-        Iso8583Message request = context.getMessage();
-        String stan = request.getFieldAsString(11);
-
-        log.info("[{}] 沖正請求: STAN={}", context.getChannelId(), stan);
-
-        // 建立 response callback
-        Consumer<byte[]> responseCallback = createResponseCallback(context, stan);
-
-        // 註冊 callback
-        registerCallback(stan, context, responseCallback);
-
-        // 發布沖正事件
-        publishTransactionEvent(context, TransactionType.REVERSAL, responseCallback);
+    private String extractProcessingCode(Iso8583Message request) {
+        String code = request.getFieldAsString(3);
+        return code != null ? code : "";
     }
 
     /**
-     * 處理未知 MTI
+     * 根據 MTI 和 Processing Code 判斷交易類型
      */
-    private void handleUnknownMti(ServerMessageContext context) {
-        String mti = context.getMessage().getMti();
-        log.warn("[{}] 未知 MTI: {}", context.getChannelId(), mti);
-        sendErrorResponse(context, "12"); // Invalid transaction
-    }
+    private TransactionType determineTransactionType(String mti, String processingCode) {
+        // 沖正交易
+        if ("0400".equals(mti) || "0420".equals(mti)) {
+            return TransactionType.REVERSAL;
+        }
 
-    /**
-     * 根據 Processing Code 判斷交易類型
-     */
-    private TransactionType determineTransactionType(String processingCode) {
+        // 網路管理
+        if ("0800".equals(mti) || "0810".equals(mti)) {
+            return TransactionType.UNKNOWN; // 可考慮新增 NETWORK_MANAGEMENT 類型
+        }
+
+        // 根據 Processing Code 判斷
         if (processingCode == null || processingCode.length() < 2) {
             return TransactionType.UNKNOWN;
         }
@@ -171,9 +235,6 @@ public class BpmnServerMessageHandler implements ServerMessageHandler {
                 Iso8583Message response = deserializeResponse(responseData);
                 if (response != null) {
                     context.sendResponse(response);
-                    log.info("[{}] 已發送 BPMN 回應: STAN={}, MTI={}, RC={}",
-                            context.getChannelId(), stan,
-                            response.getMti(), response.getFieldAsString(39));
                 } else {
                     log.error("[{}] 無法反序列化回應: STAN={}", context.getChannelId(), stan);
                 }
@@ -192,6 +253,7 @@ public class BpmnServerMessageHandler implements ServerMessageHandler {
      */
     private void publishTransactionEvent(ServerMessageContext context,
                                          TransactionType transactionType,
+                                         String processKey,
                                          Consumer<byte[]> responseCallback) {
         Iso8583Message request = context.getMessage();
 
@@ -209,23 +271,25 @@ public class BpmnServerMessageHandler implements ServerMessageHandler {
                 .targetAccount(request.getFieldAsString(103))
                 .sourceBankCode(request.getFieldAsString(32))
                 .targetBankCode(request.getFieldAsString(100))
+                .processKey(processKey)
                 .responseCallback(responseCallback)
                 .build();
 
-        log.debug("[{}] 發布 TransactionRequestEvent: STAN={}, type={}",
-                context.getChannelId(), event.getStan(), transactionType);
+        log.debug("[{}] 發布 TransactionRequestEvent: STAN={}, processKey={}, type={}",
+                context.getChannelId(), event.getStan(), processKey, transactionType);
 
         eventPublisher.publishEvent(event);
     }
 
     /**
      * 序列化 ISO 8583 訊息
+     *
+     * <p>使用 Iso8583MessageFactory 組裝符合 ISO 8583 標準格式的電文，
+     * 包含欄位長度補齊、LLVAR/LLLVAR 長度前綴、BCD/ASCII 編碼等處理
      */
     private byte[] serializeMessage(Iso8583Message message) {
-        try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
-             ObjectOutputStream oos = new ObjectOutputStream(baos)) {
-            oos.writeObject(message);
-            return baos.toByteArray();
+        try {
+            return messageFactory.assemble(message);
         } catch (Exception e) {
             log.error("序列化訊息失敗: {}", e.getMessage());
             return new byte[0];
@@ -234,14 +298,15 @@ public class BpmnServerMessageHandler implements ServerMessageHandler {
 
     /**
      * 反序列化回應訊息
+     *
+     * <p>使用 Iso8583MessageFactory 解析 ISO 8583 格式電文
      */
     private Iso8583Message deserializeResponse(byte[] data) {
         if (data == null || data.length == 0) {
             return null;
         }
-        try (java.io.ByteArrayInputStream bais = new java.io.ByteArrayInputStream(data);
-             java.io.ObjectInputStream ois = new java.io.ObjectInputStream(bais)) {
-            return (Iso8583Message) ois.readObject();
+        try {
+            return messageFactory.parse(data);
         } catch (Exception e) {
             log.error("反序列化回應失敗: {}", e.getMessage());
             return null;

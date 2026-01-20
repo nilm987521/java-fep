@@ -2,6 +2,7 @@
 'use strict';
 
 const path = require('path');
+const webpack = require('webpack');
 
 /** @type {import('webpack').Configuration} */
 const extensionConfig = {
@@ -90,6 +91,11 @@ const webviewConfig = {
       }
     ]
   },
+  plugins: [
+    new webpack.DefinePlugin({
+      'process.env.NODE_ENV': JSON.stringify('production')
+    })
+  ],
   devtool: 'source-map'
 };
 

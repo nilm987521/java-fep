@@ -263,10 +263,6 @@ export class BpmnEditorPanel {
       vscode.Uri.joinPath(this._extensionUri, 'dist', 'webview.js')
     );
 
-    const styleUri = webview.asWebviewUri(
-      vscode.Uri.joinPath(this._extensionUri, 'dist', 'webview.css')
-    );
-
     // Use a nonce to only allow specific scripts to be run
     const nonce = getNonce();
 
@@ -275,9 +271,8 @@ export class BpmnEditorPanel {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}'; img-src ${webview.cspSource} data:; font-src ${webview.cspSource};">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${webview.cspSource} 'unsafe-inline'; script-src 'nonce-${nonce}'; img-src ${webview.cspSource} data: blob:; font-src ${webview.cspSource} data: blob:; worker-src blob:;">
     <title>FEP BPMN Editor</title>
-    <link href="${styleUri}" rel="stylesheet">
     <style>
       html, body, #root {
         height: 100%;
@@ -285,6 +280,8 @@ export class BpmnEditorPanel {
         margin: 0;
         padding: 0;
         overflow: hidden;
+        background: var(--vscode-editor-background);
+        color: var(--vscode-editor-foreground);
       }
     </style>
 </head>

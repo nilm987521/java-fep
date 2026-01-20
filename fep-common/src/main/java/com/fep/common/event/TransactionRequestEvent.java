@@ -99,6 +99,12 @@ public class TransactionRequestEvent extends ApplicationEvent {
     private final String targetBankCode;
 
     /**
+     * BPMN 流程 Key - 由 ProcessRouterService 解析後傳入
+     * <p>例如: "Process_InterbankTransfer", "Process_NetworkManagement"
+     */
+    private final String processKey;
+
+    /**
      * 回應 callback - 用於在 BPMN 流程完成後發送回應給客戶端
      */
     private final Consumer<byte[]> responseCallback;
@@ -121,6 +127,7 @@ public class TransactionRequestEvent extends ApplicationEvent {
             String targetAccount,
             String sourceBankCode,
             String targetBankCode,
+            String processKey,
             Consumer<byte[]> responseCallback) {
 
         super(source);
@@ -136,6 +143,7 @@ public class TransactionRequestEvent extends ApplicationEvent {
         this.targetAccount = targetAccount;
         this.sourceBankCode = sourceBankCode;
         this.targetBankCode = targetBankCode;
+        this.processKey = processKey;
         this.responseCallback = responseCallback;
     }
 

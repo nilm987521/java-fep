@@ -9,7 +9,6 @@ import com.fep.communication.codec.FiscMessageEncoder;
 import com.fep.communication.codec.GenericMessageEncoder;
 import com.fep.communication.codec.GenericMessageDecoder;
 import com.fep.message.generic.message.GenericMessage;
-import com.fep.message.generic.schema.MessageSchema;
 import com.fep.message.iso8583.Iso8583Message;
 import com.fep.message.service.ChannelMessageService;
 import io.netty.bootstrap.ServerBootstrap;
@@ -810,13 +809,9 @@ public class FiscDualChannelServer implements AutoCloseable {
             notifyMessageReceived(clientId, message);
 
             // Process message if handler is set
-            log.info("[{}] messageHandler is {}", channelId, messageHandler != null ? "SET" : "NULL");
             if (messageHandler != null) {
                 try {
-                    log.info("[{}] Invoking messageHandler for client {}, MTI={}",
-                            channelId, clientId, message.getMti());
                     messageHandler.accept(clientId, message);
-                    log.info("[{}] messageHandler completed for client {}", channelId, clientId);
                 } catch (Exception e) {
                     log.error("[{}] Error processing message from {}", channelId, clientId, e);
                 }

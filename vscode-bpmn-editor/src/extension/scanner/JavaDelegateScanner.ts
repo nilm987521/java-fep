@@ -38,38 +38,99 @@ export class JavaDelegateScanner {
     const errors: string[] = [];
     let filesScanned = 0;
 
-    this.outputChannel.appendLine(`[${new Date().toISOString()}] Starting delegate scan...`);
-    this.outputChannel.appendLine(`Scan paths: ${this.config.scanPaths.join(', ')}`);
+    this.outputChannel.show(); // 自動顯示 Output Channel
+    this.outputChannel.appendLine('');
+    this.outputChannel.appendLine('='.repeat(60));
+    this.outputChannel.appendLine(`[${new Date().toISOString()}] 開始掃描 Java Delegates...`);
+    this.outputChannel.appendLine('='.repeat(60));
+
+    // 顯示工作區資訊
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+    if (workspaceFolders) {
+      this.outputChannel.appendLine(`\n📁 工作區資料夾:`);
+      workspaceFolders.forEach((folder, index) => {
+        this.outputChannel.appendLine(`   [${index + 1}] ${folder.name}: ${folder.uri.fsPath}`);
+      });
+    } else {
+      this.outputChannel.appendLine(`\n⚠️ 沒有開啟的工作區資料夾`);
+    }
+
+    // 顯示掃描設定
+    this.outputChannel.appendLine(`\n⚙️ 掃描設定:`);
+    this.outputChannel.appendLine(`   掃描路徑模式:`);
+    this.config.scanPaths.forEach((p, index) => {
+      this.outputChannel.appendLine(`     [${index + 1}] ${p}`);
+    });
+    this.outputChannel.appendLine(`   Delegate 介面: ${this.config.delegateInterface}`);
+    this.outputChannel.appendLine(`   識別註解: ${this.config.delegateAnnotations.join(', ')}`);
 
     try {
       // Find all Java files matching patterns
+      this.outputChannel.appendLine(`\n🔍 搜尋 Java 檔案...`);
       const javaFiles = await this.findJavaFiles();
-      this.outputChannel.appendLine(`Found ${javaFiles.length} Java files to scan`);
+      this.outputChannel.appendLine(`\n📊 找到 ${javaFiles.length} 個 Java 檔案`);
+
+      if (javaFiles.length === 0) {
+        this.outputChannel.appendLine(`\n⚠️ 沒有找到任何 Java 檔案!`);
+        this.outputChannel.appendLine(`   請確認:`);
+        this.outputChannel.appendLine(`   1. 掃描路徑是否正確`);
+        this.outputChannel.appendLine(`   2. 工作區是否包含 Java 專案`);
+        this.outputChannel.appendLine(`   3. 可在 VS Code 設定中調整 fep-bpmn.scanPaths`);
+      }
 
       // Scan each file
+      this.outputChannel.appendLine(`\n🔎 掃描檔案內容...`);
       for (const file of javaFiles) {
         try {
           filesScanned++;
+          const relativePath = vscode.workspace.asRelativePath(file);
+          this.outputChannel.appendLine(`   [${filesScanned}/${javaFiles.length}] ${relativePath}`);
+
           const delegate = await this.scanFile(file);
           if (delegate) {
             delegates.push(delegate);
-            this.outputChannel.appendLine(`  Found delegate: ${delegate.name} (${delegate.className})`);
+            this.outputChannel.appendLine(`      ✅ 發現 Delegate: ${delegate.name}`);
+            this.outputChannel.appendLine(`         類別: ${delegate.className}`);
+            this.outputChannel.appendLine(`         分類: ${delegate.category.name}`);
+            this.outputChannel.appendLine(`         輸入變數: ${delegate.inputVariables.length} 個`);
+            this.outputChannel.appendLine(`         輸出變數: ${delegate.outputVariables.length} 個`);
+          } else {
+            this.outputChannel.appendLine(`      ⏭️ 不是 JavaDelegate`);
           }
         } catch (error) {
           const errorMsg = `Error scanning ${file.fsPath}: ${error}`;
           errors.push(errorMsg);
-          this.outputChannel.appendLine(`  ERROR: ${errorMsg}`);
+          this.outputChannel.appendLine(`      ❌ 錯誤: ${error}`);
         }
       }
 
     } catch (error) {
       const errorMsg = `Scan failed: ${error}`;
       errors.push(errorMsg);
-      this.outputChannel.appendLine(`ERROR: ${errorMsg}`);
+      this.outputChannel.appendLine(`\n❌ 掃描失敗: ${errorMsg}`);
     }
 
     const scanDurationMs = Date.now() - startTime;
-    this.outputChannel.appendLine(`Scan completed in ${scanDurationMs}ms. Found ${delegates.length} delegates.`);
+
+    // 顯示掃描結果摘要
+    this.outputChannel.appendLine('');
+    this.outputChannel.appendLine('='.repeat(60));
+    this.outputChannel.appendLine(`📋 掃描結果摘要`);
+    this.outputChannel.appendLine('='.repeat(60));
+    this.outputChannel.appendLine(`   掃描檔案數: ${filesScanned}`);
+    this.outputChannel.appendLine(`   發現 Delegates: ${delegates.length}`);
+    this.outputChannel.appendLine(`   錯誤數: ${errors.length}`);
+    this.outputChannel.appendLine(`   耗時: ${scanDurationMs}ms`);
+
+    if (delegates.length > 0) {
+      this.outputChannel.appendLine(`\n📦 已發現的 Delegates:`);
+      delegates.forEach((d, index) => {
+        this.outputChannel.appendLine(`   [${index + 1}] ${d.name} (${d.category.name})`);
+      });
+    }
+
+    this.outputChannel.appendLine('='.repeat(60));
+    this.outputChannel.appendLine('');
 
     return {
       delegates,
@@ -90,19 +151,39 @@ export class JavaDelegateScanner {
     const allFiles: vscode.Uri[] = [];
 
     for (const pattern of this.config.scanPaths) {
+      this.outputChannel.appendLine(`   搜尋模式: ${pattern}`);
       const files = await vscode.workspace.findFiles(pattern, '**/node_modules/**');
+      this.outputChannel.appendLine(`      找到 ${files.length} 個檔案`);
+
+      if (files.length > 0 && files.length <= 10) {
+        files.forEach(f => {
+          this.outputChannel.appendLine(`        - ${vscode.workspace.asRelativePath(f)}`);
+        });
+      } else if (files.length > 10) {
+        files.slice(0, 5).forEach(f => {
+          this.outputChannel.appendLine(`        - ${vscode.workspace.asRelativePath(f)}`);
+        });
+        this.outputChannel.appendLine(`        ... 還有 ${files.length - 5} 個檔案`);
+      }
+
       allFiles.push(...files);
     }
 
     // Deduplicate
     const seen = new Set<string>();
-    return allFiles.filter(file => {
+    const uniqueFiles = allFiles.filter(file => {
       if (seen.has(file.fsPath)) {
         return false;
       }
       seen.add(file.fsPath);
       return true;
     });
+
+    if (allFiles.length !== uniqueFiles.length) {
+      this.outputChannel.appendLine(`   去除重複後: ${uniqueFiles.length} 個檔案 (原本 ${allFiles.length} 個)`);
+    }
+
+    return uniqueFiles;
   }
 
   /**
@@ -121,15 +202,16 @@ export class JavaDelegateScanner {
     const packageName = this.extractPackage(content);
     const className = this.extractClassName(content);
     const componentName = this.extractComponentName(content);
+
+    if (!className || !componentName) {
+      return null;
+    }
+
     const javadoc = this.extractJavadoc(content);
     const lineNumber = this.findClassLineNumber(lines);
     const inputVariables = this.extractInputVariables(content);
     const outputVariables = this.extractOutputVariables(content);
     const category = this.determineCategory(className, componentName);
-
-    if (!className || !componentName) {
-      return null;
-    }
 
     const stats = await fs.promises.stat(uri.fsPath);
 

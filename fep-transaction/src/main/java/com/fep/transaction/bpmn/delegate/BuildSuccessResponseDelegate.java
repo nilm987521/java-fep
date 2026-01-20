@@ -10,40 +10,36 @@ import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.HashMap;
-import java.util.Map;
 
 /**
- * BPMN Service Task Delegate: 組裝失敗回應
+ * BPMN Service Task Delegate: 組裝成功回應
  *
- * <p>對應 BPMN 中的 Task_BuildFailResponse
- * <p>當交易驗證失敗、限額超過或 FISC 回應失敗時，組裝錯誤回應
+ * <p>對應 BPMN 中的 Task_BuildSuccessResponse
+ * <p>當交易處理成功時，組裝成功回應 (RC=00)
+ *
+ * <p>流程變數輸入：
+ * <ul>
+ *   <li>rawMessage: 原始請求訊息 (byte[])</li>
+ *   <li>mti: MTI 類型</li>
+ *   <li>stan: 交易追蹤號</li>
+ *   <li>processingCode: 處理碼</li>
+ * </ul>
+ *
+ * <p>流程變數輸出：
+ * <ul>
+ *   <li>responseCode: "00"</li>
+ *   <li>assembledResponse: 組裝好的回應訊息 (byte[])</li>
+ *   <li>transactionStatus: "SUCCESS"</li>
+ * </ul>
  */
 @Slf4j
-@Component("buildFailResponseDelegate")
+@Component("buildSuccessResponseDelegate")
 @RequiredArgsConstructor
-public class BuildFailResponseDelegate implements JavaDelegate {
+public class BuildSuccessResponseDelegate implements JavaDelegate {
 
     private final Iso8583MessageFactory messageFactory;
 
-    // 回應碼對照表
-    private static final Map<String, String> RESPONSE_CODE_MESSAGES = new HashMap<>();
-
-    static {
-        RESPONSE_CODE_MESSAGES.put("00", "交易成功");
-        RESPONSE_CODE_MESSAGES.put("05", "不予承兌");
-        RESPONSE_CODE_MESSAGES.put("12", "無效交易");
-        RESPONSE_CODE_MESSAGES.put("13", "無效金額");
-        RESPONSE_CODE_MESSAGES.put("14", "無效卡號/帳號");
-        RESPONSE_CODE_MESSAGES.put("51", "餘額不足");
-        RESPONSE_CODE_MESSAGES.put("54", "卡片過期");
-        RESPONSE_CODE_MESSAGES.put("55", "密碼錯誤");
-        RESPONSE_CODE_MESSAGES.put("61", "超過限額");
-        RESPONSE_CODE_MESSAGES.put("68", "回應逾時");
-        RESPONSE_CODE_MESSAGES.put("91", "發卡機構無法連線");
-        RESPONSE_CODE_MESSAGES.put("96", "系統異常");
-    }
-
+    private static final String SUCCESS_CODE = "00";
     private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofPattern("HHmmss");
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("MMdd");
 
@@ -51,84 +47,59 @@ public class BuildFailResponseDelegate implements JavaDelegate {
     public void execute(DelegateExecution execution) throws Exception {
         String transactionId = execution.getProcessInstanceId();
 
-        log.info("[{}] 開始組裝失敗回應", transactionId);
+        if (log.isDebugEnabled()) {
+            log.debug("[{}] 開始組裝成功回應", transactionId);
+        }
 
         try {
-            // 1. 收集錯誤資訊
-            String responseCode = (String) execution.getVariable("responseCode");
-            String validationResult = (String) execution.getVariable("validationResult");
-            String limitCheck = (String) execution.getVariable("limitCheck");
-            String errorMessage = (String) execution.getVariable("errorMessage");
+            // 組裝 ISO 8583 回應
+            byte[] assembledResponse = buildIso8583Response(execution);
 
-            // 2. 決定最終回應碼
-            if (responseCode == null || responseCode.isBlank()) {
-                if ("FAIL".equals(validationResult)) {
-                    responseCode = (String) execution.getVariable("validationResponseCode");
-                    if (responseCode == null) responseCode = "14"; // 預設驗證失敗碼
-                    errorMessage = (String) execution.getVariable("validationMessage");
-                } else if (!"OK".equals(limitCheck)) {
-                    responseCode = "61"; // 超過限額
-                    errorMessage = "交易金額超過限額";
-                } else {
-                    responseCode = "96"; // 系統異常
-                    errorMessage = errorMessage != null ? errorMessage : "系統處理異常";
-                }
-            }
-
-            // 3. 取得回應訊息描述
-            String responseDescription = RESPONSE_CODE_MESSAGES.getOrDefault(responseCode, "交易失敗");
-            if (errorMessage != null && !errorMessage.isBlank()) {
-                responseDescription = errorMessage;
-            }
-
-            // 4. 組裝 Iso8583Message 回應
-            byte[] assembledResponse = buildIso8583Response(execution, responseCode);
-
-            // 5. 設定流程變數
-            execution.setVariable("responseCode", responseCode);
-            execution.setVariable("responseMessage", responseDescription);
+            // 設定流程變數
+            execution.setVariable("responseCode", SUCCESS_CODE);
             execution.setVariable("assembledResponse", assembledResponse);
-            execution.setVariable("transactionStatus", "FAILED");
+            execution.setVariable("transactionStatus", "SUCCESS");
             execution.setVariable("completionTime", LocalDateTime.now().toString());
 
-            log.info("[{}] 失敗回應組裝完成: RC={}, Msg={}, responseSize={}",
-                transactionId, responseCode, responseDescription,
-                assembledResponse != null ? assembledResponse.length : 0);
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] 成功回應組裝完成: RC={}, responseSize={}",
+                    transactionId, SUCCESS_CODE,
+                    assembledResponse != null ? assembledResponse.length : 0);
+            }
 
         } catch (Exception e) {
-            log.error("[{}] 組裝失敗回應時發生錯誤: {}", transactionId, e.getMessage(), e);
-            execution.setVariable("responseCode", "96");
-            execution.setVariable("responseMessage", "系統處理異常");
-            execution.setVariable("transactionStatus", "FAILED");
+            log.error("[{}] 組裝成功回應時發生錯誤: {}", transactionId, e.getMessage(), e);
 
             // 即使發生錯誤，也嘗試建立一個基本回應
-            byte[] errorResponse = buildErrorResponse(execution, "96");
+            byte[] errorResponse = buildBasicResponse(execution, SUCCESS_CODE);
+            execution.setVariable("responseCode", SUCCESS_CODE);
             execution.setVariable("assembledResponse", errorResponse);
+            execution.setVariable("transactionStatus", "SUCCESS");
         }
     }
 
     /**
      * 組裝 ISO 8583 回應訊息
      */
-    private byte[] buildIso8583Response(DelegateExecution execution, String responseCode) {
+    private byte[] buildIso8583Response(DelegateExecution execution) {
         byte[] rawMessage = (byte[]) execution.getVariable("rawMessage");
 
         if (rawMessage != null && rawMessage.length > 0) {
             // 從原始請求反序列化
             Iso8583Message request = deserializeMessage(rawMessage);
             if (request != null) {
-                return buildResponseFromRequest(request, responseCode);
+                return buildResponseFromRequest(request, execution);
             }
         }
 
         // 若無原始請求，建立基本回應
-        return buildBasicResponse(execution, responseCode);
+        return buildBasicResponse(execution, SUCCESS_CODE);
     }
 
     /**
      * 基於原始請求建立回應
      */
-    private byte[] buildResponseFromRequest(Iso8583Message request, String responseCode) {
+    private byte[] buildResponseFromRequest(Iso8583Message request, DelegateExecution execution) {
         Iso8583Message response = new Iso8583Message();
 
         // 計算回應 MTI
@@ -147,7 +118,13 @@ public class BuildFailResponseDelegate implements JavaDelegate {
         copyField(request, response, 103); // Target Account
 
         // 設定回應碼
-        response.setField(39, responseCode);
+        response.setField(39, SUCCESS_CODE);
+
+        // 設定授權碼 (若有)
+        String authCode = (String) execution.getVariable("authCode");
+        if (authCode != null && !authCode.isBlank()) {
+            response.setField(38, authCode);
+        }
 
         // 設定時間
         LocalDateTime now = LocalDateTime.now();
@@ -186,13 +163,6 @@ public class BuildFailResponseDelegate implements JavaDelegate {
     }
 
     /**
-     * 建立錯誤回應
-     */
-    private byte[] buildErrorResponse(DelegateExecution execution, String responseCode) {
-        return buildBasicResponse(execution, responseCode);
-    }
-
-    /**
      * 計算回應 MTI
      */
     private String calculateResponseMti(String requestMti) {
@@ -216,8 +186,6 @@ public class BuildFailResponseDelegate implements JavaDelegate {
 
     /**
      * 反序列化訊息
-     *
-     * <p>使用 Iso8583MessageFactory 解析 ISO 8583 格式電文
      */
     private Iso8583Message deserializeMessage(byte[] data) {
         if (data == null || data.length == 0) {
@@ -233,9 +201,6 @@ public class BuildFailResponseDelegate implements JavaDelegate {
 
     /**
      * 序列化訊息
-     *
-     * <p>使用 Iso8583MessageFactory 組裝符合 ISO 8583 標準格式的電文，
-     * 包含欄位長度補齊、LLVAR/LLLVAR 長度前綴、BCD/ASCII 編碼等處理
      */
     private byte[] serializeMessage(Iso8583Message message) {
         try {

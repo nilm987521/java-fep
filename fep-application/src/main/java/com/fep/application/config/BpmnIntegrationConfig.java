@@ -2,25 +2,24 @@ package com.fep.application.config;
 
 import com.fep.communication.client.FiscDualChannelClient;
 import com.fep.communication.handler.BpmnServerMessageHandler;
-import com.fep.communication.handler.DefaultServerMessageHandler;
 import com.fep.communication.handler.ServerMessageHandler;
 import com.fep.communication.manager.DynamicConnectionManager;
 import com.fep.message.iso8583.Iso8583Message;
+import com.fep.message.iso8583.Iso8583MessageFactory;
+import com.fep.transaction.bpmn.config.ProcessRoutingProperties;
 import com.fep.transaction.bpmn.service.FiscCommunicationService;
 import com.fep.transaction.bpmn.service.FiscCommunicationService.FiscClientBridge;
 import com.fep.transaction.bpmn.service.FiscCommunicationService.FiscResponse;
+import com.fep.transaction.bpmn.service.ProcessRouterService;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Primary;
 
-import java.io.ByteArrayInputStream;
-import java.io.ObjectInputStream;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -31,48 +30,42 @@ import java.util.concurrent.TimeUnit;
  * <p>此配置類別負責整合 fep-communication 和 fep-transaction 模組，
  * 實現 MessageHandler 與 BPMN 流程的整合。
  *
- * <p>配置方式：
- * <pre>
- * fep:
- *   communication:
- *     server:
- *       message-handler: bpmn  # 使用 BPMN 整合模式
- * </pre>
+ * <p><b>完全配置化設計</b>：
+ * <ul>
+ *   <li>所有 MTI（包含 0800 網路管理）統一走 BPMN 流程</li>
+ *   <li>具體走哪個流程，完全由 {@code ProcessRoutingProperties} 決定</li>
+ *   <li>新增 MTI 時，只需在 application.yml 加入規則 + 部署對應 BPMN 流程</li>
+ * </ul>
  *
  * <p>整合架構：
  * <pre>
- * ATM/POS ──0200──► BpmnServerMessageHandler
- *                          │
- *                          ▼ (publish event)
- *                  TransactionRequestEvent
- *                          │
- *                          ▼
- *                  TransactionEventListener
- *                          │
- *                          ▼ (start process)
- *                  Camunda BPMN Process
- *                          │
- *                          ▼
- *                  SendToFiscDelegate
- *                          │
- *                          ▼ (via FiscClientBridge)
- *                  FiscDualChannelClient
- *                          │
- *                          ▼
- *                        FISC
+ * ATM/POS Request (任意 MTI)
+ *         ↓
+ * BpmnServerMessageHandler.handleMessage()
+ *         ↓
+ * ProcessRouterService.resolveProcessKey(channelId, mti, processingCode)
+ *         ↓ (從 application.yml 規則中匹配)
+ * TransactionRequestEvent (含 processKey)
+ *         ↓
+ * TransactionEventListener.handleTransactionRequest()
+ *         ↓
+ * Camunda: startProcessInstanceByKey(processKey, ...)
+ *         ↓
+ * 對應的 BPMN 流程執行
  * </pre>
  */
 @Slf4j
 @Configuration
 @RequiredArgsConstructor
+@EnableConfigurationProperties(ProcessRoutingProperties.class)
 public class BpmnIntegrationConfig {
 
     private final ApplicationEventPublisher eventPublisher;
     private final FiscCommunicationService fiscCommunicationService;
     private final DynamicConnectionManager connectionManager;
+    private final ProcessRouterService processRouterService;
 
-    @Value("${fep.communication.server.message-handler:default}")
-    private String messageHandlerType;
+    private Iso8583MessageFactory messageFactory;
 
     @Value("${fep.communication.fisc.default-channel:FISC_INTERBANK_V1}")
     private String defaultFiscChannel;
@@ -81,11 +74,33 @@ public class BpmnIntegrationConfig {
     private long fiscTimeoutMs;
 
     /**
+     * 建立 Iso8583MessageFactory Bean
+     *
+     * <p>提供 ISO 8583 電文的解析與組裝功能，包含：
+     * <ul>
+     *   <li>欄位長度補齊（固定長度欄位補零/補空白）</li>
+     *   <li>LLVAR/LLLVAR 長度前綴處理</li>
+     *   <li>BCD/ASCII/BINARY 編碼轉換</li>
+     * </ul>
+     */
+    @Bean
+    public Iso8583MessageFactory iso8583MessageFactory() {
+        // 在這裡初始化並保存引用，確保 @PostConstruct 可以使用
+        this.messageFactory = new Iso8583MessageFactory();
+        return this.messageFactory;
+    }
+
+    /**
      * 初始化 BPMN 整合
      */
     @PostConstruct
     public void init() {
-        log.info("初始化 BPMN 整合配置: messageHandlerType={}", messageHandlerType);
+        log.info("初始化 BPMN 整合配置（完全配置化模式）");
+
+        // messageFactory 已在 @Bean 方法中初始化
+        if (this.messageFactory == null) {
+            this.messageFactory = new Iso8583MessageFactory();
+        }
 
         // 設定 FiscClientBridge
         FiscClientBridge bridge = createFiscClientBridge();
@@ -93,74 +108,48 @@ public class BpmnIntegrationConfig {
         log.info("已設定 FiscClientBridge: defaultChannel={}, timeout={}ms",
                 defaultFiscChannel, fiscTimeoutMs);
 
-        // 設定 ServerMessageHandler
-        if ("bpmn".equalsIgnoreCase(messageHandlerType)) {
-            configureForBpmnMode();
-        } else {
-            configureForDefaultMode();
-        }
+        // 設定 BPMN ServerMessageHandler
+        configureForBpmnMode();
+
+        log.info("BPMN 整合配置完成，所有 MTI 統一走 BPMN 流程，路由規則數: {}",
+                processRouterService.getRuleCount());
     }
 
     /**
      * 建立 BPMN ServerMessageHandler Bean
      *
-     * <p>當 fep.communication.server.message-handler=bpmn 時啟用
+     * <p>所有交易訊息均透過 BPMN 流程處理，流程路由由 ProcessRouterService 決定
      */
     @Bean
-    @Primary
-    @ConditionalOnProperty(name = "fep.communication.server.message-handler", havingValue = "bpmn")
     public ServerMessageHandler bpmnServerMessageHandler() {
-        log.info("建立 BpmnServerMessageHandler");
-        DefaultServerMessageHandler defaultHandler = new DefaultServerMessageHandler();
-        defaultHandler.setFiscClientProvider(this::getFiscClient);
+        log.info("建立 BpmnServerMessageHandler（完全配置化模式）");
 
-        return new BpmnServerMessageHandler(eventPublisher, defaultHandler);
-    }
+        // 建立 ProcessKeyResolver，使用 ProcessRouterService 進行路由
+        BpmnServerMessageHandler.ProcessKeyResolver resolver =
+                (channelId, mti, processingCode) ->
+                        processRouterService.resolveProcessKey(channelId, mti, processingCode);
 
-    /**
-     * 建立預設 ServerMessageHandler Bean
-     *
-     * <p>當 fep.communication.server.message-handler 不是 bpmn 時啟用
-     */
-    @Bean
-    @ConditionalOnProperty(name = "fep.communication.server.message-handler",
-            havingValue = "default", matchIfMissing = true)
-    public ServerMessageHandler defaultServerMessageHandler() {
-        log.info("建立 DefaultServerMessageHandler");
-        DefaultServerMessageHandler handler = new DefaultServerMessageHandler();
-        handler.setFiscClientProvider(this::getFiscClient);
-        return handler;
+        return new BpmnServerMessageHandler(eventPublisher, resolver);
     }
 
     /**
      * 設定 BPMN 模式
      */
     private void configureForBpmnMode() {
-        log.info("設定為 BPMN 模式");
+        log.info("設定為 BPMN 模式（所有 MTI 統一走 BPMN 流程）");
+
+        // 建立 ProcessKeyResolver
+        BpmnServerMessageHandler.ProcessKeyResolver resolver =
+                (channelId, mti, processingCode) ->
+                        processRouterService.resolveProcessKey(channelId, mti, processingCode);
 
         // 建立 BPMN Handler
-        DefaultServerMessageHandler defaultHandler = new DefaultServerMessageHandler();
-        defaultHandler.setFiscClientProvider(this::getFiscClient);
-
-        BpmnServerMessageHandler bpmnHandler =
-                new BpmnServerMessageHandler(eventPublisher, defaultHandler);
+        BpmnServerMessageHandler bpmnHandler = new BpmnServerMessageHandler(eventPublisher, resolver);
 
         // 設定到 DynamicConnectionManager
         connectionManager.setServerMessageHandler(bpmnHandler);
-        log.info("已設定 BpmnServerMessageHandler 到 DynamicConnectionManager");
-    }
-
-    /**
-     * 設定預設模式
-     */
-    private void configureForDefaultMode() {
-        log.info("設定為預設模式");
-
-        DefaultServerMessageHandler handler = new DefaultServerMessageHandler();
-        handler.setFiscClientProvider(this::getFiscClient);
-
-        connectionManager.setServerMessageHandler(handler);
-        log.info("已設定 DefaultServerMessageHandler 到 DynamicConnectionManager");
+        log.info("已設定 BpmnServerMessageHandler 到 DynamicConnectionManager，預設流程: {}",
+                processRouterService.getDefaultProcessKey());
     }
 
     /**
@@ -239,14 +228,15 @@ public class BpmnIntegrationConfig {
 
     /**
      * 反序列化 ISO 8583 訊息
+     *
+     * <p>使用 Iso8583MessageFactory 解析 ISO 8583 格式電文
      */
     private Iso8583Message deserializeMessage(byte[] data) {
         if (data == null || data.length == 0) {
             return null;
         }
-        try (ByteArrayInputStream bais = new ByteArrayInputStream(data);
-             ObjectInputStream ois = new ObjectInputStream(bais)) {
-            return (Iso8583Message) ois.readObject();
+        try {
+            return messageFactory.parse(data);
         } catch (Exception e) {
             log.error("反序列化訊息失敗: {}", e.getMessage());
             return null;
@@ -255,15 +245,16 @@ public class BpmnIntegrationConfig {
 
     /**
      * 序列化 ISO 8583 訊息
+     *
+     * <p>使用 Iso8583MessageFactory 組裝符合 ISO 8583 標準格式的電文，
+     * 包含欄位長度補齊、LLVAR/LLLVAR 長度前綴、BCD/ASCII 編碼等處理
      */
     private byte[] serializeMessage(Iso8583Message message) {
         if (message == null) {
             return new byte[0];
         }
-        try (java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream();
-             java.io.ObjectOutputStream oos = new java.io.ObjectOutputStream(baos)) {
-            oos.writeObject(message);
-            return baos.toByteArray();
+        try {
+            return messageFactory.assemble(message);
         } catch (Exception e) {
             log.error("序列化訊息失敗: {}", e.getMessage());
             return new byte[0];

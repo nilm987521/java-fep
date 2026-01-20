@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1e88e5;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#1565c0;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <!-- Background -->
+  <rect width="128" height="128" rx="16" fill="url(#bg)"/>
+
+  <!-- BPMN Start Event (circle) -->
+  <circle cx="28" cy="64" r="12" fill="none" stroke="white" stroke-width="3"/>
+
+  <!-- BPMN Task (rectangle) -->
+  <rect x="50" y="50" width="28" height="28" rx="4" fill="none" stroke="white" stroke-width="3"/>
+
+  <!-- BPMN End Event (bold circle) -->
+  <circle cx="100" cy="64" r="12" fill="none" stroke="white" stroke-width="5"/>
+
+  <!-- Flow arrows -->
+  <line x1="40" y1="64" x2="48" y2="64" stroke="white" stroke-width="2"/>
+  <line x1="80" y1="64" x2="86" y2="64" stroke="white" stroke-width="2"/>
+  <polygon points="86,60 92,64 86,68" fill="white"/>
+
+  <!-- FEP Text -->
+  <text x="64" y="108" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" font-weight="bold" fill="white">FEP</text>
+</svg>

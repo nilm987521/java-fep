@@ -88,7 +88,7 @@ public class AtmSimulatorSampler extends AbstractSampler implements TestStateLis
 
     @Override
     public SampleResult sample(Entry entry) {
-        SampleResult result = new SampleResult();
+        AtmSampleResult result = new AtmSampleResult();
         result.setSampleLabel(getName());
         result.setDataType(SampleResult.TEXT);
 
@@ -134,9 +134,8 @@ public class AtmSimulatorSampler extends AbstractSampler implements TestStateLis
             GenericMessageAssembler assembler = new GenericMessageAssembler();
             byte[] messageBytes = assembler.assemble(message);
 
-            // Format request for display (request bytes include length field)
-            String requestStr = formatMessageForDisplay(message, messageBytes, true);
-            result.setSamplerData(requestStr);
+            // Store raw request for LAZY formatting (formatting deferred until getSamplerData() is called)
+            result.setRawRequestBytes(messageBytes, message);
 
             // Get or create a channel
             ChannelHolder holder = getOrCreateChannel(fepHost, fepPort, schema);
@@ -150,51 +149,32 @@ public class AtmSimulatorSampler extends AbstractSampler implements TestStateLis
             // Start timing
             result.sampleStart();
 
-            // Send a message directly (length header already included by assembler)
-            log.info("Sending request: {} bytes to {}:{}", messageBytes.length, fepHost, fepPort);
-            log.info("Request hex: {}", hexFormat.formatHex(messageBytes));
-
+            // Send message
             ByteBuf buf = Unpooled.wrappedBuffer(messageBytes);
             holder.channel.writeAndFlush(buf).sync();
-            log.info("Request sent successfully, waiting for response (timeout={}ms)", getReadTimeout());
 
             // Wait for response
             if (isExpectResponse()) {
                 byte[] responseBytes = responseFuture.get(getReadTimeout(), TimeUnit.MILLISECONDS);
-                log.info("Response received: {} bytes", responseBytes.length);
 
-                // Stop timing
+                // Stop timing IMMEDIATELY after receiving response (before parsing)
                 result.sampleEnd();
 
-                // Load response schema (may be different from request schema)
+                // Store raw response and schema for LAZY parsing
+                // Response will be parsed only when getResponseDataAsString() is called
                 MessageSchema responseSchema = loadResponseSchema(schema);
-                log.debug("Using response schema: {}", responseSchema.getName());
+                result.setRawResponseBytes(responseBytes);
+                result.setResponseSchema(responseSchema);
 
-                // Parse response
-                // Note: skipLengthField=true because GenericLengthFieldDecoder already stripped the length field
-                GenericMessageParser parser = new GenericMessageParser();
-                GenericMessage response = parser.parse(responseBytes, responseSchema, true);
-
-                // Format response (response bytes don't include length field - stripped by decoder)
-                String responseStr = formatMessageForDisplay(response, responseBytes, false);
-                result.setResponseData(responseStr, StandardCharsets.UTF_8.name());
-
-                // Try to get response code from common field names
-                String responseCode = getResponseCodeFromMessage(response);
+                // Set response code and success (uses lazy parsing internally)
+                String responseCode = result.getExtractedResponseCode();
                 result.setResponseCode(responseCode != null ? responseCode : "OK");
-                result.setResponseMessage(getResponseMessage(responseCode));
+                result.setSuccessful(result.isResponseSuccess());
 
-                // Check success
-                boolean success = responseCode == null || "00".equals(responseCode) || "000".equals(responseCode);
-                result.setSuccessful(success);
+                // Store response variables lazily
+                JMeterVariables vars = JMeterContextService.getContext().getVariables();
+                result.storeResponseVariables(vars);
 
-                // Store raw response bytes for assertion use
-                storeRawResponseForAssertion(responseBytes, responseSchema);
-
-                // Store response variables
-                storeResponseVariables(response);
-
-                log.debug("ATM transaction completed: {}", responseCode);
             } else {
                 result.sampleEnd();
                 result.setSuccessful(true);
@@ -208,7 +188,6 @@ public class AtmSimulatorSampler extends AbstractSampler implements TestStateLis
             result.setResponseCode("TIMEOUT");
             result.setResponseMessage("Response timeout");
             result.setResponseData("Timeout waiting for response", StandardCharsets.UTF_8.name());
-            log.warn("ATM transaction timeout");
         } catch (Exception e) {
             result.sampleEnd();
             result.setSuccessful(false);
@@ -610,7 +589,9 @@ public class AtmSimulatorSampler extends AbstractSampler implements TestStateLis
                 holder.channel = connectFuture.channel();
                 channelPool.put(key, holder);
 
-                log.info("ATM connected to FEP at {}:{}", host, port);
+                if (log.isInfoEnabled()) {
+                    log.info("ATM connected to FEP at {}:{}", host, port);
+                }
             }
 
             return holder;
@@ -754,20 +735,13 @@ public class AtmSimulatorSampler extends AbstractSampler implements TestStateLis
             byte[] data = new byte[msg.readableBytes()];
             msg.readBytes(data);
 
-            log.info("Response received: {} bytes, hex: {}", data.length, hexFormat.formatHex(data));
-
             // Complete the last pending request
             String requestId = holder.lastRequestId;
             if (requestId != null) {
                 CompletableFuture<byte[]> future = holder.pendingRequests.remove(requestId);
                 if (future != null) {
                     future.complete(data);
-                    log.debug("Response completed for requestId={}", requestId);
-                } else {
-                    log.warn("No future found for requestId={}", requestId);
                 }
-            } else {
-                log.warn("Received response with no pending request");
             }
         }
 

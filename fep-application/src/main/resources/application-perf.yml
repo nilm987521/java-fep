@@ -1,0 +1,12 @@
+# Performance Testing Profile
+# Usage: -Dspring.profiles.active=perf
+# Or in IDEA: Active profiles = perf
+
+logging:
+  level:
+    root: ERROR
+    com.fep: ERROR
+    org.camunda: ERROR
+    org.springframework: ERROR
+    io.netty: ERROR
+    org.hibernate: ERROR

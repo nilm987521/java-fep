@@ -37,11 +37,6 @@ public class DefaultFieldCodec implements FieldCodec {
 
         // Write the data
         writeData(definition, paddedValue, buffer);
-
-        log.trace("Encoded field {}: value='{}', bytes={}",
-            definition.getFieldNumber(),
-            definition.isSensitive() ? "****" : paddedValue,
-            buffer.readableBytes());
     }
 
     @Override
@@ -69,10 +64,6 @@ public class DefaultFieldCodec implements FieldCodec {
             definition.getDataEncoding() != DataEncoding.BCD) {
             value = trimPadding(definition, value);
         }
-
-        log.trace("Decoded field {}: length={}, value='{}'",
-            definition.getFieldNumber(), dataLength,
-            definition.isSensitive() ? "****" : value);
 
         return value;
     }

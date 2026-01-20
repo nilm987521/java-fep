@@ -60,11 +60,9 @@ public class FiscMessageAssembler implements MessageAssembler {
 
     @Override
     public void assemble(Iso8583Message message, ByteBuf buffer) {
-        log.debug("Assembling ISO 8583 message: MTI={}", message.getMti());
-
         try {
             // Build the message body first (to calculate length)
-            ByteBuf bodyBuffer = Unpooled.buffer(1024);
+            ByteBuf bodyBuffer = Unpooled.buffer(512);
 
             // Write MTI
             writeMti(message.getMti(), bodyBuffer);
@@ -72,7 +70,6 @@ public class FiscMessageAssembler implements MessageAssembler {
             // Build and write bitmap
             Bitmap bitmap = buildBitmap(message);
             bodyBuffer.writeBytes(bitmap.toBytes());
-            log.trace("Assembled bitmap: {}", bitmap.toHex());
 
             // Write data fields
             writeFields(message, bitmap, bodyBuffer);
@@ -81,15 +78,16 @@ public class FiscMessageAssembler implements MessageAssembler {
             if (includeLengthPrefix) {
                 int bodyLength = bodyBuffer.readableBytes();
                 writeLengthPrefix(bodyLength, buffer);
-                log.trace("Message length: {}", bodyLength);
             }
 
             // Copy body to output buffer
             buffer.writeBytes(bodyBuffer);
             bodyBuffer.release();
 
-            log.info("Successfully assembled message: MTI={}, size={} bytes",
-                message.getMti(), buffer.readableBytes());
+            if (log.isDebugEnabled()) {
+                log.debug("Assembled message: MTI={}, size={} bytes",
+                    message.getMti(), buffer.readableBytes());
+            }
 
         } catch (MessageException e) {
             throw e;
@@ -158,7 +156,6 @@ public class FiscMessageAssembler implements MessageAssembler {
 
             Object value = message.getField(fieldNum);
             if (value == null) {
-                log.warn("Field {} in bitmap but no value, skipping", fieldNum);
                 continue;
             }
 
@@ -169,8 +166,6 @@ public class FiscMessageAssembler implements MessageAssembler {
 
             try {
                 fieldCodec.encode(definition, value, buffer);
-                log.trace("Encoded field {}: {}",
-                    fieldNum, definition.isSensitive() ? "****" : value);
             } catch (Exception e) {
                 throw MessageException.fieldError(fieldNum,
                     "Failed to encode: " + e.getMessage());

@@ -1,5 +1,7 @@
 package com.fep.transaction.bpmn.delegate;
 
+import com.fep.message.iso8583.Iso8583Message;
+import com.fep.message.iso8583.Iso8583MessageFactory;
 import com.fep.transaction.bpmn.listener.TransactionEventListener;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -7,8 +9,8 @@ import org.camunda.bpm.engine.delegate.DelegateExecution;
 import org.camunda.bpm.engine.delegate.JavaDelegate;
 import org.springframework.stereotype.Component;
 
-import java.io.ByteArrayOutputStream;
-import java.io.ObjectOutputStream;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 /**
  * BPMN Service Task Delegate: 發送回應給客戶端
@@ -42,6 +44,7 @@ import java.io.ObjectOutputStream;
 public class SendResponseToClientDelegate implements JavaDelegate {
 
     private final TransactionEventListener eventListener;
+    private final Iso8583MessageFactory messageFactory;
 
     @Override
     public void execute(DelegateExecution execution) throws Exception {
@@ -106,43 +109,162 @@ public class SendResponseToClientDelegate implements JavaDelegate {
         return null;
     }
 
+    private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofPattern("HHmmss");
+    private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("MMdd");
+
     /**
      * 建立預設回應
      *
-     * <p>當沒有組裝好的回應訊息時，建立一個簡單的回應資料
+     * <p>當沒有組裝好的回應訊息時，基於原始請求建立 Iso8583Message 回應
      */
     private byte[] buildDefaultResponse(DelegateExecution execution) {
         try {
-            // 建立一個簡單的回應物件
-            ResponseData response = new ResponseData();
-            response.processId = execution.getProcessInstanceId();
-            response.stan = (String) execution.getVariable("stan");
-            response.responseCode = (String) execution.getVariable("responseCode");
-            response.authCode = (String) execution.getVariable("authCode");
-            response.message = (String) execution.getVariable("validationMessage");
-
-            // 序列化
-            try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                 ObjectOutputStream oos = new ObjectOutputStream(baos)) {
-                oos.writeObject(response);
-                return baos.toByteArray();
+            String responseCode = (String) execution.getVariable("responseCode");
+            if (responseCode == null || responseCode.isBlank()) {
+                // 根據交易狀態決定預設回應碼
+                String transactionStatus = (String) execution.getVariable("transactionStatus");
+                if ("SUCCESS".equals(transactionStatus)) {
+                    responseCode = "00"; // 成功
+                } else {
+                    responseCode = "96"; // 系統異常
+                }
             }
+
+            // 嘗試從原始請求建立回應
+            byte[] rawMessage = (byte[]) execution.getVariable("rawMessage");
+            if (rawMessage != null && rawMessage.length > 0) {
+                Iso8583Message request = deserializeMessage(rawMessage);
+                if (request != null) {
+                    return buildResponseFromRequest(request, responseCode, execution);
+                }
+            }
+
+            // 無原始請求，建立基本回應
+            return buildBasicResponse(execution, responseCode);
         } catch (Exception e) {
-            log.error("建立預設回應失敗: {}", e.getMessage());
+            log.error("建立預設回應失敗: {}", e.getMessage(), e);
             return new byte[0];
         }
     }
 
     /**
-     * 簡單的回應資料類別
+     * 基於原始請求建立回應
      */
-    @lombok.Data
-    private static class ResponseData implements java.io.Serializable {
-        private static final long serialVersionUID = 1L;
-        String processId;
-        String stan;
-        String responseCode;
-        String authCode;
-        String message;
+    private byte[] buildResponseFromRequest(Iso8583Message request, String responseCode,
+                                             DelegateExecution execution) {
+        Iso8583Message response = new Iso8583Message();
+
+        // 計算回應 MTI
+        String responseMti = calculateResponseMti(request.getMti());
+        response.setMti(responseMti);
+
+        // 複製關鍵欄位
+        copyField(request, response, 2);  // PAN
+        copyField(request, response, 3);  // Processing Code
+        copyField(request, response, 4);  // Amount
+        copyField(request, response, 11); // STAN
+        copyField(request, response, 37); // RRN
+        copyField(request, response, 41); // Terminal ID
+        copyField(request, response, 42); // Merchant ID
+        copyField(request, response, 102); // Source Account
+        copyField(request, response, 103); // Target Account
+
+        // 設定回應碼
+        response.setField(39, responseCode);
+
+        // 設定授權碼 (若有)
+        String authCode = (String) execution.getVariable("authCode");
+        if (authCode != null) {
+            response.setField(38, authCode);
+        }
+
+        // 設定時間
+        LocalDateTime now = LocalDateTime.now();
+        response.setField(12, now.format(TIME_FORMAT));
+        response.setField(13, now.format(DATE_FORMAT));
+
+        return serializeMessage(response);
+    }
+
+    /**
+     * 建立基本回應 (無原始請求時使用)
+     */
+    private byte[] buildBasicResponse(DelegateExecution execution, String responseCode) {
+        Iso8583Message response = new Iso8583Message();
+
+        String mti = (String) execution.getVariable("mti");
+        response.setMti(calculateResponseMti(mti != null ? mti : "0200"));
+
+        String stan = (String) execution.getVariable("stan");
+        if (stan != null) {
+            response.setField(11, stan);
+        }
+
+        String processingCode = (String) execution.getVariable("processingCode");
+        if (processingCode != null) {
+            response.setField(3, processingCode);
+        }
+
+        response.setField(39, responseCode);
+
+        LocalDateTime now = LocalDateTime.now();
+        response.setField(12, now.format(TIME_FORMAT));
+        response.setField(13, now.format(DATE_FORMAT));
+
+        return serializeMessage(response);
+    }
+
+    /**
+     * 計算回應 MTI
+     */
+    private String calculateResponseMti(String requestMti) {
+        try {
+            int mti = Integer.parseInt(requestMti);
+            return String.format("%04d", mti + 10);
+        } catch (NumberFormatException e) {
+            return "0210";
+        }
+    }
+
+    /**
+     * 複製欄位
+     */
+    private void copyField(Iso8583Message source, Iso8583Message target, int fieldNum) {
+        Object value = source.getField(fieldNum);
+        if (value != null) {
+            target.setField(fieldNum, value);
+        }
+    }
+
+    /**
+     * 反序列化訊息
+     *
+     * <p>使用 Iso8583MessageFactory 解析 ISO 8583 格式電文
+     */
+    private Iso8583Message deserializeMessage(byte[] data) {
+        if (data == null || data.length == 0) {
+            return null;
+        }
+        try {
+            return messageFactory.parse(data);
+        } catch (Exception e) {
+            log.error("反序列化訊息失敗: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * 序列化訊息
+     *
+     * <p>使用 Iso8583MessageFactory 組裝符合 ISO 8583 標準格式的電文，
+     * 包含欄位長度補齊、LLVAR/LLLVAR 長度前綴、BCD/ASCII 編碼等處理
+     */
+    private byte[] serializeMessage(Iso8583Message message) {
+        try {
+            return messageFactory.assemble(message);
+        } catch (Exception e) {
+            log.error("序列化訊息失敗: {}", e.getMessage());
+            return new byte[0];
+        }
     }
 }

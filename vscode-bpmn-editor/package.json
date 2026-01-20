@@ -21,7 +21,7 @@
     "delegate",
     "fep"
   ],
-  "icon": "resources/icons/extension-icon.png",
+  "icon": "resources/icons/extension-icon.svg",
   "main": "./dist/extension.js",
   "activationEvents": [
     "onLanguage:bpmn",

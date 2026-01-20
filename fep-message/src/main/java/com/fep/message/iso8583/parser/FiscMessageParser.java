@@ -64,39 +64,29 @@ public class FiscMessageParser implements MessageParser {
 
     @Override
     public Iso8583Message parse(ByteBuf buffer) {
-        log.debug("Parsing ISO 8583 message, buffer size: {} bytes", buffer.readableBytes());
-
-        // Save original bytes for logging
-        byte[] rawData = new byte[buffer.readableBytes()];
-        buffer.getBytes(buffer.readerIndex(), rawData);
-
         try {
             // Skip length prefix if present
             if (hasLengthPrefix) {
                 if (buffer.readableBytes() < LENGTH_PREFIX_SIZE) {
                     throw MessageException.parseError("Not enough bytes for length prefix");
                 }
-                int messageLength = readLengthPrefix(buffer);
-                log.trace("Message length: {}", messageLength);
+                readLengthPrefix(buffer);
             }
 
             // Parse MTI
             String mti = parseMti(buffer);
             Iso8583Message message = new Iso8583Message(mti);
-            message.setRawData(rawData);
-            log.debug("Parsed MTI: {}", mti);
 
             // Parse bitmap
             Bitmap bitmap = parseBitmap(buffer);
             message.setPrimaryBitmap(bitmap.toBytes());
-            log.debug("Parsed bitmap: {}", bitmap.toHex());
 
             // Parse data fields
             parseFields(buffer, bitmap, message);
 
-            log.info("Successfully parsed message: MTI={}, fields={}",
-                mti, message.getFieldNumbers().size());
-            log.trace("Parsed message details:\n{}", message.toDetailString());
+            if (log.isDebugEnabled()) {
+                log.debug("Parsed message: MTI={}, fields={}", mti, message.getFieldNumbers().size());
+            }
 
             return message;
 
@@ -195,7 +185,6 @@ public class FiscMessageParser implements MessageParser {
 
             FieldDefinition definition = FiscFieldDefinitions.get(fieldNum);
             if (definition == null) {
-                log.warn("No definition for field {}, skipping", fieldNum);
                 continue;
             }
 

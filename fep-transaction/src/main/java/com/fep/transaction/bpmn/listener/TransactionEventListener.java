@@ -85,23 +85,31 @@ public class TransactionEventListener {
     public void handleTransactionRequest(TransactionRequestEvent event) {
         String stan = event.getStan();
         String channelId = event.getChannelId();
+        String processKey = event.getProcessKey();
 
-        log.info("[{}] 收到交易請求事件: STAN={}, type={}, MTI={}",
-                channelId, stan, event.getTransactionType(), event.getMti());
+        log.info("[{}] 收到交易請求事件: STAN={}, type={}, MTI={}, processKey={}",
+                channelId, stan, event.getTransactionType(), event.getMti(), processKey);
 
         try {
-            // 根據交易類型啟動對應流程
+            // 重要：先註冊 callback，因為 Camunda 流程是同步執行的
+            // 流程可能在 startBpmnProcess() 返回之前就執行完畢並嘗試發送回應
+            registerCallback(stan, event.getResponseCallback());
+
+            // 啟動 BPMN 流程
             String processId = startBpmnProcess(event);
 
-            // 註冊映射關係
-            registerMappings(stan, processId, event.getResponseCallback());
+            // 補充註冊 processId 映射（用於 FISC 回應關聯）
+            registerProcessMapping(stan, processId);
 
-            log.info("[{}] BPMN 流程已啟動: STAN={}, processId={}",
-                    channelId, stan, processId);
+            log.info("[{}] BPMN 流程已啟動: STAN={}, processId={}, processKey={}",
+                    channelId, stan, processId, processKey);
 
         } catch (Exception e) {
-            log.error("[{}] 啟動 BPMN 流程失敗: STAN={}, error={}",
-                    channelId, stan, e.getMessage(), e);
+            log.error("[{}] 啟動 BPMN 流程失敗: STAN={}, processKey={}, error={}",
+                    channelId, stan, processKey, e.getMessage(), e);
+
+            // 清理已註冊的 callback
+            stanToCallbackMap.remove(stan);
 
             // 發送錯誤回應
             sendErrorResponse(event, "96"); // System malfunction
@@ -248,13 +256,33 @@ public class TransactionEventListener {
 
     /**
      * 啟動 BPMN 流程
+     *
+     * <p>使用事件中預先解析好的 processKey 啟動對應的 BPMN 流程。
+     * processKey 已由 BpmnServerMessageHandler 透過 ProcessRouterService 解析。
      */
     private String startBpmnProcess(TransactionRequestEvent event) {
         // 建立轉帳請求
         TransferProcessService.TransferRequest request = buildTransferRequest(event);
 
-        // 啟動流程
-        return processService.startTransferProcess(request);
+        // 使用事件中的 processKey 啟動流程
+        String processKey = event.getProcessKey();
+        if (processKey != null && !processKey.isEmpty()) {
+            return processService.startProcessWithKey(
+                    request,
+                    processKey,
+                    event.getChannelId(),
+                    event.getMti(),
+                    event.getProcessingCode()
+            );
+        }
+
+        // 向下相容：若 processKey 為空，使用舊的路由邏輯
+        return processService.startTransferProcess(
+                request,
+                event.getChannelId(),
+                event.getMti(),
+                event.getProcessingCode()
+        );
     }
 
     /**
@@ -263,6 +291,7 @@ public class TransactionEventListener {
     private TransferProcessService.TransferRequest buildTransferRequest(TransactionRequestEvent event) {
         return TransferProcessService.TransferRequest.builder()
                 .businessKey(generateBusinessKey(event))
+                .stan(event.getStan())
                 .sourceAccount(event.getPan())
                 .targetAccount(event.getTargetAccount())
                 .amount(parseAmount(event.getAmount()))
@@ -270,6 +299,7 @@ public class TransactionEventListener {
                 .targetBankCode(event.getTargetBankCode())
                 .designated(false) // 預設非約定，後續可從 DB 查詢
                 .channel(event.getChannelId())
+                .rawMessage(event.getRawMessage()) // 原始電文 (用於組裝回應)
                 .build();
     }
 
@@ -299,16 +329,29 @@ public class TransactionEventListener {
     }
 
     /**
-     * 註冊映射關係
+     * 註冊 callback（在啟動流程之前）
+     *
+     * <p>重要：必須在 startBpmnProcess() 之前調用，
+     * 因為 Camunda 流程是同步執行的，可能在返回之前就嘗試發送回應。
      */
-    private void registerMappings(String stan, String processId, Consumer<byte[]> callback) {
-        stanToProcessMap.put(stan, processId);
-        processToStanMap.put(processId, stan);
-        if (callback != null) {
+    private void registerCallback(String stan, Consumer<byte[]> callback) {
+        if (callback != null && stan != null) {
             stanToCallbackMap.put(stan, callback);
+            log.debug("已註冊 callback: STAN={}", stan);
         }
+    }
 
-        log.debug("已註冊映射: STAN={} <-> processId={}", stan, processId);
+    /**
+     * 註冊 processId 映射（在流程啟動之後）
+     *
+     * <p>用於 FISC 回應關聯時查找對應的流程。
+     */
+    private void registerProcessMapping(String stan, String processId) {
+        if (stan != null && processId != null) {
+            stanToProcessMap.put(stan, processId);
+            processToStanMap.put(processId, stan);
+            log.debug("已註冊流程映射: STAN={} <-> processId={}", stan, processId);
+        }
     }
 
     /**

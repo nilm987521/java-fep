@@ -182,15 +182,62 @@ fep:
     mac-algorithm: ANSI_X9_19
 
   # BPMN Integration Settings (Development)
+  # 完全配置化設計：所有 MTI 統一走 BPMN 流程，具體走哪個流程由 process-routing 決定
   communication:
-    server:
-      # 訊息處理模式：
-      # - default: 使用 DefaultServerMessageHandler (直接轉發到 FISC)
-      # - bpmn: 使用 BpmnServerMessageHandler (透過 BPMN 流程處理)
-      message-handler: ${MESSAGE_HANDLER_TYPE:default}
     fisc:
       default-channel: FISC_INTERBANK_V1
       timeout-ms: 30000
+
+  # BPMN 流程路由設定（完全配置化）
+  # 新增 MTI 時，只需在此加入規則 + 部署對應 BPMN 流程，不需修改 Java 代碼
+  bpmn:
+    process-routing:
+      enabled: true
+      default-process: Process_InterbankTransfer  # 未匹配時的預設流程
+
+      rules:
+        # ===== 金融交易 =====
+        # 跨行轉帳 (Processing Code: 40xxxx)
+        - name: 跨行轉帳
+          mti: "0200"
+          processing-code: "010000"
+          # *.bpnm 的 <bpmn:process id="Process_InterbankTransfer">
+          process-key: Only_Log_Process
+          priority: 100
+
+        # 跨行提款 (Processing Code: 01xxxx)
+        - name: 跨行提款
+          mti: "0200"
+          processing-code: "01"
+          process-key: Only_Log_Process
+          priority: 100
+
+        # 餘額查詢 (Processing Code: 31xxxx)
+        - name: 餘額查詢
+          mti: "0200"
+          processing-code: "31"
+          process-key: Only_Log_Process
+          priority: 100
+
+        # ===== 沖正交易 =====
+        - name: 沖正交易
+          mti: "0400"
+          process-key: Only_Log_Process
+          priority: 100
+
+        # ===== 網路管理 =====
+        - name: 網路管理
+          mti: "0800"
+          process-key: Only_Log_Process
+          priority: 100
+
+        # ===== 特殊通道 =====
+        # ATM 2500 交易 - 使用簡單日誌流程
+        - name: ATM 2500 交易
+          channel-pattern: "ATM.*"
+          mti: "2500"
+          process-key: Only_Log_Process
+          priority: 10
 
 ---
 # Production Profile
@@ -226,10 +273,20 @@ camunda.bpm:
 
 logging:
   level:
-    root: WARN
-    com.fep: INFO
+    root: ERROR
+    com.fep: ERROR
 
 fep:
+  # Dynamic Connection Management (Production)
+  connection:
+    dynamic-management:
+      enabled: true
+    config-path: ${CONNECTION_CONFIG_FILE:config/channel-config.json}
+    hot-reload-enabled: ${CONNECTION_HOT_RELOAD:true}
+    auto-connect: true
+    auto-sign-on: true
+    graceful-shutdown-timeout-ms: 10000
+
   # Channel-Schema Mapping Configuration (Production)
   channel:
     enabled: true
@@ -283,10 +340,58 @@ fep:
     algorithm: TOKEN_BUCKET
 
   # BPMN Integration Settings (Production)
+  # 完全配置化設計：所有 MTI 統一走 BPMN 流程
   communication:
-    server:
-      # 生產環境建議使用 BPMN 模式，確保交易流程可追蹤
-      message-handler: ${MESSAGE_HANDLER_TYPE:bpmn}
     fisc:
       default-channel: ${FISC_DEFAULT_CHANNEL:FISC_INTERBANK_V1}
       timeout-ms: ${FISC_TIMEOUT_MS:30000}
+
+  # BPMN 流程路由設定 (Production)
+  # 新增 MTI 時，只需在此加入規則 + 部署對應 BPMN 流程，不需修改 Java 代碼
+  bpmn:
+    process-routing:
+      enabled: ${BPMN_ROUTING_ENABLED:true}
+      default-process: ${BPMN_DEFAULT_PROCESS:Process_InterbankTransfer}
+
+      rules:
+        # ===== 金融交易 =====
+        # 跨行轉帳 (Processing Code: 40xxxx)
+        - name: 跨行轉帳
+          mti: "0200"
+          processing-code: "40"
+          process-key: Process_InterbankTransfer
+          priority: 100
+
+        # 跨行提款 (Processing Code: 01xxxx)
+        - name: 跨行提款
+          mti: "0200"
+          processing-code: "01"
+          process-key: Process_InterbankTransfer
+          priority: 100
+
+        # 餘額查詢 (Processing Code: 31xxxx)
+        - name: 餘額查詢
+          mti: "0200"
+          processing-code: "31"
+          process-key: Process_InterbankTransfer
+          priority: 100
+
+        # ===== 沖正交易 =====
+        - name: 沖正交易
+          mti: "0400"
+          process-key: Process_InterbankTransfer
+          priority: 100
+
+        # ===== 網路管理 =====
+        - name: 網路管理
+          mti: "0800"
+          process-key: Process_NetworkManagement
+          priority: 100
+
+        # ===== 特殊通道 =====
+        # ATM 2500 交易 - 使用簡單日誌流程
+        - name: ATM 2500 交易
+          channel-pattern: "ATM.*"
+          mti: "2500"
+          process-key: Only_Log_Process
+          priority: 10

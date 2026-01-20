@@ -37,16 +37,18 @@ class TransactionEventListenerTest {
     private static final String TEST_STAN = "123456";
     private static final String TEST_PROCESS_ID = "process-001";
     private static final String TEST_CHANNEL_ID = "ATM_FISC_V1";
+    private static final String TEST_PROCESS_KEY = "Process_InterbankTransfer";
 
     @Nested
     @DisplayName("handleTransactionRequest Tests")
     class HandleTransactionRequestTests {
 
         @Test
-        @DisplayName("should start BPMN process when receiving transfer request")
+        @DisplayName("should start BPMN process when receiving transfer request with processKey")
         void shouldStartBpmnProcessForTransferRequest() {
-            // Given
-            when(processService.startTransferProcess(any())).thenReturn(TEST_PROCESS_ID);
+            // Given - 使用新的 startProcessWithKey 方法（因為有 processKey）
+            when(processService.startProcessWithKey(any(), eq(TEST_PROCESS_KEY), any(), any(), any()))
+                    .thenReturn(TEST_PROCESS_ID);
 
             TransactionRequestEvent event = createTransactionRequestEvent(
                     TransactionRequestEvent.TransactionType.TRANSFER);
@@ -55,7 +57,7 @@ class TransactionEventListenerTest {
             listener.handleTransactionRequest(event);
 
             // Then
-            verify(processService).startTransferProcess(any());
+            verify(processService).startProcessWithKey(any(), eq(TEST_PROCESS_KEY), any(), any(), any());
             assertThat(listener.getProcessId(TEST_STAN)).isEqualTo(TEST_PROCESS_ID);
         }
 
@@ -63,7 +65,8 @@ class TransactionEventListenerTest {
         @DisplayName("should register STAN to process mapping")
         void shouldRegisterStanToProcessMapping() {
             // Given
-            when(processService.startTransferProcess(any())).thenReturn(TEST_PROCESS_ID);
+            when(processService.startProcessWithKey(any(), eq(TEST_PROCESS_KEY), any(), any(), any()))
+                    .thenReturn(TEST_PROCESS_ID);
 
             TransactionRequestEvent event = createTransactionRequestEvent(
                     TransactionRequestEvent.TransactionType.TRANSFER);
@@ -80,7 +83,8 @@ class TransactionEventListenerTest {
         @DisplayName("should register response callback")
         void shouldRegisterResponseCallback() {
             // Given
-            when(processService.startTransferProcess(any())).thenReturn(TEST_PROCESS_ID);
+            when(processService.startProcessWithKey(any(), eq(TEST_PROCESS_KEY), any(), any(), any()))
+                    .thenReturn(TEST_PROCESS_ID);
             AtomicBoolean callbackCalled = new AtomicBoolean(false);
 
             TransactionRequestEvent event = TransactionRequestEvent.builder()
@@ -96,6 +100,7 @@ class TransactionEventListenerTest {
                     .targetAccount("9876543210987654")
                     .sourceBankCode("812")
                     .targetBankCode("013")
+                    .processKey(TEST_PROCESS_KEY)
                     .responseCallback(data -> callbackCalled.set(true))
                     .build();
 
@@ -110,7 +115,8 @@ class TransactionEventListenerTest {
         @DisplayName("should increment pending count")
         void shouldIncrementPendingCount() {
             // Given
-            when(processService.startTransferProcess(any())).thenReturn(TEST_PROCESS_ID);
+            when(processService.startProcessWithKey(any(), eq(TEST_PROCESS_KEY), any(), any(), any()))
+                    .thenReturn(TEST_PROCESS_ID);
             int initialCount = listener.getPendingCount();
 
             TransactionRequestEvent event = createTransactionRequestEvent(
@@ -131,7 +137,8 @@ class TransactionEventListenerTest {
         @BeforeEach
         void setUp() {
             // Pre-register a mapping
-            when(processService.startTransferProcess(any())).thenReturn(TEST_PROCESS_ID);
+            when(processService.startProcessWithKey(any(), eq(TEST_PROCESS_KEY), any(), any(), any()))
+                    .thenReturn(TEST_PROCESS_ID);
             listener.handleTransactionRequest(createTransactionRequestEvent(
                     TransactionRequestEvent.TransactionType.TRANSFER));
         }
@@ -242,7 +249,8 @@ class TransactionEventListenerTest {
         @DisplayName("should send response via callback")
         void shouldSendResponseViaCallback() {
             // Given
-            when(processService.startTransferProcess(any())).thenReturn(TEST_PROCESS_ID);
+            when(processService.startProcessWithKey(any(), eq(TEST_PROCESS_KEY), any(), any(), any()))
+                    .thenReturn(TEST_PROCESS_ID);
             AtomicBoolean callbackCalled = new AtomicBoolean(false);
             byte[] expectedData = new byte[]{1, 2, 3};
 
@@ -259,6 +267,7 @@ class TransactionEventListenerTest {
                     .targetAccount("9876543210987654")
                     .sourceBankCode("812")
                     .targetBankCode("013")
+                    .processKey(TEST_PROCESS_KEY)
                     .responseCallback(data -> {
                         callbackCalled.set(true);
                         assertThat(data).isEqualTo(expectedData);
@@ -289,7 +298,8 @@ class TransactionEventListenerTest {
         @DisplayName("should cleanup mappings after sending response")
         void shouldCleanupMappingsAfterSendingResponse() {
             // Given
-            when(processService.startTransferProcess(any())).thenReturn(TEST_PROCESS_ID);
+            when(processService.startProcessWithKey(any(), eq(TEST_PROCESS_KEY), any(), any(), any()))
+                    .thenReturn(TEST_PROCESS_ID);
 
             TransactionRequestEvent event = TransactionRequestEvent.builder()
                     .source(this)
@@ -304,6 +314,7 @@ class TransactionEventListenerTest {
                     .targetAccount("9876543210987654")
                     .sourceBankCode("812")
                     .targetBankCode("013")
+                    .processKey(TEST_PROCESS_KEY)
                     .responseCallback(data -> {})
                     .build();
 
@@ -335,6 +346,7 @@ class TransactionEventListenerTest {
                 .targetAccount("9876543210987654")
                 .sourceBankCode("812")
                 .targetBankCode("013")
+                .processKey(TEST_PROCESS_KEY)
                 .responseCallback(data -> {})
                 .build();
     }
