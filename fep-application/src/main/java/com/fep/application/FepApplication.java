@@ -38,8 +38,8 @@ public class FepApplication {
         log.info("  FEP System Started Successfully");
         log.info("  Version: 1.0.0-SNAPSHOT");
         log.info("==============================================");
-        log.info("  API Documentation: http://localhost:8080/swagger-ui.html");
-        log.info("  Health Check: http://localhost:8080/actuator/health");
+        log.info("  API Documentation: http://localhost:8080/api/swagger-ui.html");
+        log.info("  Health Check: http://localhost:8080/api/actuator/health");
         log.info("==============================================");
     }
 }
