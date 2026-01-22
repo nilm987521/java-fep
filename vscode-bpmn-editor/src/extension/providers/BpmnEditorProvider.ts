@@ -121,8 +121,109 @@ export class BpmnEditorProvider implements vscode.CustomTextEditorProvider {
         case 'showError':
           vscode.window.showErrorMessage(message.message);
           break;
+
+        case 'openFile':
+          // Open BPMN file dialog
+          await this.handleOpenFile();
+          break;
+
+        case 'newFile':
+          // Create new BPMN file
+          await this.handleNewFile();
+          break;
       }
     });
+  }
+
+  /**
+   * Handle open file request
+   */
+  private async handleOpenFile(): Promise<void> {
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+    const defaultUri = workspaceFolders ? workspaceFolders[0].uri : undefined;
+
+    const uris = await vscode.window.showOpenDialog({
+      canSelectFiles: true,
+      canSelectFolders: false,
+      canSelectMany: false,
+      filters: { 'BPMN Files': ['bpmn'] },
+      defaultUri,
+      openLabel: '開啟 BPMN 檔案'
+    });
+
+    if (uris && uris.length > 0) {
+      await vscode.commands.executeCommand('vscode.openWith', uris[0], BpmnEditorProvider.viewType);
+    }
+  }
+
+  /**
+   * Handle new file request
+   */
+  private async handleNewFile(): Promise<void> {
+    const workspaceFolders = vscode.workspace.workspaceFolders;
+    const defaultUri = workspaceFolders
+      ? vscode.Uri.joinPath(workspaceFolders[0].uri, 'new-process.bpmn')
+      : vscode.Uri.file('new-process.bpmn');
+
+    const uri = await vscode.window.showSaveDialog({
+      filters: { 'BPMN Files': ['bpmn'] },
+      defaultUri,
+      saveLabel: '建立 BPMN 檔案'
+    });
+
+    if (uri) {
+      // Create empty BPMN file
+      const emptyBpmn = this.getEmptyBpmnTemplate();
+      await vscode.workspace.fs.writeFile(uri, Buffer.from(emptyBpmn, 'utf-8'));
+
+      // Open in editor
+      await vscode.commands.executeCommand('vscode.openWith', uri, BpmnEditorProvider.viewType);
+    }
+  }
+
+  /**
+   * Get empty BPMN template
+   */
+  private getEmptyBpmnTemplate(): string {
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                  id="Definitions_1"
+                  targetNamespace="http://fep.com/bpmn"
+                  exporter="FEP BPMN Editor"
+                  exporterVersion="1.0.0">
+  <bpmn:process id="Process_1" name="New Process" isExecutable="true">
+    <bpmn:startEvent id="StartEvent_1" name="Start">
+      <bpmn:outgoing>Flow_1</bpmn:outgoing>
+    </bpmn:startEvent>
+    <bpmn:endEvent id="EndEvent_1" name="End">
+      <bpmn:incoming>Flow_1</bpmn:incoming>
+    </bpmn:endEvent>
+    <bpmn:sequenceFlow id="Flow_1" sourceRef="StartEvent_1" targetRef="EndEvent_1" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1">
+      <bpmndi:BPMNShape id="StartEvent_1_di" bpmnElement="StartEvent_1">
+        <dc:Bounds x="180" y="160" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="186" y="203" width="24" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="EndEvent_1_di" bpmnElement="EndEvent_1">
+        <dc:Bounds x="432" y="160" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="440" y="203" width="20" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNEdge id="Flow_1_di" bpmnElement="Flow_1">
+        <di:waypoint xmlns:di="http://www.omg.org/spec/DD/20100524/DI" x="216" y="178" />
+        <di:waypoint xmlns:di="http://www.omg.org/spec/DD/20100524/DI" x="432" y="178" />
+      </bpmndi:BPMNEdge>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>`;
   }
 
   /**

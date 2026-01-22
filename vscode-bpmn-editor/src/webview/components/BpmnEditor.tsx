@@ -138,15 +138,24 @@ export const BpmnEditor: React.FC<BpmnEditorProps> = ({
 
   // Load BPMN XML when it changes (from extension)
   useEffect(() => {
-    if (!modelerRef.current || !isReady || !bpmnXml) return;
+    if (!modelerRef.current || !isReady) return;
+
+    // If no bpmnXml provided, don't try to load (keep default diagram)
+    if (!bpmnXml) {
+      console.log('No BPMN XML provided, keeping default diagram');
+      return;
+    }
 
     const loadDiagram = async () => {
       try {
+        console.log('Loading BPMN XML:', bpmnXml.substring(0, 100) + '...');
         await modelerRef.current!.importXML(bpmnXml);
 
         // Fit to viewport
         const canvas = modelerRef.current!.get('canvas') as any;
         canvas.zoom('fit-viewport');
+
+        console.log('BPMN loaded successfully');
       } catch (err) {
         console.error('Error loading BPMN:', err);
         postMessage({

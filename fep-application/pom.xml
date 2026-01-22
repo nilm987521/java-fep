@@ -177,6 +177,13 @@
                                     </fileset>
                                 </copy>
 
+                                <!-- Copy BPMN process definition files -->
+                                <copy todir="${release.directory}/bpmn" overwrite="true">
+                                    <fileset dir="${project.basedir}/src/main/resources/bpmn">
+                                        <include name="*.bpmn"/>
+                                    </fileset>
+                                </copy>
+
                                 <!-- Create startup script (Unix) -->
                                 <echo file="${release.directory}/start.sh"><![CDATA[#!/bin/bash
 # FEP Application Startup Script

@@ -23,16 +23,21 @@ export const App: React.FC = () => {
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
       const message = event.data;
+      console.log('Received message from extension:', message.type, message);
 
       switch (message.type) {
         case 'loadBpmn':
-          setBpmnXml(message.content);
+          console.log('Loading BPMN content, length:', message.content?.length);
+          console.log('File name:', message.fileName);
+          console.log('File path:', message.filePath);
+          setBpmnXml(message.content || '');
           setFileName(message.fileName || '');
           setFilePath(message.filePath || '');
           setDirty(false);
           break;
 
         case 'delegates':
+          console.log('Received delegates:', message.data?.delegates?.length || 0);
           if (message.data) {
             setDelegates(
               message.data.delegates || [],
@@ -47,12 +52,13 @@ export const App: React.FC = () => {
     window.addEventListener('message', handleMessage);
 
     // Notify extension that we're ready
+    console.log('Webview ready, sending ready message to extension');
     postMessage({ type: 'ready' });
 
     return () => {
       window.removeEventListener('message', handleMessage);
     };
-  }, []);
+  }, [setBpmnXml, setFileName, setFilePath, setDirty, setDelegates]);
 
   // Handle keyboard shortcuts
   useEffect(() => {

@@ -104,6 +104,16 @@ export const Toolbar: React.FC = () => {
     postMessage({ type: 'requestDelegates' });
   }, []);
 
+  // Open file
+  const handleOpenFile = useCallback(() => {
+    postMessage({ type: 'openFile' });
+  }, []);
+
+  // New file
+  const handleNewFile = useCallback(() => {
+    postMessage({ type: 'newFile' });
+  }, []);
+
   return (
     <div className="toolbar">
       {/* File info */}
@@ -114,6 +124,14 @@ export const Toolbar: React.FC = () => {
 
       {/* File actions */}
       <div className="toolbar-section">
+        <button onClick={handleNewFile} title="New BPMN File" className="toolbar-btn">
+          <span className="icon">📄</span>
+          <span className="label">New</span>
+        </button>
+        <button onClick={handleOpenFile} title="Open BPMN File" className="toolbar-btn">
+          <span className="icon">📂</span>
+          <span className="label">Open</span>
+        </button>
         <button onClick={handleSave} title="Save (Ctrl+S)" className="toolbar-btn">
           <span className="icon">💾</span>
           <span className="label">Save</span>
