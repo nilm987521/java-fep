@@ -67,10 +67,17 @@
             <artifactId>camunda-bpm-spring-boot-starter-webapp</artifactId>
         </dependency>
 
-        <!-- H2 Database for Development -->
+        <!-- H2 Database for Development (dev-h2 profile) -->
         <dependency>
             <groupId>com.h2database</groupId>
             <artifactId>h2</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- Oracle JDBC Driver -->
+        <dependency>
+            <groupId>com.oracle.database.jdbc</groupId>
+            <artifactId>ojdbc11</artifactId>
             <scope>runtime</scope>
         </dependency>
 

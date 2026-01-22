@@ -78,6 +78,8 @@ logging:
     root: INFO
     com.fep: DEBUG
     org.springframework.web: INFO
+    org.hibernate.SQL: OFF
+    org.hibernate.type.descriptor.sql: OFF
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
     file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
@@ -98,13 +100,158 @@ springdoc:
     operations-sorter: alpha
 
 ---
-# Development Profile
+# Development Profile (Docker Oracle)
 spring:
   config:
     activate:
       on-profile: dev
 
-  # H2 Database for Camunda (Development)
+  # Oracle Database (Docker)
+  datasource:
+    url: jdbc:oracle:thin:@localhost:1521/FREEPDB1
+    driver-class-name: oracle.jdbc.OracleDriver
+    username: fep_user
+    password: fep_password
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+
+  # JPA Settings
+  jpa:
+    hibernate:
+      ddl-auto: none  # 使用 init-scripts 建立 schema
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: false
+        dialect: org.hibernate.dialect.OracleDialect
+
+# Camunda Dev Settings
+camunda.bpm:
+  database:
+    type: oracle
+  admin-user:
+    password: admin
+
+# FEP Settings (Dev Profile)
+fep:
+  # Pending Transaction Configuration (Pure DB Architecture)
+  pending:
+    fisc-timeout-ms: 30000          # FISC 回應超時時間
+
+  # Timeout Scanner Configuration (Pure DB Architecture)
+  timeout-scanner:
+    enabled: true                    # 啟用超時掃描器
+    interval-ms: 1000               # 掃描間隔 (1 秒)
+    batch-size: 100                 # 每次掃描的最大數量
+
+  # Dynamic Connection Management
+  connection:
+    dynamic-management:
+      enabled: true                    # 啟用動態連線管理
+    config-path: ${CONNECTION_CONFIG_FILE:config/channel-config.json}
+    hot-reload-enabled: ${CONNECTION_HOT_RELOAD:false}
+    auto-connect: true
+    auto-sign-on: false
+    graceful-shutdown-timeout-ms: 5000
+
+  # Channel-Schema Mapping Configuration
+  channel:
+    enabled: true
+    config-file: ${CHANNEL_CONFIG_FILE:config/channel-schema-mapping.json}
+    hot-reload: ${CHANNEL_HOT_RELOAD:false}
+    hot-reload-interval: 5000
+    fail-on-missing-config: false
+    validate-schema-references: false
+
+  # FISC Connection Settings (Development)
+  fisc:
+    host: localhost
+    port: 9000
+    connection-timeout: 10000
+    read-timeout: 30000
+    heartbeat-interval: 30000
+    max-connections: 5
+    auto-reconnect: true
+    dual-channel:
+      enabled: false
+
+  # HSM Settings (Software HSM for Development)
+  hsm:
+    type: SOFTWARE
+    host: localhost
+    port: 1500
+
+  # Transaction Settings
+  transaction:
+    default-timeout: 30000
+    max-retry-count: 3
+    retry-interval: 1000
+
+  # Rate Limiting
+  rate-limit:
+    enabled: true
+    max-tps: 1000
+    algorithm: TOKEN_BUCKET
+
+  # Security
+  security:
+    pin-block-format: FORMAT_0
+    mac-algorithm: ANSI_X9_19
+
+  # BPMN Integration Settings
+  communication:
+    fisc:
+      default-channel: FISC_INTERBANK_V1
+      timeout-ms: 30000
+
+  # BPMN 設定
+  bpmn:
+    high-tps-mode: true
+    process-routing:
+      enabled: true
+      default-process: Process_TransferRequest
+      rules:
+        - name: 跨行轉帳
+          mti: "0200"
+          processing-code: "010000"
+          process-key: Only_Log_Process
+          priority: 100
+        - name: 跨行提款
+          mti: "0200"
+          processing-code: "01"
+          process-key: Process_TransferRequest
+          priority: 100
+        - name: 餘額查詢
+          mti: "0200"
+          processing-code: "31"
+          process-key: Process_TransferRequest
+          priority: 100
+        - name: 沖正交易
+          mti: "0400"
+          process-key: Process_TransferRequest
+          priority: 100
+        - name: 網路管理
+          mti: "0800"
+          process-key: Only_Log_Process
+          priority: 100
+        - name: ATM 2500 交易
+          channel-pattern: "ATM.*"
+          mti: "2500"
+          process-key: Only_Log_Process
+          priority: 10
+
+---
+# Development Profile (H2 In-Memory)
+spring:
+  config:
+    activate:
+      on-profile: dev-h2
+
+  # H2 Database for quick testing without Docker
   datasource:
     url: jdbc:h2:mem:camunda;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
     driver-class-name: org.h2.Driver
@@ -115,7 +262,13 @@ spring:
       enabled: true
       path: /h2-console
 
-# Camunda Dev Settings
+  # JPA Settings for H2
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+
+# Camunda H2 Settings
 camunda.bpm:
   database:
     type: h2
@@ -218,14 +371,7 @@ fep:
           mti: "0200"
           processing-code: "010000"
           # 高 TPS 模式：使用 Request BPMN 流程
-          process-key: Process_TransferRequest
-          priority: 100
-
-        # 跨行提款 (Processing Code: 01xxxx)
-        - name: 跨行提款
-          mti: "0200"
-          processing-code: "01"
-          process-key: Process_TransferRequest
+          process-key: Only_Log_Process
           priority: 100
 
         # 餘額查詢 (Processing Code: 31xxxx)
@@ -262,18 +408,27 @@ spring:
     activate:
       on-profile: prod
 
-  # Oracle Database for Camunda (Production)
+  # Oracle Database (Production)
   datasource:
-    url: ${DATABASE_URL:jdbc:oracle:thin:@localhost:1521:ORCL}
+    url: ${DATABASE_URL:jdbc:oracle:thin:@localhost:1521/FREEPDB1}
     driver-class-name: oracle.jdbc.OracleDriver
-    username: ${DATABASE_USERNAME:fep}
-    password: ${DATABASE_PASSWORD:fep}
+    username: ${DATABASE_USERNAME:fep_user}
+    password: ${DATABASE_PASSWORD:fep_password}
     hikari:
       maximum-pool-size: 20
       minimum-idle: 5
       connection-timeout: 30000
       idle-timeout: 600000
       max-lifetime: 1800000
+
+  # JPA Settings
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.OracleDialect
 
 # Camunda Production Settings
 camunda.bpm:
@@ -290,7 +445,7 @@ camunda.bpm:
 logging:
   level:
     root: ERROR
-    com.fep: ERROR
+    com.fep: INFO
 
 fep:
   # Pending Transaction Configuration (Pure DB Architecture - Production)

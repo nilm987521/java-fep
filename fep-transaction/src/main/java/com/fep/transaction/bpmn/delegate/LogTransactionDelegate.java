@@ -1,14 +1,16 @@
 package com.fep.transaction.bpmn.delegate;
 
+import com.fep.transaction.db.entity.FepTransactionLogEntity;
+import com.fep.transaction.db.repository.FepTransactionLogRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.camunda.bpm.engine.delegate.DelegateExecution;
 import org.camunda.bpm.engine.delegate.JavaDelegate;
 import org.springframework.stereotype.Component;
 
+import java.text.SimpleDateFormat;
 import java.time.LocalDateTime;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.Date;
 
 /**
  * BPMN Service Task Delegate: 記錄交易日誌
@@ -21,9 +23,8 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class LogTransactionDelegate implements JavaDelegate {
 
-    // 注入稽核日誌服務
-    // private final AuditLogService auditLogService;
-    // private final TransactionLogRepository transactionLogRepository;
+    private final FepTransactionLogRepository transactionLogRepository;
+    private final SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd");
 
     @Override
     public void execute(DelegateExecution execution) throws Exception {
@@ -35,33 +36,15 @@ public class LogTransactionDelegate implements JavaDelegate {
 
         try {
             // 1. 收集交易資訊
-            Map<String, Object> transactionLog = new HashMap<>();
-            transactionLog.put("processInstanceId", transactionId);
-            transactionLog.put("businessKey", execution.getProcessBusinessKey());
+            FepTransactionLogEntity transactionLog = new FepTransactionLogEntity();
+            transactionLog.setTransactionId(transactionId);
+            transactionLog.setStan((String) execution.getVariable("stan"));
+            transactionLog.setLogStage(FepTransactionLogEntity.LogStage.REQUEST_RECEIVED);
+            transactionLog.setLogLevel(FepTransactionLogEntity.LogLevel.INFO);
+            transactionLog.setLogTime(LocalDateTime.now());
+            transactionLog.setLogDate(sdf.format(new Date()));
 
-            // 交易基本資訊
-            transactionLog.put("sourceAccount", execution.getVariable("sourceAccount"));
-            transactionLog.put("targetAccount", execution.getVariable("targetAccount"));
-            transactionLog.put("amount", execution.getVariable("amount"));
-            transactionLog.put("channelId", execution.getVariable("channelId"));
-
-            // 電文資訊
-            transactionLog.put("mti", execution.getVariable("mti"));
-            transactionLog.put("stan", execution.getVariable("stan"));
-            transactionLog.put("rrn", execution.getVariable("rrn"));
-            transactionLog.put("responseCode", execution.getVariable("responseCode"));
-
-            // 狀態資訊
-            transactionLog.put("debitStatus", execution.getVariable("debitStatus"));
-            transactionLog.put("freezeId", execution.getVariable("freezeId"));
-
-            // 時間戳
-            transactionLog.put("logTime", LocalDateTime.now().toString());
-            transactionLog.put("completionTime", LocalDateTime.now().toString());
-
-            // 2. 儲存交易日誌
-            // transactionLogRepository.save(transactionLog);
-            // auditLogService.logTransaction(transactionLog);
+            transactionLogRepository.save(transactionLog);
 
             // 模擬記錄成功
             if (log.isDebugEnabled()) {
