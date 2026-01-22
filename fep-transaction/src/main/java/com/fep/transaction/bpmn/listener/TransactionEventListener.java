@@ -5,6 +5,7 @@ import com.fep.common.event.TransactionRequestEvent;
 import com.fep.transaction.bpmn.service.TransferProcessService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.event.EventListener;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
@@ -23,12 +24,12 @@ import java.util.function.Consumer;
  * <p>職責：
  * <ul>
  *   <li>監聽 {@link TransactionRequestEvent}，啟動對應 BPMN 流程</li>
- *   <li>監聽 {@link FiscResponseEvent}，觸發 BPMN 訊息關聯</li>
+ *   <li>監聽 {@link FiscResponseEvent}，觸發 BPMN 訊息關聯（傳統模式）</li>
  *   <li>管理 STAN → ProcessId 對應關係</li>
  *   <li>管理 STAN → ResponseCallback 對應關係</li>
  * </ul>
  *
- * <p>流程圖：
+ * <h3>傳統模式流程圖：</h3>
  * <pre>
  * TransactionRequestEvent ──► TransactionEventListener
  *                                     │
@@ -38,7 +39,7 @@ import java.util.function.Consumer;
  *                                     ▼
  *                             BPMN Process Started
  *                                     │
- *                        (... BPMN 執行中 ...)
+ *                        (... BPMN 執行中，等待回應 ...)
  *                                     │
  * FiscResponseEvent ────────────► correlateMessage()
  *                                     │
@@ -50,6 +51,36 @@ import java.util.function.Consumer;
  *                                     ▼
  *                             sendResponseToClient()
  * </pre>
+ *
+ * <h3>高 TPS 模式流程圖：</h3>
+ * <pre>
+ * TransactionRequestEvent ──► TransactionEventListener
+ *                                     │
+ *                                     ▼
+ *                             startTransferProcess()
+ *                                     │
+ *                                     ▼
+ *                             Request BPMN (立即結束)
+ *                                     │
+ *                                     ▼
+ *                             SavePendingTransaction (Redis)
+ *                                     │
+ *                                     ▼
+ *                             SendToFISC (Fire & Forget)
+ *                                     │
+ *                                     ▼
+ *                                   END
+ *
+ * FiscResponseEvent ────────────► FiscResponseHandler (不經此監聽器)
+ *                                     │
+ *                                     ▼
+ *                             Response BPMN Started
+ *                                     │
+ *                                     ▼
+ *                             sendResponseToClient()
+ * </pre>
+ *
+ * @see com.fep.transaction.bpmn.handler.FiscResponseHandler
  */
 @Slf4j
 @Component
@@ -57,6 +88,19 @@ import java.util.function.Consumer;
 public class TransactionEventListener {
 
     private final TransferProcessService processService;
+
+    /**
+     * 是否使用高 TPS 架構 (兩個 BPMN 流程模式)
+     *
+     * <p>高 TPS 模式特點：
+     * <ul>
+     *   <li>Request BPMN 發送至 FISC 後立即結束，不等待回應</li>
+     *   <li>FISC 回應由 FiscResponseHandler 啟動 Response BPMN 處理</li>
+     *   <li>此監聽器的 handleFiscResponse 方法在高 TPS 模式下不執行 correlateMessage</li>
+     * </ul>
+     */
+    @Value("${fep.bpmn.high-tps-mode:true}")
+    private boolean highTpsMode;
 
     /**
      * STAN → ProcessId 映射
@@ -125,11 +169,23 @@ public class TransactionEventListener {
      *
      * <p>收到 FISC 回應後，觸發 BPMN 訊息關聯
      *
+     * <p>高 TPS 模式：此方法不執行，改由 FiscResponseHandler 啟動 Response BPMN
+     *
      * @param event FISC 回應事件
      */
     @Async("bpmnExecutor")
     @EventListener
     public void handleFiscResponse(FiscResponseEvent event) {
+        // 高 TPS 模式：FiscResponseHandler 已啟動 Response BPMN，此處不需處理
+        if (highTpsMode) {
+            if (log.isDebugEnabled()) {
+                log.debug("高 TPS 模式：跳過 correlateMessage，由 FiscResponseHandler 處理: STAN={}, RC={}",
+                        event.getStan(), event.getResponseCode());
+            }
+            return;
+        }
+
+        // 傳統模式：使用 Message Correlation
         String stan = event.getStan();
         String processId = stanToProcessMap.get(stan);
 
@@ -139,7 +195,7 @@ public class TransactionEventListener {
         }
 
         if (log.isDebugEnabled()) {
-            log.debug("處理 FISC 回應: STAN={}, RC={}, processId={}, type={}",
+            log.debug("處理 FISC 回應 (傳統模式): STAN={}, RC={}, processId={}, type={}",
                     stan, event.getResponseCode(), processId, event.getResponseType());
         }
 

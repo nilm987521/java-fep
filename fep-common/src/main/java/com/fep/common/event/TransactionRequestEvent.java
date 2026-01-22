@@ -100,7 +100,7 @@ public class TransactionRequestEvent extends ApplicationEvent {
 
     /**
      * BPMN 流程 Key - 由 ProcessRouterService 解析後傳入
-     * <p>例如: "Process_InterbankTransfer", "Process_NetworkManagement"
+     * <p>例如: "Process_TransferRequest", "Process_NetworkManagement"
      */
     private final String processKey;
 

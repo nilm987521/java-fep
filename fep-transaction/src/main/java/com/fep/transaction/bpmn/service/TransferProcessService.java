@@ -26,10 +26,12 @@ public class TransferProcessService {
     /**
      * 預設 BPMN Process Key
      *
-     * <p>必須與 interbank-transfer.bpmn 中定義的 process id 一致：
-     * {@code <bpmn:process id="Process_InterbankTransfer" ...>}
+     * <p>高 TPS 架構使用 Request BPMN 流程，必須與 transfer-request.bpmn 中定義的 process id 一致：
+     * {@code <bpmn:process id="Process_TransferRequest" ...>}
+     *
+     * <p>舊版 (interbank-transfer.bpmn) 已被取代，使用 Process_InterbankTransfer。
      */
-    private static final String DEFAULT_PROCESS_KEY = "Process_InterbankTransfer";
+    private static final String DEFAULT_PROCESS_KEY = "Process_TransferRequest";
 
     /**
      * 啟動跨行轉帳流程（使用預設流程）

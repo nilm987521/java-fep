@@ -1,0 +1,304 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="Definitions_TransferTimeout"
+                  targetNamespace="http://fep.com/bpmn/transfer-timeout">
+
+  <!--
+    跨行轉帳 Timeout BPMN 流程
+
+    高 TPS 架構：由 TimeoutScanner 觸發，處理超時交易。
+
+    流程：
+    START (由 TimeoutScanner 啟動)
+      → LoadTimeoutTransaction
+      → SendReversal (0400)
+      → Event_ReversalResponse [等待: ReversalResponse, 30s timeout]
+         ├─ 收到回應: Gateway → OK: Unfreeze / FAIL: PendingAdjust
+         └─ 超時: MarkPendingAdjust
+      → UpdateStatus
+      → SendTimeoutResponse
+      → END
+  -->
+  <bpmn:process id="Process_TransferTimeout" name="跨行轉帳-超時流程" isExecutable="true"
+                camunda:historyTimeToLive="P180D">
+
+    <!-- 開始事件 (由 TimeoutScanner 啟動) -->
+    <bpmn:startEvent id="StartEvent_Timeout" name="偵測到超時">
+      <bpmn:outgoing>Flow_ToLoadTimeout</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- 1. 載入超時交易 -->
+    <bpmn:serviceTask id="Task_LoadTimeoutTransaction" name="載入超時交易"
+                      camunda:delegateExpression="${loadTransactionContextDelegate}">
+      <bpmn:incoming>Flow_ToLoadTimeout</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToSendReversal</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- 2. 發送沖正 (0400) -->
+    <bpmn:serviceTask id="Task_SendReversal" name="發送沖正(0400)"
+                      camunda:delegateExpression="${sendReversalDelegate}">
+      <bpmn:incoming>Flow_ToSendReversal</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToReversalWait</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- 3. 等待沖正回應 -->
+    <bpmn:intermediateCatchEvent id="Event_ReversalResponse" name="等待沖正回應">
+      <bpmn:incoming>Flow_ToReversalWait</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToReversalCheck</bpmn:outgoing>
+      <bpmn:messageEventDefinition id="MsgEventDef_ReversalResponse"
+                                   messageRef="Message_ReversalResponse" />
+    </bpmn:intermediateCatchEvent>
+
+    <!-- 沖正超時 Boundary Event -->
+    <bpmn:boundaryEvent id="Event_ReversalTimeout" name="沖正超時30秒" attachedToRef="Event_ReversalResponse">
+      <bpmn:outgoing>Flow_ToTimeoutPendingAdjust</bpmn:outgoing>
+      <bpmn:timerEventDefinition id="TimerEventDef_ReversalTimeout">
+        <bpmn:timeDuration>PT30S</bpmn:timeDuration>
+      </bpmn:timerEventDefinition>
+    </bpmn:boundaryEvent>
+
+    <!-- 沖正結果判斷 -->
+    <bpmn:exclusiveGateway id="Gateway_ReversalResult" name="沖正成功?">
+      <bpmn:incoming>Flow_ToReversalCheck</bpmn:incoming>
+      <bpmn:outgoing>Flow_ReversalSuccess</bpmn:outgoing>
+      <bpmn:outgoing>Flow_ReversalFail</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- ===== 沖正成功路徑 ===== -->
+
+    <!-- 4a. 沖正成功: 解凍款項 -->
+    <bpmn:serviceTask id="Task_UnfreezeAfterReversal" name="解凍款項"
+                      camunda:delegateExpression="${unfreezeAmountDelegate}">
+      <bpmn:incoming>Flow_ReversalSuccess</bpmn:incoming>
+      <bpmn:outgoing>Flow_ReversalToUpdateStatus</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- ===== 沖正失敗/超時路徑 ===== -->
+
+    <!-- 4b. 沖正失敗/超時: 標記待調帳 -->
+    <bpmn:serviceTask id="Task_MarkPendingAdjust" name="標記待調帳"
+                      camunda:delegateExpression="${markPendingAdjustDelegate}">
+      <bpmn:incoming>Flow_ToTimeoutPendingAdjust</bpmn:incoming>
+      <bpmn:incoming>Flow_ReversalFail</bpmn:incoming>
+      <bpmn:outgoing>Flow_PendingToUpdateStatus</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- ===== 共同路徑 ===== -->
+
+    <!-- 5. 更新狀態 (Redis + DB) -->
+    <bpmn:serviceTask id="Task_UpdateStatus" name="更新狀態"
+                      camunda:delegateExpression="${updateTransactionStatusDelegate}">
+      <bpmn:incoming>Flow_ReversalToUpdateStatus</bpmn:incoming>
+      <bpmn:incoming>Flow_PendingToUpdateStatus</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToBuildTimeoutResponse</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- 6. 組超時回應 -->
+    <bpmn:serviceTask id="Task_BuildTimeoutResponse" name="組超時回應"
+                      camunda:delegateExpression="${buildFailResponseDelegate}">
+      <bpmn:incoming>Flow_ToBuildTimeoutResponse</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToSendTimeoutResponse</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- 7. 發送超時回應給客戶端 -->
+    <bpmn:serviceTask id="Task_SendTimeoutResponse" name="發送超時回應"
+                      camunda:delegateExpression="${sendResponseToClientDelegate}">
+      <bpmn:incoming>Flow_ToSendTimeoutResponse</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToCleanupRedis</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- 8. 清理 Redis -->
+    <bpmn:serviceTask id="Task_CleanupRedis" name="清理Redis"
+                      camunda:delegateExpression="${cleanupRedisDelegate}">
+      <bpmn:incoming>Flow_ToCleanupRedis</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToEnd</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- 結束事件 -->
+    <bpmn:endEvent id="EndEvent_Complete" name="超時處理完成">
+      <bpmn:incoming>Flow_ToEnd</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- ===== Sequence Flows ===== -->
+
+    <bpmn:sequenceFlow id="Flow_ToLoadTimeout" sourceRef="StartEvent_Timeout" targetRef="Task_LoadTimeoutTransaction" />
+    <bpmn:sequenceFlow id="Flow_ToSendReversal" sourceRef="Task_LoadTimeoutTransaction" targetRef="Task_SendReversal" />
+    <bpmn:sequenceFlow id="Flow_ToReversalWait" sourceRef="Task_SendReversal" targetRef="Event_ReversalResponse" />
+    <bpmn:sequenceFlow id="Flow_ToReversalCheck" sourceRef="Event_ReversalResponse" targetRef="Gateway_ReversalResult" />
+
+    <!-- 沖正結果分支 -->
+    <bpmn:sequenceFlow id="Flow_ReversalSuccess" name="成功" sourceRef="Gateway_ReversalResult" targetRef="Task_UnfreezeAfterReversal">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${reversalResult == 'OK'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_ReversalFail" name="失敗" sourceRef="Gateway_ReversalResult" targetRef="Task_MarkPendingAdjust">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${reversalResult != 'OK'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+
+    <!-- 超時分支 -->
+    <bpmn:sequenceFlow id="Flow_ToTimeoutPendingAdjust" sourceRef="Event_ReversalTimeout" targetRef="Task_MarkPendingAdjust" />
+
+    <!-- 共同路徑 -->
+    <bpmn:sequenceFlow id="Flow_ReversalToUpdateStatus" sourceRef="Task_UnfreezeAfterReversal" targetRef="Task_UpdateStatus" />
+    <bpmn:sequenceFlow id="Flow_PendingToUpdateStatus" sourceRef="Task_MarkPendingAdjust" targetRef="Task_UpdateStatus" />
+    <bpmn:sequenceFlow id="Flow_ToBuildTimeoutResponse" sourceRef="Task_UpdateStatus" targetRef="Task_BuildTimeoutResponse" />
+    <bpmn:sequenceFlow id="Flow_ToSendTimeoutResponse" sourceRef="Task_BuildTimeoutResponse" targetRef="Task_SendTimeoutResponse" />
+    <bpmn:sequenceFlow id="Flow_ToCleanupRedis" sourceRef="Task_SendTimeoutResponse" targetRef="Task_CleanupRedis" />
+    <bpmn:sequenceFlow id="Flow_ToEnd" sourceRef="Task_CleanupRedis" targetRef="EndEvent_Complete" />
+  </bpmn:process>
+
+  <!-- Message 定義 -->
+  <bpmn:message id="Message_ReversalResponse" name="ReversalResponse" />
+
+  <!-- BPMN Diagram (視覺化佈局) -->
+  <bpmndi:BPMNDiagram id="BPMNDiagram_TransferTimeout">
+    <bpmndi:BPMNPlane id="BPMNPlane_Process" bpmnElement="Process_TransferTimeout">
+
+      <!-- Start Event -->
+      <bpmndi:BPMNShape id="Shape_Start" bpmnElement="StartEvent_Timeout">
+        <dc:Bounds x="152" y="102" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="140" y="145" width="59" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Task: Load Timeout Transaction -->
+      <bpmndi:BPMNShape id="Shape_LoadTimeout" bpmnElement="Task_LoadTimeoutTransaction">
+        <dc:Bounds x="230" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- Task: Send Reversal -->
+      <bpmndi:BPMNShape id="Shape_SendReversal" bpmnElement="Task_SendReversal">
+        <dc:Bounds x="370" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- Event: Reversal Response -->
+      <bpmndi:BPMNShape id="Shape_ReversalResponse" bpmnElement="Event_ReversalResponse">
+        <dc:Bounds x="512" y="102" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="495" y="145" width="71" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Gateway: Reversal Result -->
+      <bpmndi:BPMNShape id="Shape_Gateway_Reversal" bpmnElement="Gateway_ReversalResult" isMarkerVisible="true">
+        <dc:Bounds x="595" y="95" width="50" height="50" />
+      </bpmndi:BPMNShape>
+
+      <!-- Task: Unfreeze After Reversal -->
+      <bpmndi:BPMNShape id="Shape_UnfreezeAfterReversal" bpmnElement="Task_UnfreezeAfterReversal">
+        <dc:Bounds x="690" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- Task: Mark Pending Adjust -->
+      <bpmndi:BPMNShape id="Shape_MarkPendingAdjust" bpmnElement="Task_MarkPendingAdjust">
+        <dc:Bounds x="690" y="220" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- Task: Update Status -->
+      <bpmndi:BPMNShape id="Shape_UpdateStatus" bpmnElement="Task_UpdateStatus">
+        <dc:Bounds x="830" y="150" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- Task: Build Timeout Response -->
+      <bpmndi:BPMNShape id="Shape_BuildTimeoutResponse" bpmnElement="Task_BuildTimeoutResponse">
+        <dc:Bounds x="970" y="150" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- Task: Send Timeout Response -->
+      <bpmndi:BPMNShape id="Shape_SendTimeoutResponse" bpmnElement="Task_SendTimeoutResponse">
+        <dc:Bounds x="1110" y="150" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- Task: Cleanup Redis -->
+      <bpmndi:BPMNShape id="Shape_CleanupRedis" bpmnElement="Task_CleanupRedis">
+        <dc:Bounds x="1250" y="150" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- End Event -->
+      <bpmndi:BPMNShape id="Shape_End" bpmnElement="EndEvent_Complete">
+        <dc:Bounds x="1392" y="172" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1375" y="215" width="71" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Edges -->
+      <bpmndi:BPMNEdge id="Edge_ToLoadTimeout" bpmnElement="Flow_ToLoadTimeout">
+        <di:waypoint x="188" y="120" />
+        <di:waypoint x="230" y="120" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_ToSendReversal" bpmnElement="Flow_ToSendReversal">
+        <di:waypoint x="330" y="120" />
+        <di:waypoint x="370" y="120" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_ToReversalWait" bpmnElement="Flow_ToReversalWait">
+        <di:waypoint x="470" y="120" />
+        <di:waypoint x="512" y="120" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_ToReversalCheck" bpmnElement="Flow_ToReversalCheck">
+        <di:waypoint x="548" y="120" />
+        <di:waypoint x="595" y="120" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_ReversalSuccess" bpmnElement="Flow_ReversalSuccess">
+        <di:waypoint x="645" y="120" />
+        <di:waypoint x="690" y="120" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_ReversalFail" bpmnElement="Flow_ReversalFail">
+        <di:waypoint x="620" y="145" />
+        <di:waypoint x="620" y="260" />
+        <di:waypoint x="690" y="260" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_ToTimeoutPendingAdjust" bpmnElement="Flow_ToTimeoutPendingAdjust">
+        <di:waypoint x="530" y="138" />
+        <di:waypoint x="530" y="280" />
+        <di:waypoint x="690" y="280" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_ReversalToUpdateStatus" bpmnElement="Flow_ReversalToUpdateStatus">
+        <di:waypoint x="790" y="120" />
+        <di:waypoint x="810" y="120" />
+        <di:waypoint x="810" y="190" />
+        <di:waypoint x="830" y="190" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_PendingToUpdateStatus" bpmnElement="Flow_PendingToUpdateStatus">
+        <di:waypoint x="790" y="260" />
+        <di:waypoint x="810" y="260" />
+        <di:waypoint x="810" y="190" />
+        <di:waypoint x="830" y="190" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_ToBuildTimeoutResponse" bpmnElement="Flow_ToBuildTimeoutResponse">
+        <di:waypoint x="930" y="190" />
+        <di:waypoint x="970" y="190" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_ToSendTimeoutResponse" bpmnElement="Flow_ToSendTimeoutResponse">
+        <di:waypoint x="1070" y="190" />
+        <di:waypoint x="1110" y="190" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_ToCleanupRedis" bpmnElement="Flow_ToCleanupRedis">
+        <di:waypoint x="1210" y="190" />
+        <di:waypoint x="1250" y="190" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_ToEnd" bpmnElement="Flow_ToEnd">
+        <di:waypoint x="1350" y="190" />
+        <di:waypoint x="1392" y="190" />
+      </bpmndi:BPMNEdge>
+
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

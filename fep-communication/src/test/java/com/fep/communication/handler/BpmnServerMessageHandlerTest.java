@@ -41,7 +41,7 @@ class BpmnServerMessageHandlerTest {
     private static final String TEST_CHANNEL_ID = "ATM_FISC_V1";
     private static final String TEST_CLIENT_ID = "127.0.0.1:12345";
     private static final String TEST_STAN = "123456";
-    private static final String DEFAULT_PROCESS_KEY = "Process_InterbankTransfer";
+    private static final String DEFAULT_PROCESS_KEY = "Process_TransferRequest";
     private static final String NETWORK_PROCESS_KEY = "Process_NetworkManagement";
 
     @BeforeEach

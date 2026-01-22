@@ -1,0 +1,265 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  id="Definitions_TransferResponse"
+                  targetNamespace="http://fep.com/bpmn/transfer-response">
+
+  <!--
+    跨行轉帳 Response BPMN 流程
+
+    高 TPS 架構：由 FiscResponseHandler 觸發，處理 FISC 0210 回應。
+
+    流程：
+    START (由 FiscResponseHandler 啟動)
+      → LoadTransactionContext (從 Redis 載入)
+      → Gateway: ResponseCode
+         ├─ RC=00: ConfirmDebit → BuildSuccessResponse
+         └─ RC!=00: UnfreezeAmount → BuildFailResponse
+      → UpdateStatus (Redis + DB)
+      → SendResponseToClient
+      → CleanupRedis (移除 ZSET)
+      → END
+  -->
+  <bpmn:process id="Process_TransferResponse" name="跨行轉帳-回應流程" isExecutable="true"
+                camunda:historyTimeToLive="P180D">
+
+    <!-- 開始事件 (由程式碼啟動) -->
+    <bpmn:startEvent id="StartEvent_FiscResponse" name="收到FISC回應">
+      <bpmn:outgoing>Flow_ToLoadContext</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- 1. 從 Redis 載入交易上下文 -->
+    <bpmn:serviceTask id="Task_LoadTransactionContext" name="載入交易上下文"
+                      camunda:delegateExpression="${loadTransactionContextDelegate}">
+      <bpmn:incoming>Flow_ToLoadContext</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToResponseCodeGateway</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- 回應碼判斷 -->
+    <bpmn:exclusiveGateway id="Gateway_ResponseCode" name="回應碼?">
+      <bpmn:incoming>Flow_ToResponseCodeGateway</bpmn:incoming>
+      <bpmn:outgoing>Flow_ResponseSuccess</bpmn:outgoing>
+      <bpmn:outgoing>Flow_ResponseFail</bpmn:outgoing>
+    </bpmn:exclusiveGateway>
+
+    <!-- ===== 成功路徑 ===== -->
+
+    <!-- 2a. 成功: 確認扣款 -->
+    <bpmn:serviceTask id="Task_ConfirmDebit" name="確認扣款"
+                      camunda:delegateExpression="${confirmDebitDelegate}">
+      <bpmn:incoming>Flow_ResponseSuccess</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToBuildSuccessResponse</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- 3a. 組成功回應 -->
+    <bpmn:serviceTask id="Task_BuildSuccessResponse" name="組成功回應"
+                      camunda:delegateExpression="${buildSuccessResponseDelegate}">
+      <bpmn:incoming>Flow_ToBuildSuccessResponse</bpmn:incoming>
+      <bpmn:outgoing>Flow_SuccessToUpdateStatus</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- ===== 失敗路徑 ===== -->
+
+    <!-- 2b. 失敗: 解凍款項 -->
+    <bpmn:serviceTask id="Task_UnfreezeAmount" name="解凍款項"
+                      camunda:delegateExpression="${unfreezeAmountDelegate}">
+      <bpmn:incoming>Flow_ResponseFail</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToBuildFailResponse</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- 3b. 組失敗回應 -->
+    <bpmn:serviceTask id="Task_BuildFailResponse" name="組失敗回應"
+                      camunda:delegateExpression="${buildFailResponseDelegate}">
+      <bpmn:incoming>Flow_ToBuildFailResponse</bpmn:incoming>
+      <bpmn:outgoing>Flow_FailToUpdateStatus</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- ===== 共同路徑 ===== -->
+
+    <!-- 4. 更新狀態 (Redis + DB) -->
+    <bpmn:serviceTask id="Task_UpdateStatus" name="更新狀態"
+                      camunda:delegateExpression="${updateTransactionStatusDelegate}">
+      <bpmn:incoming>Flow_SuccessToUpdateStatus</bpmn:incoming>
+      <bpmn:incoming>Flow_FailToUpdateStatus</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToSendResponse</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- 5. 發送回應給客戶端 -->
+    <bpmn:serviceTask id="Task_SendResponseToClient" name="發送回應給客戶端"
+                      camunda:delegateExpression="${sendResponseToClientDelegate}">
+      <bpmn:incoming>Flow_ToSendResponse</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToCleanupRedis</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- 6. 清理 Redis -->
+    <bpmn:serviceTask id="Task_CleanupRedis" name="清理Redis"
+                      camunda:delegateExpression="${cleanupRedisDelegate}">
+      <bpmn:incoming>Flow_ToCleanupRedis</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToEnd</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- 結束事件 -->
+    <bpmn:endEvent id="EndEvent_Complete" name="處理完成">
+      <bpmn:incoming>Flow_ToEnd</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- ===== Sequence Flows ===== -->
+
+    <bpmn:sequenceFlow id="Flow_ToLoadContext" sourceRef="StartEvent_FiscResponse" targetRef="Task_LoadTransactionContext" />
+    <bpmn:sequenceFlow id="Flow_ToResponseCodeGateway" sourceRef="Task_LoadTransactionContext" targetRef="Gateway_ResponseCode" />
+
+    <!-- 回應碼分支 -->
+    <bpmn:sequenceFlow id="Flow_ResponseSuccess" name="RC=00" sourceRef="Gateway_ResponseCode" targetRef="Task_ConfirmDebit">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${responseCode == '00'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+    <bpmn:sequenceFlow id="Flow_ResponseFail" name="RC!=00" sourceRef="Gateway_ResponseCode" targetRef="Task_UnfreezeAmount">
+      <bpmn:conditionExpression xsi:type="bpmn:tFormalExpression">${responseCode != '00'}</bpmn:conditionExpression>
+    </bpmn:sequenceFlow>
+
+    <!-- 成功路徑 -->
+    <bpmn:sequenceFlow id="Flow_ToBuildSuccessResponse" sourceRef="Task_ConfirmDebit" targetRef="Task_BuildSuccessResponse" />
+    <bpmn:sequenceFlow id="Flow_SuccessToUpdateStatus" sourceRef="Task_BuildSuccessResponse" targetRef="Task_UpdateStatus" />
+
+    <!-- 失敗路徑 -->
+    <bpmn:sequenceFlow id="Flow_ToBuildFailResponse" sourceRef="Task_UnfreezeAmount" targetRef="Task_BuildFailResponse" />
+    <bpmn:sequenceFlow id="Flow_FailToUpdateStatus" sourceRef="Task_BuildFailResponse" targetRef="Task_UpdateStatus" />
+
+    <!-- 共同路徑 -->
+    <bpmn:sequenceFlow id="Flow_ToSendResponse" sourceRef="Task_UpdateStatus" targetRef="Task_SendResponseToClient" />
+    <bpmn:sequenceFlow id="Flow_ToCleanupRedis" sourceRef="Task_SendResponseToClient" targetRef="Task_CleanupRedis" />
+    <bpmn:sequenceFlow id="Flow_ToEnd" sourceRef="Task_CleanupRedis" targetRef="EndEvent_Complete" />
+  </bpmn:process>
+
+  <!-- BPMN Diagram (視覺化佈局) -->
+  <bpmndi:BPMNDiagram id="BPMNDiagram_TransferResponse">
+    <bpmndi:BPMNPlane id="BPMNPlane_Process" bpmnElement="Process_TransferResponse">
+
+      <!-- Start Event -->
+      <bpmndi:BPMNShape id="Shape_Start" bpmnElement="StartEvent_FiscResponse">
+        <dc:Bounds x="152" y="102" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="134" y="145" width="75" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Task: Load Transaction Context -->
+      <bpmndi:BPMNShape id="Shape_LoadContext" bpmnElement="Task_LoadTransactionContext">
+        <dc:Bounds x="230" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- Gateway: Response Code -->
+      <bpmndi:BPMNShape id="Shape_Gateway_ResponseCode" bpmnElement="Gateway_ResponseCode" isMarkerVisible="true">
+        <dc:Bounds x="375" y="95" width="50" height="50" />
+      </bpmndi:BPMNShape>
+
+      <!-- Task: Confirm Debit (Success Path) -->
+      <bpmndi:BPMNShape id="Shape_ConfirmDebit" bpmnElement="Task_ConfirmDebit">
+        <dc:Bounds x="470" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- Task: Build Success Response -->
+      <bpmndi:BPMNShape id="Shape_BuildSuccessResponse" bpmnElement="Task_BuildSuccessResponse">
+        <dc:Bounds x="610" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- Task: Unfreeze Amount (Fail Path) -->
+      <bpmndi:BPMNShape id="Shape_UnfreezeAmount" bpmnElement="Task_UnfreezeAmount">
+        <dc:Bounds x="470" y="220" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- Task: Build Fail Response -->
+      <bpmndi:BPMNShape id="Shape_BuildFailResponse" bpmnElement="Task_BuildFailResponse">
+        <dc:Bounds x="610" y="220" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- Task: Update Status -->
+      <bpmndi:BPMNShape id="Shape_UpdateStatus" bpmnElement="Task_UpdateStatus">
+        <dc:Bounds x="750" y="150" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- Task: Send Response To Client -->
+      <bpmndi:BPMNShape id="Shape_SendResponse" bpmnElement="Task_SendResponseToClient">
+        <dc:Bounds x="890" y="150" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- Task: Cleanup Redis -->
+      <bpmndi:BPMNShape id="Shape_CleanupRedis" bpmnElement="Task_CleanupRedis">
+        <dc:Bounds x="1030" y="150" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- End Event -->
+      <bpmndi:BPMNShape id="Shape_End" bpmnElement="EndEvent_Complete">
+        <dc:Bounds x="1172" y="172" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="1163" y="215" width="55" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Edges -->
+      <bpmndi:BPMNEdge id="Edge_ToLoadContext" bpmnElement="Flow_ToLoadContext">
+        <di:waypoint x="188" y="120" />
+        <di:waypoint x="230" y="120" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_ToResponseCodeGateway" bpmnElement="Flow_ToResponseCodeGateway">
+        <di:waypoint x="330" y="120" />
+        <di:waypoint x="375" y="120" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_ResponseSuccess" bpmnElement="Flow_ResponseSuccess">
+        <di:waypoint x="425" y="120" />
+        <di:waypoint x="470" y="120" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_ResponseFail" bpmnElement="Flow_ResponseFail">
+        <di:waypoint x="400" y="145" />
+        <di:waypoint x="400" y="260" />
+        <di:waypoint x="470" y="260" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_ToBuildSuccessResponse" bpmnElement="Flow_ToBuildSuccessResponse">
+        <di:waypoint x="570" y="120" />
+        <di:waypoint x="610" y="120" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_SuccessToUpdateStatus" bpmnElement="Flow_SuccessToUpdateStatus">
+        <di:waypoint x="710" y="120" />
+        <di:waypoint x="730" y="120" />
+        <di:waypoint x="730" y="190" />
+        <di:waypoint x="750" y="190" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_ToBuildFailResponse" bpmnElement="Flow_ToBuildFailResponse">
+        <di:waypoint x="570" y="260" />
+        <di:waypoint x="610" y="260" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_FailToUpdateStatus" bpmnElement="Flow_FailToUpdateStatus">
+        <di:waypoint x="710" y="260" />
+        <di:waypoint x="730" y="260" />
+        <di:waypoint x="730" y="190" />
+        <di:waypoint x="750" y="190" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_ToSendResponse" bpmnElement="Flow_ToSendResponse">
+        <di:waypoint x="850" y="190" />
+        <di:waypoint x="890" y="190" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_ToCleanupRedis" bpmnElement="Flow_ToCleanupRedis">
+        <di:waypoint x="990" y="190" />
+        <di:waypoint x="1030" y="190" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_ToEnd" bpmnElement="Flow_ToEnd">
+        <di:waypoint x="1130" y="190" />
+        <di:waypoint x="1172" y="190" />
+      </bpmndi:BPMNEdge>
+
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

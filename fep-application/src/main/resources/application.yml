@@ -123,6 +123,17 @@ camunda.bpm:
     password: admin
 
 fep:
+  # Pending Transaction Configuration (Pure DB Architecture)
+  pending:
+    fisc-timeout-ms: 30000          # FISC 回應超時時間
+
+  # Timeout Scanner Configuration (Pure DB Architecture)
+  # 使用 DB FOR UPDATE SKIP LOCKED，不需要 Redis 分散式鎖
+  timeout-scanner:
+    enabled: true                    # 啟用超時掃描器
+    interval-ms: 1000               # 掃描間隔 (1 秒)
+    batch-size: 100                 # 每次掃描的最大數量
+
   # Dynamic Connection Management
   connection:
     dynamic-management:
@@ -192,41 +203,42 @@ fep:
       default-channel: FISC_INTERBANK_V1
       timeout-ms: 30000
 
-  # BPMN 流程路由設定（完全配置化）
+  # BPMN 設定（完全配置化）
   # 新增 MTI 時，只需在此加入規則 + 部署對應 BPMN 流程，不需修改 Java 代碼
   bpmn:
+    high-tps-mode: true             # 啟用高 TPS 模式 (兩個 BPMN 流程)
     process-routing:
       enabled: true
-      default-process: Process_InterbankTransfer  # 未匹配時的預設流程
+      default-process: Process_TransferRequest  # 高 TPS 模式使用 Request 流程
 
       rules:
         # ===== 金融交易 =====
-        # 跨行轉帳 (Processing Code: 40xxxx)
+        # 跨行轉帳 (Processing Code: 40xxxx) - 使用高 TPS 架構
         - name: 跨行轉帳
           mti: "0200"
           processing-code: "010000"
-          # *.bpnm 的 <bpmn:process id="Process_InterbankTransfer">
-          process-key: Only_Log_Process
+          # 高 TPS 模式：使用 Request BPMN 流程
+          process-key: Process_TransferRequest
           priority: 100
 
         # 跨行提款 (Processing Code: 01xxxx)
         - name: 跨行提款
           mti: "0200"
           processing-code: "01"
-          process-key: Only_Log_Process
+          process-key: Process_TransferRequest
           priority: 100
 
         # 餘額查詢 (Processing Code: 31xxxx)
         - name: 餘額查詢
           mti: "0200"
           processing-code: "31"
-          process-key: Only_Log_Process
+          process-key: Process_TransferRequest
           priority: 100
 
         # ===== 沖正交易 =====
         - name: 沖正交易
           mti: "0400"
-          process-key: Only_Log_Process
+          process-key: Process_TransferRequest
           priority: 100
 
         # ===== 網路管理 =====
@@ -281,6 +293,17 @@ logging:
     com.fep: ERROR
 
 fep:
+  # Pending Transaction Configuration (Pure DB Architecture - Production)
+  pending:
+    fisc-timeout-ms: ${FISC_TIMEOUT_MS:30000}
+
+  # Timeout Scanner Configuration (Pure DB Architecture - Production)
+  # 使用 DB FOR UPDATE SKIP LOCKED，不需要 Redis 分散式鎖
+  timeout-scanner:
+    enabled: ${TIMEOUT_SCANNER_ENABLED:true}
+    interval-ms: ${TIMEOUT_SCANNER_INTERVAL_MS:1000}
+    batch-size: ${TIMEOUT_SCANNER_BATCH_SIZE:100}
+
   # Dynamic Connection Management (Production)
   connection:
     dynamic-management:
@@ -350,40 +373,41 @@ fep:
       default-channel: ${FISC_DEFAULT_CHANNEL:FISC_INTERBANK_V1}
       timeout-ms: ${FISC_TIMEOUT_MS:30000}
 
-  # BPMN 流程路由設定 (Production)
+  # BPMN 設定 (Production)
   # 新增 MTI 時，只需在此加入規則 + 部署對應 BPMN 流程，不需修改 Java 代碼
   bpmn:
+    high-tps-mode: ${BPMN_HIGH_TPS_MODE:true}
     process-routing:
       enabled: ${BPMN_ROUTING_ENABLED:true}
-      default-process: ${BPMN_DEFAULT_PROCESS:Process_InterbankTransfer}
+      default-process: ${BPMN_DEFAULT_PROCESS:Process_TransferRequest}
 
       rules:
         # ===== 金融交易 =====
-        # 跨行轉帳 (Processing Code: 40xxxx)
+        # 跨行轉帳 (Processing Code: 40xxxx) - 高 TPS 架構
         - name: 跨行轉帳
           mti: "0200"
           processing-code: "40"
-          process-key: Process_InterbankTransfer
+          process-key: Process_TransferRequest
           priority: 100
 
         # 跨行提款 (Processing Code: 01xxxx)
         - name: 跨行提款
           mti: "0200"
           processing-code: "01"
-          process-key: Process_InterbankTransfer
+          process-key: Process_TransferRequest
           priority: 100
 
         # 餘額查詢 (Processing Code: 31xxxx)
         - name: 餘額查詢
           mti: "0200"
           processing-code: "31"
-          process-key: Process_InterbankTransfer
+          process-key: Process_TransferRequest
           priority: 100
 
         # ===== 沖正交易 =====
         - name: 沖正交易
           mti: "0400"
-          process-key: Process_InterbankTransfer
+          process-key: Process_TransferRequest
           priority: 100
 
         # ===== 網路管理 =====

@@ -2,6 +2,8 @@ package com.fep.transaction.bpmn.delegate;
 
 import com.fep.transaction.bpmn.handler.FiscResponseHandler;
 import com.fep.transaction.bpmn.service.FiscCommunicationService;
+import com.fep.transaction.redis.dto.PendingTransactionDTO;
+import com.fep.transaction.redis.service.PendingTransactionRedisService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.camunda.bpm.engine.delegate.BpmnError;
@@ -10,6 +12,7 @@ import org.camunda.bpm.engine.delegate.JavaDelegate;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
+import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -46,6 +49,7 @@ public class SendToFiscDelegate implements JavaDelegate {
 
     private final FiscCommunicationService fiscCommunicationService;
     private final FiscResponseHandler fiscResponseHandler;
+    private final PendingTransactionRedisService redisService;
 
     /**
      * STAN 產生器 (簡易實作，正式環境應使用獨立的 StanGenerator)
@@ -85,8 +89,8 @@ public class SendToFiscDelegate implements JavaDelegate {
             // 4. 註冊 STAN 與流程的關聯 (用於回應匹配)
             fiscResponseHandler.registerStan(stan, processId);
 
-            // 5. 發送電文 (非同步，不等待回應)
-            log.info("[{}] 發送 0200 電文: STAN={}", processId, stan);
+            // 5. 發送電文 (Fire & Forget，不等待回應)
+            log.info("[{}] 發送 0200 電文 (Fire & Forget): STAN={}", processId, stan);
 
             fiscCommunicationService.sendAsync(assembledMessage, processId, stan)
                     .whenComplete((response, throwable) -> {
@@ -94,18 +98,26 @@ public class SendToFiscDelegate implements JavaDelegate {
                             log.error("[{}] FISC 發送失敗: STAN={}, error={}",
                                     processId, stan, throwable.getMessage());
                             // 注意：這裡不能拋出 BpmnError，因為是在非同步 callback 中
-                            // 超時或錯誤將由 BPMN 的 Timer Boundary Event 處理
+                            // 超時將由 TimeoutScanner 處理
                         }
                     });
 
-            // 6. 記錄發送時間
+            // 6. 更新 Redis 狀態為 SENT
+            String transactionId = (String) execution.getVariable("transactionId");
+            if (transactionId != null) {
+                updateRedisStatusToSent(transactionId, stan);
+            }
+
+            // 7. 記錄發送時間
             execution.setVariable("fiscSendTime", LocalDateTime.now().toString());
             execution.setVariable("fiscRequestSent", true);
 
-            log.info("[{}] 0200 電文已發送，等待 FISC 回應: STAN={}", processId, stan);
+            log.info("[{}] 0200 電文已發送 (Fire & Forget): STAN={}, txnId={}",
+                    processId, stan, transactionId);
 
-            // 此 Delegate 返回後，流程會繼續到 Message Catch Event (Event_ReceiveResponse)
-            // 等待 FISC 回應或超時
+            // 高 TPS 架構：此 Delegate 返回後，流程立即結束
+            // 回應由 transfer-response.bpmn 處理
+            // 超時由 TimeoutScanner + transfer-timeout.bpmn 處理
 
         } catch (BpmnError e) {
             throw e; // 重新拋出 BPMN 錯誤
@@ -141,5 +153,28 @@ public class SendToFiscDelegate implements JavaDelegate {
             stan = 1;
         }
         return String.format("%06d", stan);
+    }
+
+    /**
+     * 更新 Redis 交易狀態為 SENT
+     *
+     * @param transactionId 交易 ID
+     * @param stan STAN
+     */
+    private void updateRedisStatusToSent(String transactionId, String stan) {
+        try {
+            Optional<PendingTransactionDTO> optDto = redisService.loadTransaction(transactionId);
+            if (optDto.isPresent()) {
+                PendingTransactionDTO dto = optDto.get();
+                dto.setStatus(PendingTransactionDTO.TransactionStatus.SENT);
+                dto.setSentToFiscAt(System.currentTimeMillis());
+                redisService.updateTransaction(dto);
+                log.debug("Updated Redis status to SENT: txnId={}, stan={}", transactionId, stan);
+            }
+        } catch (Exception e) {
+            // 非關鍵錯誤，記錄但不拋出
+            log.warn("Failed to update Redis status to SENT: txnId={}, error={}",
+                    transactionId, e.getMessage());
+        }
     }
 }

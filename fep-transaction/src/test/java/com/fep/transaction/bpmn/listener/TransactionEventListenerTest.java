@@ -37,7 +37,7 @@ class TransactionEventListenerTest {
     private static final String TEST_STAN = "123456";
     private static final String TEST_PROCESS_ID = "process-001";
     private static final String TEST_CHANNEL_ID = "ATM_FISC_V1";
-    private static final String TEST_PROCESS_KEY = "Process_InterbankTransfer";
+    private static final String TEST_PROCESS_KEY = "Process_TransferRequest";
 
     @Nested
     @DisplayName("handleTransactionRequest Tests")

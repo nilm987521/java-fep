@@ -21,9 +21,9 @@ class ProcessRouterServiceTest {
     private ProcessRoutingProperties properties;
     private ProcessRouterService routerService;
 
-    private static final String DEFAULT_PROCESS = "Process_InterbankTransfer";
+    private static final String DEFAULT_PROCESS = "Process_TransferRequest";
     private static final String ATM_2500_PROCESS = "Only_Log_Process";
-    private static final String TRANSFER_PROCESS = "Process_InterbankTransfer";
+    private static final String TRANSFER_PROCESS = "Process_TransferRequest";
 
     @BeforeEach
     void setUp() {

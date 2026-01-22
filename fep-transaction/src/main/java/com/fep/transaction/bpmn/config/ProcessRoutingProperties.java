@@ -11,13 +11,20 @@ import java.util.List;
  *
  * <p>透過設定檔定義 通道 (channelId) + 交易類型 (MTI) → BPMN 流程 的 mapping 規則。
  *
+ * <p>高 TPS 架構使用三個獨立流程：
+ * <ul>
+ *   <li>{@code Process_TransferRequest} - 請求流程（快速結束，不等待回應）</li>
+ *   <li>{@code Process_TransferResponse} - 回應流程（由 FiscResponseHandler 觸發）</li>
+ *   <li>{@code Process_TransferTimeout} - 超時流程（由 TimeoutScanner 觸發）</li>
+ * </ul>
+ *
  * <p>設定範例：
  * <pre>
  * fep:
  *   bpmn:
  *     process-routing:
  *       enabled: true
- *       default-process: Process_InterbankTransfer
+ *       default-process: Process_TransferRequest
  *       rules:
  *         - name: ATM 2500 交易
  *           channel-pattern: "ATM.*"
@@ -28,7 +35,7 @@ import java.util.List;
  *           channel-pattern: ".*"
  *           mti: "0200"
  *           processing-code: "40"
- *           process-key: Process_InterbankTransfer
+ *           process-key: Process_TransferRequest
  *           priority: 100
  * </pre>
  */
@@ -43,8 +50,10 @@ public class ProcessRoutingProperties {
 
     /**
      * 預設流程 Key（當無匹配規則時使用）
+     *
+     * <p>高 TPS 架構預設使用 Request 流程
      */
-    private String defaultProcess = "Process_InterbankTransfer";
+    private String defaultProcess = "Process_TransferRequest";
 
     /**
      * 路由規則列表

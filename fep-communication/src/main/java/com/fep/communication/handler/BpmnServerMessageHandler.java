@@ -26,18 +26,19 @@ import java.util.function.Consumer;
  *   <li>新增 MTI 時，只需在 application.yml 加入規則 + 部署對應 BPMN 流程</li>
  * </ul>
  *
- * <p>配置範例：
+ * <p>配置範例（高 TPS 架構）：
  * <pre>
  * fep:
  *   bpmn:
+ *     high-tps-mode: true
  *     process-routing:
  *       enabled: true
- *       default-process: Process_Default
+ *       default-process: Process_TransferRequest
  *       rules:
  *         - name: 跨行轉帳
  *           mti: "0200"
  *           processing-code: "40"
- *           process-key: Process_InterbankTransfer
+ *           process-key: Process_TransferRequest
  *         - name: 網路管理
  *           mti: "0800"
  *           process-key: Process_NetworkManagement
