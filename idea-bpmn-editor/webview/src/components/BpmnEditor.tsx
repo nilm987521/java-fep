@@ -1,0 +1,231 @@
+import React, { useEffect, useRef } from 'react';
+import BpmnModeler from 'bpmn-js/lib/Modeler';
+import camundaModdleDescriptor from 'camunda-bpmn-moddle/resources/camunda.json';
+import { useEditorStore } from '../stores/editorStore';
+import { sendToIde } from '../App';
+import { SelectedElement } from '../types';
+
+// Import bpmn-js styles
+import 'bpmn-js/dist/assets/diagram-js.css';
+import 'bpmn-js/dist/assets/bpmn-js.css';
+import 'bpmn-js/dist/assets/bpmn-font/css/bpmn.css';
+
+const BpmnEditor: React.FC = () => {
+    const containerRef = useRef<HTMLDivElement>(null);
+    const modelerRef = useRef<BpmnModeler | null>(null);
+    const { bpmnXml, setDirty, setSelectedElement } = useEditorStore();
+
+    useEffect(() => {
+        if (!containerRef.current) return;
+
+        // Initialize modeler
+        const modeler = new BpmnModeler({
+            container: containerRef.current,
+            moddleExtensions: {
+                camunda: camundaModdleDescriptor
+            },
+            keyboard: {
+                bindTo: window
+            }
+        });
+
+        modelerRef.current = modeler;
+
+        // Setup event listeners
+        const eventBus = modeler.get('eventBus') as any;
+
+        // Track changes
+        eventBus.on('commandStack.changed', () => {
+            setDirty(true);
+            saveCurrentXml();
+        });
+
+        // Track selection
+        eventBus.on('selection.changed', (e: any) => {
+            const selection = e.newSelection;
+            if (selection && selection.length === 1) {
+                const element = selection[0];
+                const businessObject = element.businessObject;
+
+                const selectedElement: SelectedElement = {
+                    id: element.id,
+                    type: element.type,
+                    name: businessObject?.name || '',
+                    delegateExpression: businessObject?.delegateExpression
+                };
+                setSelectedElement(selectedElement);
+            } else {
+                setSelectedElement(null);
+            }
+        });
+
+        // Listen for commands from IDE
+        const handleCommand = (e: CustomEvent<string>) => {
+            executeCommand(e.detail);
+        };
+        window.addEventListener('bpmn-command', handleCommand as EventListener);
+
+        return () => {
+            window.removeEventListener('bpmn-command', handleCommand as EventListener);
+            modeler.destroy();
+        };
+    }, [setDirty, setSelectedElement]);
+
+    // Load BPMN XML when it changes
+    useEffect(() => {
+        if (!modelerRef.current || !bpmnXml) return;
+
+        modelerRef.current.importXML(bpmnXml).catch((err: Error) => {
+            console.error('Failed to import BPMN:', err);
+            sendToIde({ type: 'showError', message: 'Failed to load BPMN: ' + err.message });
+        });
+    }, [bpmnXml]);
+
+    const saveCurrentXml = async () => {
+        if (!modelerRef.current) return;
+
+        try {
+            const result = await modelerRef.current.saveXML({ format: true });
+            sendToIde({ type: 'update', xml: result.xml });
+        } catch (err) {
+            console.error('Failed to save XML:', err);
+        }
+    };
+
+    const executeCommand = (command: string) => {
+        if (!modelerRef.current) return;
+
+        const canvas = modelerRef.current.get('canvas') as any;
+        const commandStack = modelerRef.current.get('commandStack') as any;
+
+        switch (command) {
+            case 'undo':
+                commandStack.undo();
+                break;
+            case 'redo':
+                commandStack.redo();
+                break;
+            case 'zoomIn':
+                canvas.zoom(canvas.zoom() * 1.2);
+                break;
+            case 'zoomOut':
+                canvas.zoom(canvas.zoom() / 1.2);
+                break;
+            case 'fitToScreen':
+                canvas.zoom('fit-viewport');
+                break;
+            case 'exportSvg':
+                exportSvg();
+                break;
+            case 'exportPng':
+                exportPng();
+                break;
+            case 'save':
+                sendToIde({ type: 'save' });
+                break;
+            default:
+                console.log('Unknown command:', command);
+        }
+    };
+
+    const exportSvg = async () => {
+        if (!modelerRef.current) return;
+
+        try {
+            const result = await modelerRef.current.saveSVG();
+            sendToIde({ type: 'exportSvg', svg: result.svg });
+        } catch (err) {
+            console.error('Failed to export SVG:', err);
+            sendToIde({ type: 'showError', message: 'Failed to export SVG' });
+        }
+    };
+
+    const exportPng = async () => {
+        if (!modelerRef.current) return;
+
+        try {
+            const result = await modelerRef.current.saveSVG();
+
+            // Convert SVG to PNG using canvas
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            const img = new Image();
+
+            img.onload = () => {
+                canvas.width = img.width * 2;  // 2x for retina
+                canvas.height = img.height * 2;
+                ctx?.scale(2, 2);
+                ctx?.drawImage(img, 0, 0);
+
+                const dataUrl = canvas.toDataURL('image/png');
+                sendToIde({ type: 'exportPng', dataUrl });
+            };
+
+            img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(result.svg)));
+        } catch (err) {
+            console.error('Failed to export PNG:', err);
+            sendToIde({ type: 'showError', message: 'Failed to export PNG' });
+        }
+    };
+
+    // Handle drag and drop from palette
+    const handleDrop = (e: React.DragEvent) => {
+        e.preventDefault();
+
+        const delegateData = e.dataTransfer.getData('application/json');
+        if (!delegateData) return;
+
+        try {
+            const delegate = JSON.parse(delegateData);
+            addServiceTask(delegate, e.clientX, e.clientY);
+        } catch (err) {
+            console.error('Failed to parse delegate data:', err);
+        }
+    };
+
+    const addServiceTask = (delegate: any, x: number, y: number) => {
+        if (!modelerRef.current) return;
+
+        const modeling = modelerRef.current.get('modeling') as any;
+        const elementFactory = modelerRef.current.get('elementFactory') as any;
+        const canvas = modelerRef.current.get('canvas') as any;
+
+        // Convert screen coordinates to diagram coordinates
+        const viewbox = canvas.viewbox();
+        const diagramX = (x - viewbox.x) / viewbox.scale;
+        const diagramY = (y - viewbox.y) / viewbox.scale;
+
+        // Get root element
+        const rootElement = canvas.getRootElement();
+
+        // Create service task shape
+        const shape = elementFactory.createShape({
+            type: 'bpmn:ServiceTask'
+        });
+
+        // Add the shape
+        modeling.createShape(shape, { x: diagramX, y: diagramY }, rootElement);
+
+        // Update properties
+        modeling.updateProperties(shape, {
+            name: delegate.displayName,
+            'camunda:delegateExpression': '${' + delegate.name + '}'
+        });
+    };
+
+    const handleDragOver = (e: React.DragEvent) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'copy';
+    };
+
+    return (
+        <div
+            ref={containerRef}
+            className="bpmn-container"
+            onDrop={handleDrop}
+            onDragOver={handleDragOver}
+        />
+    );
+};
+
+export default BpmnEditor;

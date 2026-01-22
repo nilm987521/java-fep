@@ -1,0 +1,184 @@
+<idea-plugin>
+    <id>com.fep.bpmn.editor</id>
+    <name>FEP BPMN Editor</name>
+    <version>1.0.0</version>
+    <vendor email="support@fep.com" url="https://github.com/fep">FEP Team</vendor>
+
+    <description><![CDATA[
+        <h2>FEP BPMN Editor for IntelliJ IDEA</h2>
+        <p>A visual BPMN 2.0 process editor integrated with Camunda Java Delegate discovery.</p>
+
+        <h3>Features</h3>
+        <ul>
+            <li><b>Visual BPMN Editor</b>: Full BPMN 2.0 editing powered by bpmn.js</li>
+            <li><b>Java Delegate Scanner</b>: Automatically discover JavaDelegate implementations</li>
+            <li><b>Delegate Categories</b>: Auto-categorize delegates (驗證類、帳務類、電文類、通訊類)</li>
+            <li><b>Component Palette</b>: Drag-and-drop delegates onto diagram</li>
+            <li><b>Properties Panel</b>: Configure ServiceTask delegates inline</li>
+            <li><b>Variable Intelligence</b>: View input/output variables with types</li>
+            <li><b>Export Options</b>: Export to SVG or PNG format</li>
+            <li><b>Quick Navigation</b>: Jump to delegate source code</li>
+        </ul>
+
+        <h3>Supported File Types</h3>
+        <ul>
+            <li>.bpmn - BPMN 2.0 Process Files</li>
+        </ul>
+    ]]></description>
+
+    <change-notes><![CDATA[
+        <h3>1.0.0</h3>
+        <ul>
+            <li>Initial release</li>
+            <li>Visual BPMN editor with drag-and-drop</li>
+            <li>Java Delegate scanner with variable extraction</li>
+            <li>Camunda extensions support</li>
+            <li>Properties panel with delegate configuration</li>
+            <li>Export to SVG/PNG</li>
+        </ul>
+    ]]></change-notes>
+
+    <!-- IntelliJ Platform version compatibility -->
+    <idea-version since-build="233" until-build="243.*"/>
+
+    <!-- Dependencies -->
+    <depends>com.intellij.modules.platform</depends>
+    <depends>com.intellij.modules.java</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <!-- File Type Registration -->
+        <fileType
+                name="BPMN"
+                implementationClass="com.fep.bpmn.editor.BpmnFileType"
+                fieldName="INSTANCE"
+                language="XML"
+                extensions="bpmn"/>
+
+        <!-- Custom Editor Provider -->
+        <fileEditorProvider
+                implementation="com.fep.bpmn.editor.BpmnEditorProvider"/>
+
+        <!-- Tool Window for Delegates -->
+        <toolWindow
+                id="BPMN Delegates"
+                anchor="right"
+                icon="/icons/bpmn.svg"
+                factoryClass="com.fep.bpmn.toolwindow.DelegateToolWindowFactory"/>
+
+        <!-- Tool Window for BPMN Files -->
+        <toolWindow
+                id="BPMN Files"
+                anchor="left"
+                secondary="true"
+                icon="/icons/bpmn.svg"
+                factoryClass="com.fep.bpmn.toolwindow.BpmnFilesToolWindowFactory"/>
+
+        <!-- Application Service for Delegate Registry -->
+        <applicationService
+                serviceImplementation="com.fep.bpmn.services.DelegateRegistryService"/>
+
+        <!-- Project Service for Delegate Scanner -->
+        <projectService
+                serviceImplementation="com.fep.bpmn.scanner.JavaDelegateScanner"/>
+
+        <!-- Settings/Preferences -->
+        <applicationConfigurable
+                parentId="tools"
+                instance="com.fep.bpmn.settings.BpmnSettingsConfigurable"
+                id="com.fep.bpmn.settings"
+                displayName="FEP BPMN Editor"/>
+        <applicationService
+                serviceImplementation="com.fep.bpmn.settings.BpmnSettings"/>
+
+        <!-- Notification Group -->
+        <notificationGroup
+                id="FEP BPMN Editor"
+                displayType="BALLOON"
+                toolWindowId="BPMN Delegates"/>
+    </extensions>
+
+    <actions>
+        <!-- Main Menu Actions -->
+        <group id="FepBpmn.MainMenu" text="BPMN" description="FEP BPMN Editor actions">
+            <add-to-group group-id="MainMenu" anchor="before" relative-to-action="HelpMenu"/>
+
+            <action id="FepBpmn.NewBpmnFile"
+                    class="com.fep.bpmn.actions.NewBpmnFileAction"
+                    text="New BPMN File"
+                    description="Create a new BPMN process file"
+                    icon="/icons/bpmn.svg">
+                <keyboard-shortcut keymap="$default" first-keystroke="ctrl alt B"/>
+            </action>
+
+            <action id="FepBpmn.ScanDelegates"
+                    class="com.fep.bpmn.actions.ScanDelegatesAction"
+                    text="Scan Java Delegates"
+                    description="Scan project for JavaDelegate implementations"
+                    icon="AllIcons.Actions.Refresh">
+                <keyboard-shortcut keymap="$default" first-keystroke="ctrl alt D"/>
+            </action>
+
+            <separator/>
+
+            <action id="FepBpmn.ExportSvg"
+                    class="com.fep.bpmn.actions.ExportSvgAction"
+                    text="Export as SVG"
+                    description="Export current BPMN diagram as SVG"/>
+
+            <action id="FepBpmn.ExportPng"
+                    class="com.fep.bpmn.actions.ExportPngAction"
+                    text="Export as PNG"
+                    description="Export current BPMN diagram as PNG"/>
+        </group>
+
+        <!-- Editor Toolbar Actions -->
+        <group id="FepBpmn.EditorToolbar">
+            <action id="FepBpmn.Toolbar.Undo"
+                    class="com.fep.bpmn.actions.UndoAction"
+                    text="Undo"
+                    icon="AllIcons.Actions.Undo"/>
+            <action id="FepBpmn.Toolbar.Redo"
+                    class="com.fep.bpmn.actions.RedoAction"
+                    text="Redo"
+                    icon="AllIcons.Actions.Redo"/>
+            <separator/>
+            <action id="FepBpmn.Toolbar.ZoomIn"
+                    class="com.fep.bpmn.actions.ZoomInAction"
+                    text="Zoom In"
+                    icon="AllIcons.Graph.ZoomIn"/>
+            <action id="FepBpmn.Toolbar.ZoomOut"
+                    class="com.fep.bpmn.actions.ZoomOutAction"
+                    text="Zoom Out"
+                    icon="AllIcons.Graph.ZoomOut"/>
+            <action id="FepBpmn.Toolbar.FitToScreen"
+                    class="com.fep.bpmn.actions.FitToScreenAction"
+                    text="Fit to Screen"
+                    icon="AllIcons.General.FitContent"/>
+        </group>
+
+        <!-- Context Menu Actions -->
+        <group id="FepBpmn.EditorPopupMenu">
+            <add-to-group group-id="EditorPopupMenu" anchor="first"/>
+            <action id="FepBpmn.OpenDelegateSource"
+                    class="com.fep.bpmn.actions.OpenDelegateSourceAction"
+                    text="Go to Delegate Source"
+                    description="Open the delegate source file"
+                    icon="AllIcons.Actions.EditSource"/>
+        </group>
+
+        <!-- Project View Context Menu -->
+        <action id="FepBpmn.OpenInBpmnEditor"
+                class="com.fep.bpmn.actions.OpenInBpmnEditorAction"
+                text="Open in BPMN Editor"
+                description="Open file in visual BPMN editor"
+                icon="/icons/bpmn.svg">
+            <add-to-group group-id="ProjectViewPopupMenu" anchor="after" relative-to-action="OpenFile"/>
+        </action>
+    </actions>
+
+    <!-- Post Startup Activity -->
+    <extensions defaultExtensionNs="com.intellij">
+        <postStartupActivity
+                implementation="com.fep.bpmn.services.BpmnStartupActivity"/>
+    </extensions>
+</idea-plugin>
