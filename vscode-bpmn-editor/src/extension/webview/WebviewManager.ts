@@ -119,9 +119,35 @@ export class BpmnEditorPanel {
 
       case 'openFile':
         // Open file in editor
-        const uri = vscode.Uri.file(message.path);
-        await vscode.window.showTextDocument(uri, {
-          selection: message.line ? new vscode.Range(message.line - 1, 0, message.line - 1, 0) : undefined
+        if (message.path) {
+          // Open specific file (e.g., from delegate click)
+          const fileUri = vscode.Uri.file(message.path);
+          await vscode.window.showTextDocument(fileUri, {
+            selection: message.line ? new vscode.Range(message.line - 1, 0, message.line - 1, 0) : undefined
+          });
+        } else {
+          // Show file picker dialog
+          const selectedFiles = await vscode.window.showOpenDialog({
+            canSelectFiles: true,
+            canSelectFolders: false,
+            canSelectMany: false,
+            filters: { 'BPMN Files': ['bpmn'] }
+          });
+          if (selectedFiles && selectedFiles[0]) {
+            const doc = await vscode.workspace.openTextDocument(selectedFiles[0]);
+            this.loadDocument(doc);
+          }
+        }
+        break;
+
+      case 'newFile':
+        // Create a new empty BPMN diagram
+        this._document = undefined;
+        this._panel.title = 'New BPMN Diagram';
+        this._panel.webview.postMessage({
+          type: 'loadBpmn',
+          content: this.getEmptyBpmnContent(),
+          fileName: 'new-process.bpmn'
         });
         break;
 
@@ -204,6 +230,33 @@ export class BpmnEditorPanel {
       await this._document.save();
       vscode.window.showInformationMessage(`Saved: ${path.basename(this._document.fileName)}`);
     }
+  }
+
+  /**
+   * Get empty BPMN content for new diagrams
+   */
+  private getEmptyBpmnContent(): string {
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                  id="Definitions_1"
+                  targetNamespace="http://bpmn.io/schema/bpmn">
+  <bpmn:process id="Process_1" name="New Process" isExecutable="true">
+    <bpmn:startEvent id="StartEvent_1" name="Start" />
+  </bpmn:process>
+  <bpmndi:BPMNDiagram id="BPMNDiagram_1">
+    <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Process_1">
+      <bpmndi:BPMNShape id="_BPMNShape_StartEvent_1" bpmnElement="StartEvent_1">
+        <dc:Bounds x="180" y="160" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="186" y="203" width="24" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>`;
   }
 
   /**
