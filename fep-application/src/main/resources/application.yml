@@ -9,6 +9,9 @@ spring:
     name: fep-system
   profiles:
     active: ${SPRING_PROFILES_ACTIVE:dev}
+  config:
+    import:
+      - classpath:bpmn.yml
 
   # Jackson Configuration
   jackson:
@@ -208,41 +211,7 @@ fep:
       default-channel: FISC_INTERBANK_V1
       timeout-ms: 30000
 
-  # BPMN 設定
-  bpmn:
-    high-tps-mode: true
-    process-routing:
-      enabled: true
-      default-process: Process_TransferRequest
-      rules:
-        - name: 跨行轉帳
-          mti: "0200"
-          processing-code: "010000"
-          process-key: Only_Log_Process
-          priority: 100
-        - name: 跨行提款
-          mti: "0200"
-          processing-code: "01"
-          process-key: Process_TransferRequest
-          priority: 100
-        - name: 餘額查詢
-          mti: "0200"
-          processing-code: "31"
-          process-key: Process_TransferRequest
-          priority: 100
-        - name: 沖正交易
-          mti: "0400"
-          process-key: Process_TransferRequest
-          priority: 100
-        - name: 網路管理
-          mti: "0800"
-          process-key: Only_Log_Process
-          priority: 100
-        - name: ATM 2500 交易
-          channel-pattern: "ATM.*"
-          mti: "2500"
-          process-key: Only_Log_Process
-          priority: 10
+  # BPMN 路由設定已移至 bpmn.yml
 
 ---
 # Development Profile (H2 In-Memory)
@@ -350,56 +319,12 @@ fep:
     mac-algorithm: ANSI_X9_19
 
   # BPMN Integration Settings (Development)
-  # 完全配置化設計：所有 MTI 統一走 BPMN 流程，具體走哪個流程由 process-routing 決定
   communication:
     fisc:
       default-channel: FISC_INTERBANK_V1
       timeout-ms: 30000
 
-  # BPMN 設定（完全配置化）
-  # 新增 MTI 時，只需在此加入規則 + 部署對應 BPMN 流程，不需修改 Java 代碼
-  bpmn:
-    high-tps-mode: true             # 啟用高 TPS 模式 (兩個 BPMN 流程)
-    process-routing:
-      enabled: true
-      default-process: Process_TransferRequest  # 高 TPS 模式使用 Request 流程
-
-      rules:
-        # ===== 金融交易 =====
-        # 跨行轉帳 (Processing Code: 40xxxx) - 使用高 TPS 架構
-        - name: 跨行轉帳
-          mti: "0200"
-          processing-code: "010000"
-          # 高 TPS 模式：使用 Request BPMN 流程
-          process-key: Only_Log_Process
-          priority: 100
-
-        # 餘額查詢 (Processing Code: 31xxxx)
-        - name: 餘額查詢
-          mti: "0200"
-          processing-code: "31"
-          process-key: Process_TransferRequest
-          priority: 100
-
-        # ===== 沖正交易 =====
-        - name: 沖正交易
-          mti: "0400"
-          process-key: Process_TransferRequest
-          priority: 100
-
-        # ===== 網路管理 =====
-        - name: 網路管理
-          mti: "0800"
-          process-key: Only_Log_Process
-          priority: 100
-
-        # ===== 特殊通道 =====
-        # ATM 2500 交易 - 使用簡單日誌流程
-        - name: ATM 2500 交易
-          channel-pattern: "ATM.*"
-          mti: "2500"
-          process-key: Only_Log_Process
-          priority: 10
+  # BPMN 路由設定已移至 bpmn.yml
 
 ---
 # Production Profile
@@ -522,59 +447,9 @@ fep:
     algorithm: TOKEN_BUCKET
 
   # BPMN Integration Settings (Production)
-  # 完全配置化設計：所有 MTI 統一走 BPMN 流程
   communication:
     fisc:
       default-channel: ${FISC_DEFAULT_CHANNEL:FISC_INTERBANK_V1}
       timeout-ms: ${FISC_TIMEOUT_MS:30000}
 
-  # BPMN 設定 (Production)
-  # 新增 MTI 時，只需在此加入規則 + 部署對應 BPMN 流程，不需修改 Java 代碼
-  bpmn:
-    high-tps-mode: ${BPMN_HIGH_TPS_MODE:true}
-    process-routing:
-      enabled: ${BPMN_ROUTING_ENABLED:true}
-      default-process: ${BPMN_DEFAULT_PROCESS:Process_TransferRequest}
-
-      rules:
-        # ===== 金融交易 =====
-        # 跨行轉帳 (Processing Code: 40xxxx) - 高 TPS 架構
-        - name: 跨行轉帳
-          mti: "0200"
-          processing-code: "40"
-          process-key: Process_TransferRequest
-          priority: 100
-
-        # 跨行提款 (Processing Code: 01xxxx)
-        - name: 跨行提款
-          mti: "0200"
-          processing-code: "01"
-          process-key: Process_TransferRequest
-          priority: 100
-
-        # 餘額查詢 (Processing Code: 31xxxx)
-        - name: 餘額查詢
-          mti: "0200"
-          processing-code: "31"
-          process-key: Process_TransferRequest
-          priority: 100
-
-        # ===== 沖正交易 =====
-        - name: 沖正交易
-          mti: "0400"
-          process-key: Process_TransferRequest
-          priority: 100
-
-        # ===== 網路管理 =====
-        - name: 網路管理
-          mti: "0800"
-          process-key: Process_NetworkManagement
-          priority: 100
-
-        # ===== 特殊通道 =====
-        # ATM 2500 交易 - 使用簡單日誌流程
-        - name: ATM 2500 交易
-          channel-pattern: "ATM.*"
-          mti: "2500"
-          process-key: Only_Log_Process
-          priority: 10
+  # BPMN 路由設定已移至 bpmn.yml

@@ -110,6 +110,11 @@
         </dependency>
     </dependencies>
 
+    <properties>
+        <!-- JAR 輸出目錄 (相對於專案根目錄) -->
+        <release.directory>${project.basedir}/../release</release.directory>
+    </properties>
+
     <build>
         <plugins>
             <!-- Spring Boot Maven Plugin - Creates executable JAR -->
@@ -130,6 +135,100 @@
                         <goals>
                             <goal>repackage</goal>
                         </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Copy JAR and config files to release directory after package -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-antrun-plugin</artifactId>
+                <version>3.1.0</version>
+                <executions>
+                    <execution>
+                        <id>copy-to-release</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>run</goal>
+                        </goals>
+                        <configuration>
+                            <target>
+                                <!-- Create release directories -->
+                                <mkdir dir="${release.directory}"/>
+                                <mkdir dir="${release.directory}/config"/>
+
+                                <!-- Copy executable JAR -->
+                                <copy file="${project.build.directory}/${project.build.finalName}.jar"
+                                      tofile="${release.directory}/${project.artifactId}.jar"
+                                      overwrite="true"/>
+
+                                <!-- Copy Spring config files (for external override) -->
+                                <copy todir="${release.directory}/config" overwrite="true">
+                                    <fileset dir="${project.basedir}/src/main/resources">
+                                        <include name="application*.yml"/>
+                                        <include name="bpmn.yml"/>
+                                    </fileset>
+                                </copy>
+
+                                <!-- Copy channel config files -->
+                                <copy todir="${release.directory}/config" overwrite="true" failonerror="false">
+                                    <fileset dir="${project.basedir}/../config">
+                                        <include name="*.json"/>
+                                    </fileset>
+                                </copy>
+
+                                <!-- Create startup script (Unix) -->
+                                <echo file="${release.directory}/start.sh"><![CDATA[#!/bin/bash
+# FEP Application Startup Script
+# Usage: ./start.sh [profile]
+# Profiles: dev (default), dev-h2, prod
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROFILE="${1:-dev}"
+JAR_FILE="$SCRIPT_DIR/fep-application.jar"
+CONFIG_DIR="$SCRIPT_DIR/config"
+
+echo "Starting FEP Application..."
+echo "Profile: $PROFILE"
+echo "Config: $CONFIG_DIR"
+
+java -jar "$JAR_FILE" \
+    --spring.profiles.active="$PROFILE" \
+    --spring.config.additional-location="file:$CONFIG_DIR/" \
+    --fep.connection.config-path="$CONFIG_DIR/channel-config.json" \
+    --fep.channel.config-file="$CONFIG_DIR/channel-schema-mapping.json"
+]]></echo>
+                                <chmod file="${release.directory}/start.sh" perm="755"/>
+
+                                <!-- Create startup script (Windows) -->
+                                <echo file="${release.directory}/start.bat"><![CDATA[@echo off
+REM FEP Application Startup Script
+REM Usage: start.bat [profile]
+REM Profiles: dev (default), dev-h2, prod
+
+set SCRIPT_DIR=%~dp0
+set PROFILE=%1
+if "%PROFILE%"=="" set PROFILE=dev
+set JAR_FILE=%SCRIPT_DIR%fep-application.jar
+set CONFIG_DIR=%SCRIPT_DIR%config
+
+echo Starting FEP Application...
+echo Profile: %PROFILE%
+echo Config: %CONFIG_DIR%
+
+java -jar "%JAR_FILE%" ^
+    --spring.profiles.active="%PROFILE%" ^
+    --spring.config.additional-location="file:%CONFIG_DIR%/" ^
+    --fep.connection.config-path="%CONFIG_DIR%/channel-config.json" ^
+    --fep.channel.config-file="%CONFIG_DIR%/channel-schema-mapping.json"
+]]></echo>
+
+                                <echo message=""/>
+                                <echo message="=== Release Package Created ==="/>
+                                <echo message="Location: ${release.directory}"/>
+                                <echo message=""/>
+                            </target>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>
