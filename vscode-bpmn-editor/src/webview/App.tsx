@@ -175,11 +175,17 @@ export const App: React.FC = () => {
           overflow: hidden;
         }
 
-        /* BPMN.js overrides for dark theme */
+        /* ========================================
+           BPMN.js Theme Overrides
+           Uses VS Code CSS variables for automatic theme support
+           ======================================== */
+
+        /* Canvas background */
         .djs-container {
           background: var(--vscode-editor-background) !important;
         }
 
+        /* Palette */
         .djs-palette {
           background: var(--vscode-sideBar-background) !important;
           border-color: var(--vscode-panel-border) !important;
@@ -189,11 +195,13 @@ export const App: React.FC = () => {
           background: var(--vscode-sideBar-background) !important;
         }
 
+        /* Context Pad */
         .djs-context-pad {
           background: var(--vscode-editorWidget-background) !important;
           border-color: var(--vscode-panel-border) !important;
         }
 
+        /* Popup Menu */
         .djs-popup {
           background: var(--vscode-editorWidget-background) !important;
           border-color: var(--vscode-panel-border) !important;
@@ -201,6 +209,102 @@ export const App: React.FC = () => {
 
         .djs-popup .entry:hover {
           background: var(--vscode-list-hoverBackground) !important;
+        }
+
+        /* ========================================
+           BPMN Shape Styling
+           ======================================== */
+
+        /* Sequence Flow (連接線) */
+        .djs-connection path.djs-visual {
+          stroke: var(--vscode-editor-foreground) !important;
+          stroke-width: 2px !important;
+        }
+
+        /* Sequence Flow 箭頭 */
+        .djs-connection marker path {
+          fill: var(--vscode-editor-foreground) !important;
+          stroke: var(--vscode-editor-foreground) !important;
+        }
+
+        /* 選中的連接線 */
+        .djs-connection.selected path.djs-visual {
+          stroke: var(--vscode-focusBorder) !important;
+          stroke-width: 2.5px !important;
+        }
+
+        /* 滑鼠懸停的連接線 */
+        .djs-connection.hover path.djs-visual {
+          stroke: var(--vscode-focusBorder) !important;
+        }
+
+        /* Shape 外框 (Task, Event, Gateway) */
+        .djs-shape .djs-visual > rect,
+        .djs-shape .djs-visual > circle,
+        .djs-shape .djs-visual > polygon,
+        .djs-shape .djs-visual > path {
+          stroke: var(--vscode-editor-foreground) !important;
+          stroke-width: 2px !important;
+        }
+
+        /* Task 背景填充 */
+        .djs-shape .djs-visual > rect {
+          fill: var(--vscode-editor-background) !important;
+        }
+
+        /* Gateway (閘道) 背景 */
+        .djs-shape .djs-visual > polygon {
+          fill: var(--vscode-editor-background) !important;
+        }
+
+        /* Event (事件) 背景 */
+        .djs-shape .djs-visual > circle {
+          fill: var(--vscode-editor-background) !important;
+        }
+
+        /* 選中的元素外框 */
+        .djs-shape.selected .djs-visual > rect,
+        .djs-shape.selected .djs-visual > circle,
+        .djs-shape.selected .djs-visual > polygon {
+          stroke: var(--vscode-focusBorder) !important;
+          stroke-width: 2.5px !important;
+        }
+
+        /* 滑鼠懸停的元素外框 */
+        .djs-shape.hover .djs-visual > rect,
+        .djs-shape.hover .djs-visual > circle,
+        .djs-shape.hover .djs-visual > polygon {
+          stroke: var(--vscode-focusBorder) !important;
+        }
+
+        /* 文字標籤 */
+        .djs-label text,
+        .djs-shape text {
+          fill: var(--vscode-editor-foreground) !important;
+        }
+
+        /* 連接線上的標籤 */
+        .djs-connection text {
+          fill: var(--vscode-editor-foreground) !important;
+        }
+
+        /* Start Event 綠色邊框 */
+        .bpmn-icon-start-event-none ~ .djs-visual > circle,
+        [data-element-id*="StartEvent"] .djs-visual > circle {
+          stroke: var(--vscode-testing-iconPassed, #4caf50) !important;
+        }
+
+        /* End Event 紅色邊框 */
+        .bpmn-icon-end-event-none ~ .djs-visual > circle,
+        [data-element-id*="EndEvent"] .djs-visual > circle {
+          stroke: var(--vscode-testing-iconFailed, #f44336) !important;
+          stroke-width: 3px !important;
+        }
+
+        /* 選取框 */
+        .djs-outline {
+          stroke: var(--vscode-focusBorder) !important;
+          stroke-width: 1px !important;
         }
 
         /* Selection highlight */
@@ -216,19 +320,43 @@ export const App: React.FC = () => {
           stroke-dasharray: 4 !important;
         }
 
-        /* Connection lines */
-        .djs-connection .djs-visual path {
-          stroke: var(--vscode-editor-foreground) !important;
+        /* 拖曳時的預覽 */
+        .djs-dragging .djs-visual > * {
+          opacity: 0.7;
         }
 
-        /* Labels */
-        .djs-label text {
+        /* Marker (箭頭) 定義 */
+        marker path {
           fill: var(--vscode-editor-foreground) !important;
+        }
+
+        /* Message Flow 虛線 */
+        .djs-connection[data-element-id*="MessageFlow"] path.djs-visual {
+          stroke-dasharray: 8, 5 !important;
+        }
+
+        /* Association 點線 */
+        .djs-connection[data-element-id*="Association"] path.djs-visual {
+          stroke-dasharray: 3, 3 !important;
+          stroke: var(--vscode-descriptionForeground) !important;
         }
 
         /* Resizer */
         .djs-resizer rect {
           fill: var(--vscode-focusBorder) !important;
+        }
+
+        /* Direct editing (inline text) */
+        .djs-direct-editing-content {
+          background: var(--vscode-input-background) !important;
+          color: var(--vscode-input-foreground) !important;
+          border: 1px solid var(--vscode-focusBorder) !important;
+        }
+
+        /* Minimap (if enabled) */
+        .djs-minimap {
+          background: var(--vscode-sideBar-background) !important;
+          border-color: var(--vscode-panel-border) !important;
         }
       `}</style>
     </div>
