@@ -21,6 +21,19 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
+            <exclusions>
+                <!-- 排除 Tomcat，改用 Undertow -->
+                <exclusion>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-starter-tomcat</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+
+        <!-- Undertow 伺服器 (Red Hat, LGPL 2.1 / Apache 2.0 雙授權) -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-undertow</artifactId>
         </dependency>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -65,6 +78,12 @@
         <dependency>
             <groupId>org.camunda.bpm.springboot</groupId>
             <artifactId>camunda-bpm-spring-boot-starter-webapp</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.springframework.boot</groupId>
+                    <artifactId>spring-boot-starter-tomcat</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <!-- H2 Database for Development (dev-h2 profile) -->
@@ -74,11 +93,11 @@
             <scope>runtime</scope>
         </dependency>
 
-        <!-- Oracle JDBC Driver -->
+        <!-- Oracle JDBC Driver (provided - 不打包，由外部提供，避免授權問題) -->
         <dependency>
             <groupId>com.oracle.database.jdbc</groupId>
             <artifactId>ojdbc11</artifactId>
-            <scope>runtime</scope>
+            <scope>provided</scope>
         </dependency>
 
         <!-- API Documentation -->
@@ -128,6 +147,11 @@
                             <groupId>org.projectlombok</groupId>
                             <artifactId>lombok</artifactId>
                         </exclude>
+                        <!-- 排除 Oracle JDBC，由外部 lib 目錄提供 (避免授權問題) -->
+                        <exclude>
+                            <groupId>com.oracle.database.jdbc</groupId>
+                            <artifactId>ojdbc11</artifactId>
+                        </exclude>
                     </excludes>
                 </configuration>
                 <executions>
@@ -156,6 +180,25 @@
                                 <!-- Create release directories -->
                                 <mkdir dir="${release.directory}"/>
                                 <mkdir dir="${release.directory}/config"/>
+                                <mkdir dir="${release.directory}/lib"/>
+
+                                <!-- Create README for external libs -->
+                                <echo file="${release.directory}/lib/README.txt"><![CDATA[External Libraries Directory
+============================
+
+請將以下 JAR 檔案放置於此目錄：
+
+1. Oracle JDBC Driver (必要，連接 Oracle 資料庫時)
+   - 檔案名稱: ojdbc11.jar (或 ojdbc8.jar)
+   - 下載來源: 從客戶的 Oracle 安裝目錄取得
+              或從 Oracle 官網下載: https://www.oracle.com/database/technologies/appdev/jdbc-downloads.html
+   - 版本建議: 23.3.0.23.09 或更新版本
+
+注意事項：
+- 這些 JAR 因授權限制，不包含在產品發布包中
+- 客戶需自行從 Oracle 取得並放置於此目錄
+- 啟動腳本會自動載入此目錄下的所有 JAR 檔案
+]]></echo>
 
                                 <!-- Copy executable JAR -->
                                 <copy file="${project.build.directory}/${project.build.finalName}.jar"
@@ -194,12 +237,16 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROFILE="${1:-dev}"
 JAR_FILE="$SCRIPT_DIR/fep-application.jar"
 CONFIG_DIR="$SCRIPT_DIR/config"
+LIB_DIR="$SCRIPT_DIR/lib"
 
 echo "Starting FEP Application..."
 echo "Profile: $PROFILE"
 echo "Config: $CONFIG_DIR"
+echo "External libs: $LIB_DIR"
 
-java -jar "$JAR_FILE" \
+# loader.path: 載入外部 JAR (Oracle JDBC 等有授權限制的依賴)
+java -Dloader.path="$LIB_DIR" \
+    -jar "$JAR_FILE" \
     --spring.profiles.active="$PROFILE" \
     --spring.config.additional-location="file:$CONFIG_DIR/" \
     --fep.connection.config-path="$CONFIG_DIR/channel-config.json" \
@@ -218,12 +265,16 @@ set PROFILE=%1
 if "%PROFILE%"=="" set PROFILE=dev
 set JAR_FILE=%SCRIPT_DIR%fep-application.jar
 set CONFIG_DIR=%SCRIPT_DIR%config
+set LIB_DIR=%SCRIPT_DIR%lib
 
 echo Starting FEP Application...
 echo Profile: %PROFILE%
 echo Config: %CONFIG_DIR%
+echo External libs: %LIB_DIR%
 
-java -jar "%JAR_FILE%" ^
+REM loader.path: 載入外部 JAR (Oracle JDBC 等有授權限制的依賴)
+java -Dloader.path="%LIB_DIR%" ^
+    -jar "%JAR_FILE%" ^
     --spring.profiles.active="%PROFILE%" ^
     --spring.config.additional-location="file:%CONFIG_DIR%/" ^
     --fep.connection.config-path="%CONFIG_DIR%/channel-config.json" ^

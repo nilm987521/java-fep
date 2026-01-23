@@ -21,10 +21,11 @@
             <artifactId>spring-boot-starter-jdbc</artifactId>
         </dependency>
 
-        <!-- Oracle JDBC Driver -->
+        <!-- Oracle JDBC Driver (provided - 不打包，由外部提供，避免授權問題) -->
         <dependency>
             <groupId>com.oracle.database.jdbc</groupId>
             <artifactId>ojdbc11</artifactId>
+            <scope>provided</scope>
         </dependency>
 
         <!-- Spring Boot Configuration Processor -->
