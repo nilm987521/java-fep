@@ -5,11 +5,13 @@ import com.fep.bpmn.scanner.model.DelegateVariable;
 import com.fep.bpmn.scanner.model.JavaDelegate;
 import com.fep.bpmn.settings.BpmnSettings;
 import com.intellij.openapi.application.ApplicationManager;
+import com.intellij.openapi.application.ReadAction;
 import com.intellij.openapi.components.Service;
 import com.intellij.openapi.diagnostic.Logger;
 import com.intellij.openapi.progress.ProgressIndicator;
 import com.intellij.openapi.progress.ProgressManager;
 import com.intellij.openapi.progress.Task;
+import com.intellij.openapi.project.DumbService;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.roots.ProjectFileIndex;
 import com.intellij.openapi.vfs.VfsUtilCore;
@@ -57,23 +59,27 @@ public final class JavaDelegateScanner {
 
     /**
      * Scan the project asynchronously for JavaDelegate implementations.
+     * Waits for indexing to complete before scanning.
      *
      * @return CompletableFuture containing the list of discovered delegates
      */
     public CompletableFuture<List<JavaDelegate>> scanAsync() {
         CompletableFuture<List<JavaDelegate>> future = new CompletableFuture<>();
 
-        ProgressManager.getInstance().run(new Task.Backgroundable(project, "Scanning Java Delegates", true) {
-            @Override
-            public void run(@NotNull ProgressIndicator indicator) {
-                try {
-                    List<JavaDelegate> delegates = scan(indicator);
-                    future.complete(delegates);
-                } catch (Exception e) {
-                    LOG.error("Error scanning delegates", e);
-                    future.completeExceptionally(e);
+        // Wait for indexing to complete before scanning
+        DumbService.getInstance(project).runWhenSmart(() -> {
+            ProgressManager.getInstance().run(new Task.Backgroundable(project, "Scanning Java Delegates", true) {
+                @Override
+                public void run(@NotNull ProgressIndicator indicator) {
+                    try {
+                        List<JavaDelegate> delegates = scan(indicator);
+                        future.complete(delegates);
+                    } catch (Exception e) {
+                        LOG.error("Error scanning delegates", e);
+                        future.completeExceptionally(e);
+                    }
                 }
-            }
+            });
         });
 
         return future;
@@ -81,6 +87,7 @@ public final class JavaDelegateScanner {
 
     /**
      * Scan the project synchronously for JavaDelegate implementations.
+     * This method should be called when the index is ready (not in dumb mode).
      *
      * @param indicator progress indicator (can be null)
      * @return list of discovered delegates
@@ -88,33 +95,53 @@ public final class JavaDelegateScanner {
     public List<JavaDelegate> scan(ProgressIndicator indicator) {
         List<JavaDelegate> delegates = new ArrayList<>();
 
-        ApplicationManager.getApplication().runReadAction(() -> {
-            // Find all Java files in the project
-            List<VirtualFile> javaFiles = findJavaFiles(indicator);
+        // Check if we're in dumb mode - if so, return empty list
+        if (DumbService.isDumb(project)) {
+            LOG.info("Project indexing in progress, skipping delegate scan");
+            return delegates;
+        }
 
-            if (indicator != null) {
-                indicator.setText("Analyzing Java files...");
-            }
+        try {
+            ReadAction.run(() -> {
+                // Find all Java files in the project
+                List<VirtualFile> javaFiles = findJavaFiles(indicator);
 
-            int total = javaFiles.size();
-            int current = 0;
-
-            for (VirtualFile file : javaFiles) {
                 if (indicator != null) {
-                    indicator.setFraction((double) current / total);
-                    indicator.setText2(file.getName());
-                    if (indicator.isCanceled()) {
+                    indicator.setText("Analyzing Java files...");
+                }
+
+                int total = javaFiles.size();
+                int current = 0;
+
+                for (VirtualFile file : javaFiles) {
+                    if (indicator != null) {
+                        indicator.setFraction((double) current / total);
+                        indicator.setText2(file.getName());
+                        if (indicator.isCanceled()) {
+                            break;
+                        }
+                    }
+                    current++;
+
+                    // Check dumb mode again for each file to handle mode changes during scan
+                    if (DumbService.isDumb(project)) {
+                        LOG.info("Index became unavailable during scan, stopping");
                         break;
                     }
-                }
-                current++;
 
-                JavaDelegate delegate = analyzeFile(file);
-                if (delegate != null) {
-                    delegates.add(delegate);
+                    try {
+                        JavaDelegate delegate = analyzeFile(file);
+                        if (delegate != null) {
+                            delegates.add(delegate);
+                        }
+                    } catch (com.intellij.openapi.project.IndexNotReadyException e) {
+                        LOG.warn("Index not ready while analyzing " + file.getName() + ", skipping");
+                    }
                 }
-            }
-        });
+            });
+        } catch (com.intellij.openapi.project.IndexNotReadyException e) {
+            LOG.warn("Index not ready during scan, returning partial results");
+        }
 
         LOG.info("Found " + delegates.size() + " Java delegates");
         return delegates;
@@ -366,26 +393,26 @@ public final class JavaDelegateScanner {
     }
 
     private String inferVariableType(String methodText, String varName, boolean isInput) {
-        // Look for casting pattern
-        String pattern = isInput
-                ? String.format("\\(([A-Z][a-zA-Z0-9<>]*)\\)\\s*execution\\.getVariable\\([\"']%s[\"']\\)", varName)
-                : varName;
+        if (isInput) {
+            // Look for casting pattern: (Type) execution.getVariable("varName")
+            String castPatternStr = String.format("\\(([A-Z][a-zA-Z0-9<>]*)\\)\\s*execution\\.getVariable\\([\"']%s[\"']\\)",
+                    Pattern.quote(varName));
+            Pattern castPattern = Pattern.compile(castPatternStr);
+            Matcher matcher = castPattern.matcher(methodText);
+            if (matcher.find() && matcher.groupCount() >= 1) {
+                return matcher.group(1);
+            }
 
-        Pattern castPattern = Pattern.compile(pattern);
-        Matcher matcher = castPattern.matcher(methodText);
-        if (matcher.find()) {
-            return matcher.group(1);
+            // Look for variable declaration: Type var = ... getVariable("varName")
+            String declPatternStr = String.format("([A-Z][a-zA-Z0-9<>]*)\\s+\\w+\\s*=.*getVariable\\([\"']%s[\"']\\)",
+                    Pattern.quote(varName));
+            Pattern declPattern = Pattern.compile(declPatternStr);
+            matcher = declPattern.matcher(methodText);
+            if (matcher.find() && matcher.groupCount() >= 1) {
+                return matcher.group(1);
+            }
         }
-
-        // Look for variable declaration
-        Pattern declPattern = Pattern.compile(
-                String.format("([A-Z][a-zA-Z0-9<>]*)\\s+\\w+\\s*=.*getVariable\\([\"']%s[\"']\\)", varName)
-        );
-        matcher = declPattern.matcher(methodText);
-        if (matcher.find()) {
-            return matcher.group(1);
-        }
-
+        // For output variables, we rely on inferTypeFromValue instead
         return "Object";
     }
 

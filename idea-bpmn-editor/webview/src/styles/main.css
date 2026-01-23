@@ -417,10 +417,32 @@ body {
     display: none !important;
 }
 
+/* Hide default palette - we use our own ComponentPalette */
 .djs-palette {
     display: none !important;
 }
 
+/* Context pad styling */
 .djs-context-pad {
     z-index: 100;
+}
+
+/* Make sure context pad entries are visible */
+.djs-context-pad .entry {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Ensure popup menu (for adding elements) is visible */
+.djs-popup {
+    z-index: 200;
+}
+
+.djs-popup .entry {
+    cursor: pointer;
+}
+
+.djs-popup .entry:hover {
+    background: var(--hover-color, #2a2d2e);
 }

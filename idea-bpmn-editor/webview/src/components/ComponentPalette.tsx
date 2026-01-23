@@ -60,68 +60,78 @@ const ComponentPalette: React.FC = () => {
                 />
             </div>
             <div className="palette-content">
-                {categories.map((category) => {
-                    const delegates = delegatesByCategory.get(category.id) || [];
-                    if (delegates.length === 0) return null;
+                {(() => {
+                    // Check if there are any delegates at all
+                    let totalDelegates = 0;
+                    delegatesByCategory.forEach(list => {
+                        totalDelegates += list.length;
+                    });
 
-                    const isCollapsed = collapsedCategories.has(category.id);
-
-                    return (
-                        <div className="category" key={category.id}>
-                            <div
-                                className="category-header"
-                                onClick={() => toggleCategory(category.id)}
-                            >
-                                <svg
-                                    className={`category-icon ${isCollapsed ? 'collapsed' : ''}`}
-                                    viewBox="0 0 24 24"
-                                    fill="currentColor"
-                                >
-                                    <path d="M7 10l5 5 5-5H7z" />
-                                </svg>
-                                <span>{category.displayName}</span>
-                                <span
-                                    className="category-badge"
-                                    style={{ background: category.color, color: 'white' }}
-                                >
-                                    {delegates.length}
-                                </span>
-                            </div>
-                            {!isCollapsed && (
-                                <div className="delegate-list">
-                                    {delegates.map((delegate) => (
-                                        <div
-                                            key={delegate.name}
-                                            className="delegate-item"
-                                            draggable
-                                            onDragStart={(e) => handleDragStart(e, delegate)}
-                                            onClick={() => handleClick(delegate)}
-                                            onDoubleClick={() => handleDoubleClick(delegate)}
-                                            title={delegate.description || delegate.displayName}
-                                        >
-                                            <div className="delegate-name">
-                                                {delegate.displayName}
-                                            </div>
-                                            <div className="delegate-expression">
-                                                ${'{'}${delegate.name}{'}'}
-                                            </div>
-                                        </div>
-                                    ))}
+                    if (totalDelegates === 0) {
+                        return (
+                            <div className="empty-state">
+                                <div className="empty-state-icon">📦</div>
+                                <div>No delegates found</div>
+                                <div style={{ fontSize: '12px', marginTop: '8px', color: '#888' }}>
+                                    Click refresh button to scan project
                                 </div>
-                            )}
-                        </div>
-                    );
-                })}
+                            </div>
+                        );
+                    }
 
-                {delegatesByCategory.size === 0 && (
-                    <div className="empty-state">
-                        <div className="empty-state-icon">📦</div>
-                        <div>No delegates found</div>
-                        <div style={{ fontSize: '12px', marginTop: '8px' }}>
-                            Click refresh to scan
-                        </div>
-                    </div>
-                )}
+                    return categories.map((category) => {
+                        const delegates = delegatesByCategory.get(category.id) || [];
+                        if (delegates.length === 0) return null;
+
+                        const isCollapsed = collapsedCategories.has(category.id);
+
+                        return (
+                            <div className="category" key={category.id}>
+                                <div
+                                    className="category-header"
+                                    onClick={() => toggleCategory(category.id)}
+                                >
+                                    <svg
+                                        className={`category-icon ${isCollapsed ? 'collapsed' : ''}`}
+                                        viewBox="0 0 24 24"
+                                        fill="currentColor"
+                                    >
+                                        <path d="M7 10l5 5 5-5H7z" />
+                                    </svg>
+                                    <span>{category.displayName}</span>
+                                    <span
+                                        className="category-badge"
+                                        style={{ background: category.color, color: 'white' }}
+                                    >
+                                        {delegates.length}
+                                    </span>
+                                </div>
+                                {!isCollapsed && (
+                                    <div className="delegate-list">
+                                        {delegates.map((delegate) => (
+                                            <div
+                                                key={delegate.name}
+                                                className="delegate-item"
+                                                draggable
+                                                onDragStart={(e) => handleDragStart(e, delegate)}
+                                                onClick={() => handleClick(delegate)}
+                                                onDoubleClick={() => handleDoubleClick(delegate)}
+                                                title={delegate.description || delegate.displayName}
+                                            >
+                                                <div className="delegate-name">
+                                                    {delegate.displayName}
+                                                </div>
+                                                <div className="delegate-expression">
+                                                    ${'{'}${delegate.name}{'}'}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    });
+                })()}
             </div>
         </div>
     );

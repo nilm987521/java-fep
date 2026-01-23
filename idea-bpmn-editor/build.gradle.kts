@@ -1,7 +1,7 @@
 plugins {
     id("java")
-    id("org.jetbrains.kotlin.jvm") version "1.9.21"
-    id("org.jetbrains.intellij") version "1.16.1"
+    id("org.jetbrains.kotlin.jvm") version "2.0.21"
+    id("org.jetbrains.intellij.platform") version "2.2.1"
 }
 
 group = "com.fep.bpmn"
@@ -9,16 +9,18 @@ version = "1.0.0"
 
 repositories {
     mavenCentral()
-}
-
-// Configure Gradle IntelliJ Plugin
-intellij {
-    version.set("2023.3")
-    type.set("IC") // IntelliJ Community Edition
-    plugins.set(listOf("com.intellij.java"))
+    intellijPlatform {
+        defaultRepositories()
+    }
 }
 
 dependencies {
+    // IntelliJ Platform - latest stable version (2024.3.2)
+    intellijPlatform {
+        intellijIdeaCommunity("2024.3.2")
+        bundledPlugin("com.intellij.java")
+    }
+
     // JSON processing
     implementation("com.google.code.gson:gson:2.10.1")
 
@@ -27,19 +29,19 @@ dependencies {
     testImplementation("org.mockito:mockito-core:5.8.0")
 }
 
-tasks {
-    // Set the JVM compatibility versions
-    withType<JavaCompile> {
-        sourceCompatibility = "17"
-        targetCompatibility = "17"
-    }
-    withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
-        kotlinOptions.jvmTarget = "17"
-    }
+java {
+    sourceCompatibility = JavaVersion.VERSION_17
+    targetCompatibility = JavaVersion.VERSION_17
+}
 
+kotlin {
+    jvmToolchain(17)
+}
+
+tasks {
     patchPluginXml {
-        sinceBuild.set("233")
-        untilBuild.set("243.*")
+        sinceBuild.set("243")
+        untilBuild.set("253.*")
     }
 
     signPlugin {
@@ -60,15 +62,10 @@ tasks {
     register<Copy>("copyWebview") {
         from("webview/dist")
         into("src/main/resources/webview")
-        dependsOn(":webview:build")
+        dependsOn(":webview:buildWebview")
     }
 
     processResources {
         dependsOn("copyWebview")
     }
-}
-
-// Configure Kotlin options
-kotlin {
-    jvmToolchain(17)
 }

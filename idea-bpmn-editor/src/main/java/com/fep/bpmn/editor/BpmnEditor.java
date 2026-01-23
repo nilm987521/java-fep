@@ -31,6 +31,9 @@ import java.beans.PropertyChangeListener;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.List;
 import java.util.Objects;
 
@@ -49,6 +52,7 @@ public class BpmnEditor extends UserDataHolderBase implements FileEditor {
     private final JBCefJSQuery jsQuery;
     private boolean isModified = false;
     private String currentXml;
+    private Path tempWebviewDir;
 
     public BpmnEditor(@NotNull Project project, @NotNull VirtualFile file) {
         this.project = project;
@@ -71,7 +75,15 @@ public class BpmnEditor extends UserDataHolderBase implements FileEditor {
                 if (frame.isMain()) {
                     injectJavaScript();
                     sendBpmnToWebview();
-                    sendDelegatesToWebview();
+                    // If delegates registry is empty, trigger a scan first
+                    DelegateRegistryService registry = ApplicationManager.getApplication()
+                            .getService(DelegateRegistryService.class);
+                    if (registry.isEmpty()) {
+                        LOG.info("Delegates registry is empty, triggering initial scan");
+                        rescanDelegates();
+                    } else {
+                        sendDelegatesToWebview();
+                    }
                 }
             }
         }, browser.getCefBrowser());
@@ -96,17 +108,86 @@ public class BpmnEditor extends UserDataHolderBase implements FileEditor {
 
     private void loadHtmlPage() {
         try {
-            InputStream is = getClass().getResourceAsStream("/webview/index.html");
-            if (is != null) {
-                String html = new String(is.readAllBytes(), StandardCharsets.UTF_8);
-                browser.loadHTML(html);
+            // JCEF doesn't support jar: URLs, so we need to extract resources to a temp directory
+            tempWebviewDir = extractWebviewResources();
+            if (tempWebviewDir != null) {
+                Path indexHtml = tempWebviewDir.resolve("index.html");
+                String fileUrl = indexHtml.toUri().toString();
+                LOG.info("Loading BPMN webview from: " + fileUrl);
+                browser.loadURL(fileUrl);
             } else {
-                LOG.warn("Webview HTML not found, loading fallback");
+                LOG.warn("Webview resources extraction failed, loading fallback");
                 browser.loadHTML(getFallbackHtml());
             }
-        } catch (IOException e) {
+        } catch (Exception e) {
             LOG.error("Failed to load webview HTML", e);
             browser.loadHTML(getFallbackHtml());
+        }
+    }
+
+    /**
+     * Extract webview resources from JAR to a temp directory.
+     * JCEF cannot load resources directly from jar: URLs, so we need to extract them first.
+     */
+    private Path extractWebviewResources() {
+        try {
+            // Create temp directory for webview resources
+            Path tempDir = Files.createTempDirectory("bpmn-editor-webview");
+
+            // Read the resource listing file to know which files to extract
+            // This file is generated during build to avoid hardcoding file names
+            try (InputStream listingIs = getClass().getResourceAsStream("/webview/resource-listing.txt")) {
+                if (listingIs != null) {
+                    String listing = new String(listingIs.readAllBytes(), StandardCharsets.UTF_8);
+                    String[] resources = listing.split("\n");
+                    for (String resource : resources) {
+                        resource = resource.trim();
+                        if (!resource.isEmpty() && !resource.equals("resource-listing.txt")) {
+                            extractResource(tempDir, resource);
+                        }
+                    }
+                } else {
+                    // Fallback: try to extract known essential files
+                    LOG.warn("Resource listing file not found, using fallback list");
+                    extractEssentialResources(tempDir);
+                }
+            }
+
+            LOG.info("Webview resources extracted to: " + tempDir);
+            return tempDir;
+        } catch (IOException e) {
+            LOG.error("Failed to extract webview resources", e);
+            return null;
+        }
+    }
+
+    private void extractResource(Path tempDir, String resource) {
+        try (InputStream is = getClass().getResourceAsStream("/webview/" + resource)) {
+            if (is != null) {
+                Path targetPath = tempDir.resolve(resource);
+                Files.copy(is, targetPath, StandardCopyOption.REPLACE_EXISTING);
+                LOG.debug("Extracted webview resource: " + resource);
+            } else {
+                LOG.warn("Webview resource not found: " + resource);
+            }
+        } catch (IOException e) {
+            LOG.warn("Failed to extract resource: " + resource, e);
+        }
+    }
+
+    private void extractEssentialResources(Path tempDir) {
+        // Essential files that must exist for the webview to work
+        String[] essentialFiles = {"index.html", "webview.js"};
+        for (String file : essentialFiles) {
+            extractResource(tempDir, file);
+        }
+
+        // Try to extract common font file patterns (these have hash suffixes from webpack)
+        String[] fontExtensions = {".woff", ".woff2", ".ttf", ".eot", ".svg"};
+        for (String ext : fontExtensions) {
+            // We don't know the exact hash, so we try common patterns
+            // This is a fallback - the resource-listing.txt approach is preferred
+            LOG.debug("Skipping font extraction for " + ext + " - use resource-listing.txt for reliable extraction");
         }
     }
 
@@ -390,6 +471,32 @@ public class BpmnEditor extends UserDataHolderBase implements FileEditor {
     public void dispose() {
         Disposer.dispose(jsQuery);
         Disposer.dispose(browser);
+        cleanupTempWebviewDir();
+    }
+
+    /**
+     * Clean up the temporary webview directory when the editor is disposed.
+     */
+    private void cleanupTempWebviewDir() {
+        if (tempWebviewDir != null) {
+            try {
+                // Delete all files in the temp directory
+                try (var files = Files.list(tempWebviewDir)) {
+                    files.forEach(file -> {
+                        try {
+                            Files.deleteIfExists(file);
+                        } catch (IOException e) {
+                            LOG.warn("Failed to delete temp file: " + file, e);
+                        }
+                    });
+                }
+                // Delete the directory itself
+                Files.deleteIfExists(tempWebviewDir);
+                LOG.debug("Cleaned up temp webview directory: " + tempWebviewDir);
+            } catch (IOException e) {
+                LOG.warn("Failed to cleanup temp webview directory", e);
+            }
+        }
     }
 
     @Override

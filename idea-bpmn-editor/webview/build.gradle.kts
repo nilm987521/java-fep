@@ -1,9 +1,5 @@
 import org.gradle.api.tasks.Exec
 
-plugins {
-    base
-}
-
 tasks.register<Exec>("npmInstall") {
     description = "Install npm dependencies"
     workingDir = projectDir
@@ -12,7 +8,7 @@ tasks.register<Exec>("npmInstall") {
     outputs.dir("node_modules")
 }
 
-tasks.register<Exec>("build") {
+tasks.register<Exec>("buildWebview") {
     description = "Build the webview"
     workingDir = projectDir
     commandLine("npm", "run", "build")
@@ -31,6 +27,6 @@ tasks.register<Exec>("watch") {
     dependsOn("npmInstall")
 }
 
-tasks.register<Delete>("clean") {
+tasks.register<Delete>("cleanWebview") {
     delete("dist", "node_modules")
 }

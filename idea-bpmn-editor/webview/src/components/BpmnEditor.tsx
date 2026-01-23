@@ -65,8 +65,15 @@ const BpmnEditor: React.FC = () => {
         };
         window.addEventListener('bpmn-command', handleCommand as EventListener);
 
+        // Listen for add-delegate events from ComponentPalette
+        const handleAddDelegate = (e: CustomEvent<any>) => {
+            addDelegateToCenter(e.detail);
+        };
+        window.addEventListener('add-delegate', handleAddDelegate as EventListener);
+
         return () => {
             window.removeEventListener('bpmn-command', handleCommand as EventListener);
+            window.removeEventListener('add-delegate', handleAddDelegate as EventListener);
             modeler.destroy();
         };
     }, [setDirty, setSelectedElement]);
@@ -184,16 +191,21 @@ const BpmnEditor: React.FC = () => {
     };
 
     const addServiceTask = (delegate: any, x: number, y: number) => {
-        if (!modelerRef.current) return;
+        if (!modelerRef.current || !containerRef.current) return;
 
         const modeling = modelerRef.current.get('modeling') as any;
         const elementFactory = modelerRef.current.get('elementFactory') as any;
         const canvas = modelerRef.current.get('canvas') as any;
 
+        // Get container bounds for coordinate conversion
+        const containerRect = containerRef.current.getBoundingClientRect();
+
         // Convert screen coordinates to diagram coordinates
         const viewbox = canvas.viewbox();
-        const diagramX = (x - viewbox.x) / viewbox.scale;
-        const diagramY = (y - viewbox.y) / viewbox.scale;
+        const relativeX = x - containerRect.left;
+        const relativeY = y - containerRect.top;
+        const diagramX = viewbox.x + (relativeX / viewbox.scale);
+        const diagramY = viewbox.y + (relativeY / viewbox.scale);
 
         // Get root element
         const rootElement = canvas.getRootElement();
@@ -211,6 +223,40 @@ const BpmnEditor: React.FC = () => {
             name: delegate.displayName,
             'camunda:delegateExpression': '${' + delegate.name + '}'
         });
+    };
+
+    const addDelegateToCenter = (delegate: any) => {
+        if (!modelerRef.current || !containerRef.current) return;
+
+        const modeling = modelerRef.current.get('modeling') as any;
+        const elementFactory = modelerRef.current.get('elementFactory') as any;
+        const canvas = modelerRef.current.get('canvas') as any;
+
+        // Get viewbox center
+        const viewbox = canvas.viewbox();
+        const centerX = viewbox.x + (viewbox.width / 2);
+        const centerY = viewbox.y + (viewbox.height / 2);
+
+        // Get root element
+        const rootElement = canvas.getRootElement();
+
+        // Create service task shape
+        const shape = elementFactory.createShape({
+            type: 'bpmn:ServiceTask'
+        });
+
+        // Add the shape at center
+        modeling.createShape(shape, { x: centerX, y: centerY }, rootElement);
+
+        // Update properties
+        modeling.updateProperties(shape, {
+            name: delegate.displayName,
+            'camunda:delegateExpression': '${' + delegate.name + '}'
+        });
+
+        // Select the new shape
+        const selection = modelerRef.current.get('selection') as any;
+        selection.select(shape);
     };
 
     const handleDragOver = (e: React.DragEvent) => {

@@ -1,0 +1,38 @@
+<!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>BPMN Editor</title><style>* {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        html, body, #root {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: var(--background, #1e1e1e);
+            color: var(--foreground, #cccccc);
+        }
+        /* IntelliJ Theme Variables */
+        :root {
+            --background: #1e1e1e;
+            --foreground: #cccccc;
+            --sidebar-background: #252526;
+            --input-background: #3c3c3c;
+            --border-color: #3c3c3c;
+            --primary-color: #007acc;
+            --hover-color: #2a2d2e;
+            --focus-border: #007acc;
+        }
+        /* Light theme override */
+        @media (prefers-color-scheme: light) {
+            :root {
+                --background: #ffffff;
+                --foreground: #333333;
+                --sidebar-background: #f3f3f3;
+                --input-background: #ffffff;
+                --border-color: #c4c4c4;
+                --primary-color: #007acc;
+                --hover-color: #e8e8e8;
+            }
+        }</style></head><body><div id="root"></div><script defer="defer" src="webview.js"></script></body></html>

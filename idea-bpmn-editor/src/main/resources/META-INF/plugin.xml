@@ -39,7 +39,7 @@
     ]]></change-notes>
 
     <!-- IntelliJ Platform version compatibility -->
-    <idea-version since-build="233" until-build="243.*"/>
+    <idea-version since-build="243" until-build="253.*"/>
 
     <!-- Dependencies -->
     <depends>com.intellij.modules.platform</depends>
