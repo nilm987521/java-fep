@@ -19,6 +19,8 @@ import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.ui.jcef.JBCefBrowser;
 import com.intellij.ui.jcef.JBCefBrowserBase;
 import com.intellij.ui.jcef.JBCefJSQuery;
+import com.intellij.ide.ui.LafManager;
+import com.intellij.ide.ui.LafManagerListener;
 import org.cef.browser.CefBrowser;
 import org.cef.browser.CefFrame;
 import org.cef.handler.CefLoadHandlerAdapter;
@@ -27,6 +29,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import javax.swing.*;
+import javax.swing.UIManager;
 import java.beans.PropertyChangeListener;
 import java.io.IOException;
 import java.io.InputStream;
@@ -50,6 +53,7 @@ public class BpmnEditor extends UserDataHolderBase implements FileEditor {
     private final VirtualFile file;
     private final JBCefBrowser browser;
     private final JBCefJSQuery jsQuery;
+    private final com.intellij.openapi.Disposable lafListenerDisposable;
     private boolean isModified = false;
     private String currentXml;
     private Path tempWebviewDir;
@@ -74,6 +78,7 @@ public class BpmnEditor extends UserDataHolderBase implements FileEditor {
             public void onLoadEnd(CefBrowser cefBrowser, CefFrame frame, int httpStatusCode) {
                 if (frame.isMain()) {
                     injectJavaScript();
+                    sendThemeToWebview();
                     sendBpmnToWebview();
                     // If delegates registry is empty, trigger a scan first
                     DelegateRegistryService registry = ApplicationManager.getApplication()
@@ -87,6 +92,13 @@ public class BpmnEditor extends UserDataHolderBase implements FileEditor {
                 }
             }
         }, browser.getCefBrowser());
+
+        // Listen for IDE theme changes
+        lafListenerDisposable = Disposer.newDisposable("BpmnEditor-LafListener");
+        ApplicationManager.getApplication().getMessageBus().connect(lafListenerDisposable)
+                .subscribe(LafManagerListener.TOPIC, (LafManagerListener) source -> {
+                    sendThemeToWebview();
+                });
 
         // Load the HTML page
         loadHtmlPage();
@@ -213,6 +225,48 @@ public class BpmnEditor extends UserDataHolderBase implements FileEditor {
         String delegatesJson = GSON.toJson(delegates);
         String js = String.format("window.setDelegates && window.setDelegates(%s);", delegatesJson);
         browser.getCefBrowser().executeJavaScript(js, browser.getCefBrowser().getURL(), 0);
+    }
+
+    private void sendThemeToWebview() {
+        String theme = isDarkTheme() ? "dark" : "light";
+        String js = String.format("window.setTheme && window.setTheme('%s');", theme);
+        browser.getCefBrowser().executeJavaScript(js, browser.getCefBrowser().getURL(), 0);
+        LOG.info("Theme set to: " + theme);
+    }
+
+    /**
+     * Detect if the current IDE theme is a dark theme.
+     */
+    private boolean isDarkTheme() {
+        try {
+            // Get the current Look and Feel
+            UIManager.LookAndFeelInfo[] installedLookAndFeels = UIManager.getInstalledLookAndFeels();
+            String currentLafName = UIManager.getLookAndFeel().getName().toLowerCase();
+
+            // Check if the current LAF name contains dark-related keywords
+            if (currentLafName.contains("darcula") ||
+                currentLafName.contains("dark") ||
+                currentLafName.contains("high contrast")) {
+                return true;
+            }
+
+            // Alternative: Check background color of the IDE
+            // Dark themes typically have low luminance backgrounds
+            java.awt.Color bgColor = UIManager.getColor("Panel.background");
+            if (bgColor != null) {
+                // Calculate relative luminance
+                double luminance = (0.299 * bgColor.getRed() +
+                                   0.587 * bgColor.getGreen() +
+                                   0.114 * bgColor.getBlue()) / 255;
+                return luminance < 0.5;
+            }
+
+            // Default to dark theme if we can't determine
+            return true;
+        } catch (Exception e) {
+            LOG.warn("Failed to detect theme, defaulting to dark", e);
+            return true;
+        }
     }
 
     /**
@@ -469,6 +523,7 @@ public class BpmnEditor extends UserDataHolderBase implements FileEditor {
 
     @Override
     public void dispose() {
+        Disposer.dispose(lafListenerDisposable);
         Disposer.dispose(jsQuery);
         Disposer.dispose(browser);
         cleanupTempWebviewDir();

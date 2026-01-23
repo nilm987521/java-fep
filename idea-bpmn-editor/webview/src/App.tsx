@@ -6,6 +6,15 @@ import PropertiesPanel from './components/PropertiesPanel';
 import { useEditorStore } from './stores/editorStore';
 import { JavaDelegate } from './types';
 
+// Detect and apply theme
+const applyTheme = (isDark: boolean) => {
+    if (isDark) {
+        document.body.classList.remove('light-theme');
+    } else {
+        document.body.classList.add('light-theme');
+    }
+};
+
 const App: React.FC = () => {
     const { showPalette, showProperties, setDelegates, setBpmnXml } = useEditorStore();
 
@@ -25,6 +34,22 @@ const App: React.FC = () => {
             window.dispatchEvent(event);
         };
 
+        // Theme detection from IDE
+        window.setTheme = (theme: string) => {
+            applyTheme(theme === 'dark');
+        };
+
+        // Initial theme detection - check if IDE provided a theme
+        // If not, use system preference
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)');
+        applyTheme(prefersDark.matches);
+
+        // Listen for system theme changes
+        const handleThemeChange = (e: MediaQueryListEvent) => {
+            applyTheme(e.matches);
+        };
+        prefersDark.addEventListener('change', handleThemeChange);
+
         // Notify IDE that webview is ready
         sendToIde({ type: 'ready' });
 
@@ -32,6 +57,8 @@ const App: React.FC = () => {
             window.loadBpmn = undefined;
             window.setDelegates = undefined;
             window.executeCommand = undefined;
+            window.setTheme = undefined;
+            prefersDark.removeEventListener('change', handleThemeChange);
         };
     }, [setBpmnXml, setDelegates]);
 

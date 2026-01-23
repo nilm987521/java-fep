@@ -1,5 +1,6 @@
 /* Main styles for BPMN Editor WebView */
 
+/* Dark theme (default) */
 :root {
     --background: #1e1e1e;
     --foreground: #cccccc;
@@ -12,6 +13,39 @@
     --error-color: #f44336;
     --success-color: #4caf50;
     --warning-color: #ff9800;
+    --text-muted: #888888;
+    --scrollbar-thumb: #555555;
+    --scrollbar-thumb-hover: #666666;
+    /* BPMN element colors for dark theme */
+    --bpmn-stroke: #a0a0a0;
+    --bpmn-fill: #2d2d2d;
+    --bpmn-text: #cccccc;
+    --bpmn-stroke-hover: #4fc3f7;
+    --bpmn-stroke-selected: #007acc;
+}
+
+/* Light theme */
+body.light-theme {
+    --background: #ffffff;
+    --foreground: #333333;
+    --sidebar-background: #f3f3f3;
+    --input-background: #ffffff;
+    --border-color: #d4d4d4;
+    --primary-color: #007acc;
+    --hover-color: #e8e8e8;
+    --focus-border: #007acc;
+    --error-color: #d32f2f;
+    --success-color: #388e3c;
+    --warning-color: #f57c00;
+    --text-muted: #666666;
+    --scrollbar-thumb: #c1c1c1;
+    --scrollbar-thumb-hover: #a8a8a8;
+    /* BPMN element colors for light theme */
+    --bpmn-stroke: #333333;
+    --bpmn-fill: #ffffff;
+    --bpmn-text: #333333;
+    --bpmn-stroke-hover: #1976d2;
+    --bpmn-stroke-selected: #007acc;
 }
 
 * {
@@ -97,7 +131,7 @@ body {
 .file-info {
     margin-left: auto;
     font-size: 12px;
-    color: #888;
+    color: var(--text-muted);
 }
 
 .file-info .dirty-indicator {
@@ -214,7 +248,7 @@ body {
 .delegate-expression {
     font-family: monospace;
     font-size: 10px;
-    color: #888;
+    color: var(--text-muted);
     margin-top: 2px;
 }
 
@@ -259,7 +293,7 @@ body {
     font-size: 11px;
     font-weight: 600;
     text-transform: uppercase;
-    color: #888;
+    color: var(--text-muted);
     margin-bottom: 8px;
 }
 
@@ -269,7 +303,7 @@ body {
 
 .property-label {
     font-size: 12px;
-    color: #888;
+    color: var(--text-muted);
     margin-bottom: 4px;
 }
 
@@ -323,7 +357,7 @@ body {
 }
 
 .delegate-info-label {
-    color: #888;
+    color: var(--text-muted);
     min-width: 80px;
 }
 
@@ -349,7 +383,7 @@ body {
 .variables-title {
     font-size: 11px;
     font-weight: 600;
-    color: #888;
+    color: var(--text-muted);
     margin-bottom: 6px;
 }
 
@@ -367,7 +401,7 @@ body {
 }
 
 .variable-type {
-    color: #888;
+    color: var(--text-muted);
 }
 
 .variable-required {
@@ -383,7 +417,7 @@ body {
     align-items: center;
     justify-content: center;
     height: 100%;
-    color: #888;
+    color: var(--text-muted);
     font-size: 14px;
 }
 
@@ -404,12 +438,12 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-    background: #555;
+    background: var(--scrollbar-thumb);
     border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: #666;
+    background: var(--scrollbar-thumb-hover);
 }
 
 /* bpmn-js overrides */
@@ -420,6 +454,153 @@ body {
 /* Hide default palette - we use our own ComponentPalette */
 .djs-palette {
     display: none !important;
+}
+
+/* ========================================
+   BPMN-JS Theme Styles (supports dark/light)
+   ======================================== */
+
+/* Sequence Flow (連接線) */
+.djs-connection path.djs-visual {
+    stroke: var(--bpmn-stroke) !important;
+    stroke-width: 2px !important;
+}
+
+/* Sequence Flow 箭頭 */
+.djs-connection marker path {
+    fill: var(--bpmn-stroke) !important;
+    stroke: var(--bpmn-stroke) !important;
+}
+
+/* 選中的連接線 */
+.djs-connection.selected path.djs-visual {
+    stroke: var(--bpmn-stroke-selected) !important;
+    stroke-width: 2.5px !important;
+}
+
+/* 滑鼠懸停的連接線 */
+.djs-connection.hover path.djs-visual {
+    stroke: var(--bpmn-stroke-hover) !important;
+}
+
+/* Shape 外框 */
+.djs-shape .djs-visual > rect,
+.djs-shape .djs-visual > circle,
+.djs-shape .djs-visual > polygon,
+.djs-shape .djs-visual > path {
+    stroke: var(--bpmn-stroke) !important;
+    stroke-width: 2px !important;
+}
+
+/* Task 背景填充 */
+.djs-shape .djs-visual > rect {
+    fill: var(--bpmn-fill) !important;
+}
+
+/* Gateway (閘道) 背景 */
+.djs-shape .djs-visual > polygon {
+    fill: var(--bpmn-fill) !important;
+}
+
+/* Event (事件) 背景 */
+.djs-shape .djs-visual > circle {
+    fill: var(--bpmn-fill) !important;
+}
+
+/* 選中的元素外框 */
+.djs-shape.selected .djs-visual > rect,
+.djs-shape.selected .djs-visual > circle,
+.djs-shape.selected .djs-visual > polygon {
+    stroke: var(--bpmn-stroke-selected) !important;
+    stroke-width: 2.5px !important;
+}
+
+/* 滑鼠懸停的元素外框 */
+.djs-shape.hover .djs-visual > rect,
+.djs-shape.hover .djs-visual > circle,
+.djs-shape.hover .djs-visual > polygon {
+    stroke: var(--bpmn-stroke-hover) !important;
+}
+
+/* 文字標籤 */
+.djs-label text,
+.djs-shape text {
+    fill: var(--bpmn-text) !important;
+}
+
+/* 連接線上的標籤 */
+.djs-connection text {
+    fill: var(--bpmn-text) !important;
+}
+
+/* Start Event 綠色邊框 */
+.bpmn-icon-start-event-none ~ .djs-visual > circle,
+[data-element-id*="StartEvent"] .djs-visual > circle {
+    stroke: var(--success-color) !important;
+}
+
+/* End Event 紅色邊框 */
+.bpmn-icon-end-event-none ~ .djs-visual > circle,
+[data-element-id*="EndEvent"] .djs-visual > circle {
+    stroke: var(--error-color) !important;
+    stroke-width: 3px !important;
+}
+
+/* Canvas 背景 */
+.djs-container {
+    background: var(--background) !important;
+}
+
+/* 選取框 */
+.djs-outline {
+    stroke: var(--bpmn-stroke-selected) !important;
+    stroke-width: 1px !important;
+}
+
+/* 拖曳時的預覽 */
+.djs-dragging .djs-visual > * {
+    opacity: 0.7;
+}
+
+/* Marker (箭頭) 定義 */
+marker path {
+    fill: var(--bpmn-stroke) !important;
+}
+
+/* Message Flow 虛線 */
+.djs-connection[data-element-id*="MessageFlow"] path.djs-visual {
+    stroke-dasharray: 8, 5 !important;
+}
+
+/* Association 點線 */
+.djs-connection[data-element-id*="Association"] path.djs-visual {
+    stroke-dasharray: 3, 3 !important;
+    stroke: var(--text-muted) !important;
+}
+
+/* ========================================
+   Light Theme Specific Overrides
+   ======================================== */
+
+/* 淺色主題下 Context Pad 背景 */
+body.light-theme .djs-context-pad .entry {
+    background: #ffffff;
+    border-color: #d4d4d4;
+}
+
+body.light-theme .djs-context-pad .entry:hover {
+    background: #e8e8e8;
+}
+
+/* 淺色主題下 Popup Menu */
+body.light-theme .djs-popup {
+    background: #ffffff;
+    border-color: #d4d4d4;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+body.light-theme .djs-popup .entry:hover {
+    background: #e8e8e8;
 }
 
 /* Context pad styling */

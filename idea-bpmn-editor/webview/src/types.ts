@@ -49,5 +49,6 @@ declare global {
         loadBpmn?: (xml: string) => void;
         setDelegates?: (delegates: JavaDelegate[]) => void;
         executeCommand?: (command: string) => void;
+        setTheme?: (theme: string) => void;
     }
 }
