@@ -1,5 +1,6 @@
 package com.fep.message.channel;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Builder;
@@ -179,28 +180,29 @@ public class ConnectionProfile {
 
     /**
      * JSON creator for deserialization.
+     * Supports both camelCase (JSON) and kebab-case (YAML) property names.
      */
     @JsonCreator
     public ConnectionProfile(
-            @JsonProperty("profileId") String profileId,
+            @JsonProperty("profileId") @JsonAlias("profile-id") String profileId,
             @JsonProperty("host") String host,
-            @JsonProperty("sendPort") Integer sendPort,
-            @JsonProperty("receivePort") Integer receivePort,
-            @JsonProperty("connectTimeout") Integer connectTimeout,
-            @JsonProperty("responseTimeout") Integer responseTimeout,
-            @JsonProperty("heartbeatInterval") Integer heartbeatInterval,
-            @JsonProperty("maxRetries") Integer maxRetries,
-            @JsonProperty("retryDelay") Integer retryDelay,
-            @JsonProperty("sslEnabled") Boolean sslEnabled,
-            @JsonProperty("sslKeystorePath") String sslKeystorePath,
-            @JsonProperty("sslKeystorePassword") String sslKeystorePassword,
-            @JsonProperty("sslTruststorePath") String sslTruststorePath,
-            @JsonProperty("sslTruststorePassword") String sslTruststorePassword,
-            @JsonProperty("poolSize") Integer poolSize,
-            @JsonProperty("autoReconnect") Boolean autoReconnect,
-            @JsonProperty("keepAliveInterval") Integer keepAliveInterval,
-            @JsonProperty("dualChannel") Boolean dualChannel,
-            @JsonProperty("connectionMode") String connectionMode,
+            @JsonProperty("sendPort") @JsonAlias("send-port") Integer sendPort,
+            @JsonProperty("receivePort") @JsonAlias("receive-port") Integer receivePort,
+            @JsonProperty("connectTimeout") @JsonAlias("connect-timeout") Integer connectTimeout,
+            @JsonProperty("responseTimeout") @JsonAlias("response-timeout") Integer responseTimeout,
+            @JsonProperty("heartbeatInterval") @JsonAlias("heartbeat-interval") Integer heartbeatInterval,
+            @JsonProperty("maxRetries") @JsonAlias("max-retries") Integer maxRetries,
+            @JsonProperty("retryDelay") @JsonAlias("retry-delay") Integer retryDelay,
+            @JsonProperty("sslEnabled") @JsonAlias("ssl-enabled") Boolean sslEnabled,
+            @JsonProperty("sslKeystorePath") @JsonAlias("ssl-keystore-path") String sslKeystorePath,
+            @JsonProperty("sslKeystorePassword") @JsonAlias("ssl-keystore-password") String sslKeystorePassword,
+            @JsonProperty("sslTruststorePath") @JsonAlias("ssl-truststore-path") String sslTruststorePath,
+            @JsonProperty("sslTruststorePassword") @JsonAlias("ssl-truststore-password") String sslTruststorePassword,
+            @JsonProperty("poolSize") @JsonAlias("pool-size") Integer poolSize,
+            @JsonProperty("autoReconnect") @JsonAlias("auto-reconnect") Boolean autoReconnect,
+            @JsonProperty("keepAliveInterval") @JsonAlias("keep-alive-interval") Integer keepAliveInterval,
+            @JsonProperty("dualChannel") @JsonAlias("dual-channel") Boolean dualChannel,
+            @JsonProperty("connectionMode") @JsonAlias("connection-mode") String connectionMode,
             @JsonProperty("properties") Map<String, String> properties) {
         this.profileId = profileId;
         this.host = host;
