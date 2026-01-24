@@ -157,6 +157,20 @@ public class BpmnIntegrationConfig {
      *
      * <p>此 Bridge 連接 fep-transaction 和 fep-communication，
      * 讓 BPMN Delegate 可以透過它發送訊息到 FISC。
+     *
+     * <p><b>優化：直接發送 byte[]</b>
+     * <br>使用 {@code sendRawAndReceive()} 方法直接發送已組裝的 byte[]，
+     * 避免不必要的反序列化/序列化：
+     * <pre>
+     * 原本流程（有重複序列化）：
+     *   AssembleDelegate: Iso8583Message → byte[]
+     *   Bridge: byte[] → Iso8583Message (反序列化)
+     *   Client: Iso8583Message → byte[] (重複序列化)
+     *
+     * 優化後流程：
+     *   AssembleDelegate: Iso8583Message → byte[]
+     *   Bridge: byte[] → 直接發送
+     * </pre>
      */
     private FiscClientBridge createFiscClientBridge() {
         return new FiscClientBridge() {
@@ -164,7 +178,8 @@ public class BpmnIntegrationConfig {
             public CompletableFuture<FiscResponse> sendMessage(String channelId,
                                                                 byte[] messageData,
                                                                 String stan) {
-                log.debug("FiscClientBridge.sendMessage: channel={}, STAN={}", channelId, stan);
+                log.debug("FiscClientBridge.sendMessage: channel={}, STAN={}, size={} bytes",
+                        channelId, stan, messageData != null ? messageData.length : 0);
 
                 // 取得 FISC 連線
                 FiscDualChannelClient client = getFiscClient(channelId);
@@ -178,28 +193,23 @@ public class BpmnIntegrationConfig {
                             new IllegalStateException("FISC client not connected: " + channelId));
                 }
 
-                // 反序列化訊息
-                Iso8583Message request;
-                try {
-                    request = deserializeMessage(messageData);
-                    if (request == null) {
-                        return CompletableFuture.failedFuture(
-                                new IllegalArgumentException("Failed to deserialize message"));
-                    }
-                } catch (Exception e) {
-                    return CompletableFuture.failedFuture(e);
+                if (messageData == null || messageData.length == 0) {
+                    return CompletableFuture.failedFuture(
+                            new IllegalArgumentException("Message data is empty"));
                 }
 
-                // 發送訊息並等待回應
-                return client.sendAndReceive(request)
+                // 直接發送 byte[]，避免反序列化
+                return client.sendRawAndReceive(messageData, stan)
                         .orTimeout(fiscTimeoutMs, TimeUnit.MILLISECONDS)
-                        .thenApply(response -> {
+                        .thenApply(responseBytes -> {
+                            // 解析回應以取得必要欄位
+                            Iso8583Message response = parseResponseForFields(responseBytes);
                             return FiscResponse.builder()
-                                    .mti(response.getMti())
-                                    .stan(response.getFieldAsString(11))
-                                    .responseCode(response.getFieldAsString(39))
-                                    .authCode(response.getFieldAsString(38))
-                                    .rawMessage(serializeMessage(response))
+                                    .mti(response != null ? response.getMti() : null)
+                                    .stan(response != null ? response.getFieldAsString(11) : stan)
+                                    .responseCode(response != null ? response.getFieldAsString(39) : null)
+                                    .authCode(response != null ? response.getFieldAsString(38) : null)
+                                    .rawMessage(responseBytes)
                                     .responseTimeMs(System.currentTimeMillis())
                                     .build();
                         });
@@ -217,6 +227,23 @@ public class BpmnIntegrationConfig {
     }
 
     /**
+     * 解析回應電文以取得必要欄位（MTI, STAN, RC, AuthCode）
+     *
+     * <p>此方法只解析回應一次，用於建構 FiscResponse
+     */
+    private Iso8583Message parseResponseForFields(byte[] data) {
+        if (data == null || data.length == 0) {
+            return null;
+        }
+        try {
+            return messageFactory.parse(data);
+        } catch (Exception e) {
+            log.warn("解析回應電文失敗: {}", e.getMessage());
+            return null;
+        }
+    }
+
+    /**
      * 取得 FISC Client
      */
     private FiscDualChannelClient getFiscClient(String channelId) {
@@ -226,38 +253,4 @@ public class BpmnIntegrationConfig {
         return connectionManager.getConnection(channel).orElse(null);
     }
 
-    /**
-     * 反序列化 ISO 8583 訊息
-     *
-     * <p>使用 Iso8583MessageFactory 解析 ISO 8583 格式電文
-     */
-    private Iso8583Message deserializeMessage(byte[] data) {
-        if (data == null || data.length == 0) {
-            return null;
-        }
-        try {
-            return messageFactory.parse(data);
-        } catch (Exception e) {
-            log.error("反序列化訊息失敗: {}", e.getMessage());
-            return null;
-        }
-    }
-
-    /**
-     * 序列化 ISO 8583 訊息
-     *
-     * <p>使用 Iso8583MessageFactory 組裝符合 ISO 8583 標準格式的電文，
-     * 包含欄位長度補齊、LLVAR/LLLVAR 長度前綴、BCD/ASCII 編碼等處理
-     */
-    private byte[] serializeMessage(Iso8583Message message) {
-        if (message == null) {
-            return new byte[0];
-        }
-        try {
-            return messageFactory.assemble(message);
-        } catch (Exception e) {
-            log.error("序列化訊息失敗: {}", e.getMessage());
-            return new byte[0];
-        }
-    }
 }

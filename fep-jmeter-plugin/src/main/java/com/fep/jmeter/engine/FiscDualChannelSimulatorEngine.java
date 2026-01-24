@@ -562,14 +562,23 @@ public class FiscDualChannelSimulatorEngine implements AutoCloseable {
     private record PendingResponse(Iso8583Message response, String bankId) {}
 
     /**
-     * Received request wrapper.
+     * Received request wrapper with associated response.
      */
     public record ReceivedRequest(
-        Iso8583Message message,
+        Iso8583Message request,
+        Iso8583Message response,
         String bankId,
         long timestamp,
         String validationResult
-    ) {}
+    ) {
+        /**
+         * @deprecated Use {@link #request()} instead
+         */
+        @Deprecated
+        public Iso8583Message message() {
+            return request;
+        }
+    }
 
     /**
      * ISO 8583 Message Decoder with configurable length encoding.
@@ -823,40 +832,40 @@ public class FiscDualChannelSimulatorEngine implements AutoCloseable {
                 lastValidationResult = "SKIP";
             }
 
-            // Store received request
-            requestQueue.offer(new ReceivedRequest(request, bankId, System.currentTimeMillis(), lastValidationResult));
+            // Generate response
+            Iso8583Message response;
+            if (validationError != null) {
+                // Validation failed - return error response
+                response = request.createResponse();
+                response.setField(39, validationErrorCode);
+            } else {
+                // Find handler and create response
+                Function<Iso8583Message, Iso8583Message> handler = requestHandlers.get(mti);
+                if (handler != null) {
+                    try {
+                        response = handler.apply(request);
+                        log.debug("[Engine] Response generated: MTI={}, STAN={}", response.getMti(), stan);
+                    } catch (Exception e) {
+                        log.error("[Engine] Handler error for MTI={}", mti, e);
+                        response = request.createResponse();
+                        response.setField(39, "96");
+                    }
+                } else {
+                    log.warn("[Engine] No handler for MTI={}", mti);
+                    response = request.createResponse();
+                    response.setField(39, "12");
+                }
+            }
+
+            // Store received request with generated response
+            requestQueue.offer(new ReceivedRequest(request, response, bankId, System.currentTimeMillis(), lastValidationResult));
+
+            // Queue response for sending
+            responseQueue.offer(new PendingResponse(response, bankId));
 
             // Notify callback
             if (requestReceivedCallback != null) {
                 requestReceivedCallback.accept(request, lastValidationResult);
-            }
-
-            // If validation failed, return error response
-            if (validationError != null) {
-                Iso8583Message errorResponse = request.createResponse();
-                errorResponse.setField(39, validationErrorCode);
-                responseQueue.offer(new PendingResponse(errorResponse, bankId));
-                return;
-            }
-
-            // Find handler and create response
-            Function<Iso8583Message, Iso8583Message> handler = requestHandlers.get(mti);
-            if (handler != null) {
-                try {
-                    Iso8583Message response = handler.apply(request);
-                    responseQueue.offer(new PendingResponse(response, bankId));
-                    log.debug("[Engine] Response queued: MTI={}, STAN={}", response.getMti(), stan);
-                } catch (Exception e) {
-                    log.error("[Engine] Handler error for MTI={}", mti, e);
-                    Iso8583Message errorResponse = request.createResponse();
-                    errorResponse.setField(39, "96");
-                    responseQueue.offer(new PendingResponse(errorResponse, bankId));
-                }
-            } else {
-                log.warn("[Engine] No handler for MTI={}", mti);
-                Iso8583Message errorResponse = request.createResponse();
-                errorResponse.setField(39, "12");
-                responseQueue.offer(new PendingResponse(errorResponse, bankId));
             }
         }
 

@@ -170,33 +170,35 @@ public class FiscDualChannelServerSampler extends AbstractSampler implements Tes
             String validationResult = received.validationResult();
             boolean isValid = "PASS".equals(validationResult) || "SKIP".equals(validationResult);
 
-            StringBuilder sb = new StringBuilder();
-            sb.append("=== [PASSIVE] Received Message ===\n");
-            sb.append("MTI: ").append(received.message().getMti()).append("\n");
-            sb.append("Bank ID: ").append(received.bankId()).append("\n");
-            sb.append("Timestamp: ").append(received.timestamp()).append("\n");
-            sb.append("Validation: ").append(validationResult).append("\n");
-            sb.append("\n=== Message Fields ===\n");
+            Iso8583Message request = received.request();
+            Iso8583Message response = received.response();
 
-            // Output key fields
-            String stan = received.message().getFieldAsString(11);
-            String processingCode = received.message().getFieldAsString(3);
-            String amount = received.message().getFieldAsString(4);
-            String rrn = received.message().getFieldAsString(37);
+            // === Set Request Data (SamplerData) ===
+            StringBuilder requestSb = new StringBuilder();
+            requestSb.append("=== Received Request ===\n");
+            requestSb.append("MTI: ").append(request.getMti()).append("\n");
+            requestSb.append("Bank ID: ").append(received.bankId()).append("\n");
+            requestSb.append("Timestamp: ").append(received.timestamp()).append("\n");
+            requestSb.append("Validation: ").append(validationResult).append("\n");
+            requestSb.append("\n").append(request.toDetailString());
+            result.setSamplerData(requestSb.toString());
 
-            if (stan != null) sb.append("F11 (STAN): ").append(stan).append("\n");
-            if (processingCode != null) sb.append("F3 (Processing Code): ").append(processingCode).append("\n");
-            if (amount != null) sb.append("F4 (Amount): ").append(amount).append("\n");
-            if (rrn != null) sb.append("F37 (RRN): ").append(rrn).append("\n");
+            // === Set Response Data ===
+            StringBuilder responseSb = new StringBuilder();
+            responseSb.append("=== Generated Response ===\n");
+            responseSb.append("MTI: ").append(response.getMti()).append("\n");
+            responseSb.append("Response Code (F39): ").append(response.getFieldAsString(39)).append("\n");
+            responseSb.append("\n").append(response.toDetailString());
+            responseSb.append("\n=== Server Statistics ===\n");
+            responseSb.append("Messages Received: ").append(instance.engine.getMessagesReceived().get()).append("\n");
+            responseSb.append("Messages Sent: ").append(instance.engine.getMessagesSent().get()).append("\n");
+            responseSb.append("Validation Errors: ").append(instance.engine.getValidationErrors().get()).append("\n");
+            result.setResponseData(responseSb.toString(), StandardCharsets.UTF_8.name());
 
-            sb.append("\n=== Server Statistics ===\n");
-            sb.append("Messages Received: ").append(instance.engine.getMessagesReceived().get()).append("\n");
-            sb.append("Messages Sent: ").append(instance.engine.getMessagesSent().get()).append("\n");
-            sb.append("Validation Errors: ").append(instance.engine.getValidationErrors().get()).append("\n");
-
-            result.setResponseData(sb.toString(), StandardCharsets.UTF_8.name());
-            result.setResponseCode("200");
-            result.setResponseMessage("Message received: MTI=" + received.message().getMti());
+            // Set response code and message
+            String responseCode = response.getFieldAsString(39);
+            result.setResponseCode(responseCode != null ? responseCode : "00");
+            result.setResponseMessage("Request MTI=" + request.getMti() + " -> Response MTI=" + response.getMti());
             result.setSuccessful(isValid);
 
             // Store message details in JMeter variables
@@ -612,23 +614,32 @@ public class FiscDualChannelServerSampler extends AbstractSampler implements Tes
         JMeterVariables vars = context.getVariables();
         if (vars == null) return;
 
-        vars.put("FISC_RECEIVED_MTI", received.message().getMti());
+        Iso8583Message request = received.request();
+        Iso8583Message response = received.response();
+
+        // Store request info
+        vars.put("FISC_RECEIVED_MTI", request.getMti());
         vars.put("FISC_RECEIVED_BANK_ID", received.bankId() != null ? received.bankId() : "");
         vars.put("FISC_RECEIVED_TIMESTAMP", String.valueOf(received.timestamp()));
         vars.put("FISC_RECEIVED_VALIDATION", received.validationResult());
 
-        // Store key fields
-        String stan = received.message().getFieldAsString(11);
-        String processingCode = received.message().getFieldAsString(3);
-        String amount = received.message().getFieldAsString(4);
-        String rrn = received.message().getFieldAsString(37);
-        String cardNumber = received.message().getFieldAsString(2);
+        // Store request key fields
+        String stan = request.getFieldAsString(11);
+        String processingCode = request.getFieldAsString(3);
+        String amount = request.getFieldAsString(4);
+        String rrn = request.getFieldAsString(37);
+        String cardNumber = request.getFieldAsString(2);
 
         vars.put("FISC_RECEIVED_STAN", stan != null ? stan : "");
         vars.put("FISC_RECEIVED_PROCESSING_CODE", processingCode != null ? processingCode : "");
         vars.put("FISC_RECEIVED_AMOUNT", amount != null ? amount : "");
         vars.put("FISC_RECEIVED_RRN", rrn != null ? rrn : "");
         vars.put("FISC_RECEIVED_CARD_NUMBER", cardNumber != null ? cardNumber : "");
+
+        // Store response info
+        vars.put("FISC_RESPONSE_MTI", response.getMti());
+        String responseCode = response.getFieldAsString(39);
+        vars.put("FISC_RESPONSE_CODE", responseCode != null ? responseCode : "");
     }
 
     // TestStateListener implementation

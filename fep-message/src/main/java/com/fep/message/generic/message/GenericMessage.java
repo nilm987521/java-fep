@@ -1,5 +1,6 @@
 package com.fep.message.generic.message;
 
+import com.fep.message.generic.expression.DynamicExpressionChain;
 import com.fep.message.generic.schema.FieldSchema;
 import com.fep.message.generic.schema.MessageSchema;
 import lombok.Getter;
@@ -18,6 +19,7 @@ import java.util.regex.Pattern;
 public class GenericMessage {
 
     private static final Pattern VARIABLE_PATTERN = Pattern.compile("\\$\\{([^}]+)}");
+    private static final DynamicExpressionChain EXPRESSION_CHAIN = DynamicExpressionChain.createDefault();
 
     @Getter
     private final MessageSchema schema;
@@ -37,6 +39,7 @@ public class GenericMessage {
     /**
      * Populates fields with default values from the schema.
      * Only populates fields that are not already set.
+     * Supports dynamic expressions like @NOW(yyyyMMdd) in default values.
      * This should be called before applyVariables() to allow variable substitution in default values.
      */
     public void populateDefaults() {
@@ -49,7 +52,9 @@ public class GenericMessage {
             if (!fields.containsKey(fieldId)) {
                 String defaultValue = fieldSchema.getDefaultValue();
                 if (defaultValue != null && !defaultValue.isEmpty()) {
-                    fields.put(fieldId, defaultValue);
+                    // Resolve dynamic expressions like @NOW(yyyyMMdd)
+                    String resolvedValue = resolveDynamicExpressions(defaultValue);
+                    fields.put(fieldId, resolvedValue);
                 }
             }
         }
@@ -62,6 +67,9 @@ public class GenericMessage {
      * @param value   the value
      */
     public void setField(String fieldId, Object value) {
+        if (!(value instanceof byte[]) && !(value instanceof String)) {
+            throw new IllegalArgumentException("Field value must be byte[] or String");
+        }
         fields.put(fieldId, value);
     }
 
@@ -175,6 +183,7 @@ public class GenericMessage {
     /**
      * Gets all field values including schema default values.
      * For fields not explicitly set, uses the defaultValue from schema if available.
+     * Supports dynamic expressions like @NOW(yyyyMMdd) in default values.
      *
      * @return map of field ID to value (including defaults)
      */
@@ -189,8 +198,9 @@ public class GenericMessage {
                     // Use explicitly set value
                     result.put(fieldId, fields.get(fieldId));
                 } else if (fieldSchema.getDefaultValue() != null && !fieldSchema.getDefaultValue().isEmpty()) {
-                    // Use schema default value
-                    result.put(fieldId, fieldSchema.getDefaultValue());
+                    // Use schema default value with dynamic expression resolution
+                    String resolvedValue = resolveDynamicExpressions(fieldSchema.getDefaultValue());
+                    result.put(fieldId, resolvedValue);
                 }
             }
         }
@@ -207,6 +217,7 @@ public class GenericMessage {
 
     /**
      * Gets the effective value for a field, considering default values.
+     * Supports dynamic expressions like @NOW(yyyyMMdd) in default values.
      *
      * @param fieldId the field ID
      * @return the value (explicit or default), or null if not set and no default
@@ -215,10 +226,11 @@ public class GenericMessage {
         if (fields.containsKey(fieldId)) {
             return fields.get(fieldId);
         }
-        // Check schema for default value
+        // Check schema for default value with dynamic expression resolution
         return schema.getField(fieldId)
                 .map(FieldSchema::getDefaultValue)
                 .filter(d -> d != null && !d.isEmpty())
+                .map(this::resolveDynamicExpressions)
                 .orElse(null);
     }
 
@@ -280,6 +292,18 @@ public class GenericMessage {
         matcher.appendTail(result);
 
         return result.toString();
+    }
+
+    /**
+     * Resolves dynamic expressions in a value string.
+     * Delegates to DynamicExpressionChain for extensible expression handling.
+     *
+     * @param value the value that may contain dynamic expressions
+     * @return the resolved value with expressions replaced
+     * @see DynamicExpressionChain
+     */
+    private String resolveDynamicExpressions(String value) {
+        return EXPRESSION_CHAIN.resolve(value);
     }
 
     /**

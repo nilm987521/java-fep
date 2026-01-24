@@ -459,105 +459,28 @@ body {
 }
 
 /* ========================================
-   BPMN-JS Theme Styles (supports dark/light)
+   BPMN-JS Theme Styles
+   Note: Main colors are now set via bpmnRenderer options
+   CSS here is for additional styling and overrides
    ======================================== */
-
-/* Sequence Flow (連接線) - 加粗以提高可見度 */
-.djs-connection path.djs-visual {
-    stroke: var(--bpmn-connection-stroke) !important;
-    stroke-width: 2.5px !important;
-}
-
-/* Sequence Flow 箭頭 */
-.djs-connection marker path {
-    fill: var(--bpmn-connection-stroke) !important;
-    stroke: var(--bpmn-connection-stroke) !important;
-}
-
-/* 所有 marker 箭頭定義 - 確保箭頭可見 */
-defs marker path {
-    fill: var(--bpmn-connection-stroke) !important;
-    stroke: var(--bpmn-connection-stroke) !important;
-}
-
-/* 選中的連接線 */
-.djs-connection.selected path.djs-visual {
-    stroke: var(--bpmn-stroke-selected) !important;
-    stroke-width: 3px !important;
-}
-
-/* 滑鼠懸停的連接線 */
-.djs-connection.hover path.djs-visual {
-    stroke: var(--bpmn-stroke-hover) !important;
-    stroke-width: 3px !important;
-}
-
-/* Shape 外框 */
-.djs-shape .djs-visual > rect,
-.djs-shape .djs-visual > circle,
-.djs-shape .djs-visual > polygon,
-.djs-shape .djs-visual > path {
-    stroke: var(--bpmn-stroke) !important;
-    stroke-width: 2px !important;
-}
-
-/* Task 背景填充 */
-.djs-shape .djs-visual > rect {
-    fill: var(--bpmn-fill) !important;
-}
-
-/* Gateway (閘道) 背景 */
-.djs-shape .djs-visual > polygon {
-    fill: var(--bpmn-fill) !important;
-}
-
-/* Event (事件) 背景 */
-.djs-shape .djs-visual > circle {
-    fill: var(--bpmn-fill) !important;
-}
-
-/* 選中的元素外框 */
-.djs-shape.selected .djs-visual > rect,
-.djs-shape.selected .djs-visual > circle,
-.djs-shape.selected .djs-visual > polygon {
-    stroke: var(--bpmn-stroke-selected) !important;
-    stroke-width: 2.5px !important;
-}
-
-/* 滑鼠懸停的元素外框 */
-.djs-shape.hover .djs-visual > rect,
-.djs-shape.hover .djs-visual > circle,
-.djs-shape.hover .djs-visual > polygon {
-    stroke: var(--bpmn-stroke-hover) !important;
-}
-
-/* 文字標籤 */
-.djs-label text,
-.djs-shape text {
-    fill: var(--bpmn-text) !important;
-}
-
-/* 連接線上的標籤 */
-.djs-connection text {
-    fill: var(--bpmn-text) !important;
-}
-
-/* Start Event 綠色邊框 */
-.bpmn-icon-start-event-none ~ .djs-visual > circle,
-[data-element-id*="StartEvent"] .djs-visual > circle {
-    stroke: var(--success-color) !important;
-}
-
-/* End Event 紅色邊框 */
-.bpmn-icon-end-event-none ~ .djs-visual > circle,
-[data-element-id*="EndEvent"] .djs-visual > circle {
-    stroke: var(--error-color) !important;
-    stroke-width: 3px !important;
-}
 
 /* Canvas 背景 */
 .djs-container {
     background: var(--background) !important;
+}
+
+/* 選中的元素外框 - 加強高亮 */
+.djs-shape.selected .djs-outline,
+.djs-connection.selected .djs-outline {
+    stroke: var(--bpmn-stroke-selected) !important;
+    stroke-width: 2px !important;
+}
+
+/* 滑鼠懸停高亮 */
+.djs-shape.hover .djs-outline {
+    stroke: var(--bpmn-stroke-hover) !important;
+    stroke-width: 1.5px !important;
+    visibility: visible !important;
 }
 
 /* 選取框 */
@@ -571,74 +494,60 @@ defs marker path {
     opacity: 0.7;
 }
 
-/* Marker (箭頭) 定義 */
-marker path {
-    fill: var(--bpmn-connection-stroke) !important;
+/* ========================================
+   Context Pad and Popup Styling
+   ======================================== */
+
+/* Context pad styling - Dark theme (default) */
+.djs-context-pad {
+    z-index: 100;
 }
 
-/* SVG defs 中的 marker */
-svg defs marker path {
-    fill: var(--bpmn-connection-stroke) !important;
-    stroke: var(--bpmn-connection-stroke) !important;
+.djs-context-pad .entry {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    background: var(--sidebar-background);
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
 }
 
-/* Message Flow 虛線 */
-.djs-connection[data-element-id*="MessageFlow"] path.djs-visual {
-    stroke-dasharray: 8, 5 !important;
+.djs-context-pad .entry:hover {
+    background: var(--hover-color);
 }
 
-/* Association 點線 */
-.djs-connection[data-element-id*="Association"] path.djs-visual {
-    stroke-dasharray: 3, 3 !important;
-    stroke: var(--text-muted) !important;
+/* Popup menu styling */
+.djs-popup {
+    z-index: 200;
+    background: var(--sidebar-background) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+.djs-popup .entry {
+    cursor: pointer;
+    color: var(--foreground);
+}
+
+.djs-popup .entry:hover {
+    background: var(--hover-color);
+}
+
+.djs-popup .djs-popup-header {
+    background: var(--sidebar-background);
+    border-bottom: 1px solid var(--border-color);
+    color: var(--foreground);
+}
+
+.djs-popup .djs-popup-body {
+    background: var(--sidebar-background);
 }
 
 /* ========================================
    Light Theme Specific Overrides
    ======================================== */
 
-/* 淺色主題下 Context Pad 背景 */
-body.light-theme .djs-context-pad .entry {
-    background: #ffffff;
-    border-color: #d4d4d4;
-}
-
-body.light-theme .djs-context-pad .entry:hover {
-    background: #e8e8e8;
-}
-
-/* 淺色主題下 Popup Menu */
 body.light-theme .djs-popup {
-    background: #ffffff;
-    border-color: #d4d4d4;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-}
-
-body.light-theme .djs-popup .entry:hover {
-    background: #e8e8e8;
-}
-
-/* Context pad styling */
-.djs-context-pad {
-    z-index: 100;
-}
-
-/* Make sure context pad entries are visible */
-.djs-context-pad .entry {
-    display: flex !important;
-    align-items: center;
-    justify-content: center;
-}
-
-/* Ensure popup menu (for adding elements) is visible */
-.djs-popup {
-    z-index: 200;
-}
-
-.djs-popup .entry {
-    cursor: pointer;
-}
-
-.djs-popup .entry:hover {
-    background: var(--hover-color, #2a2d2e);
 }

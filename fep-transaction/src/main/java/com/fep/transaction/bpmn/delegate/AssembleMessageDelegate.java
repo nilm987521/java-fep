@@ -1,5 +1,7 @@
 package com.fep.transaction.bpmn.delegate;
 
+import com.fep.message.iso8583.Iso8583Message;
+import com.fep.message.iso8583.parser.FiscMessageAssembler;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.camunda.bpm.engine.delegate.DelegateExecution;
@@ -21,10 +23,6 @@ import java.util.concurrent.atomic.AtomicLong;
 @RequiredArgsConstructor
 public class AssembleMessageDelegate implements JavaDelegate {
 
-    // 注入電文服務
-    // private final MessageAssembler messageAssembler;
-    // private final ChannelMessageService channelMessageService;
-
     private static final AtomicLong STAN_SEQUENCE = new AtomicLong(1);
     private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("MMddHHmmss");
 
@@ -45,27 +43,25 @@ public class AssembleMessageDelegate implements JavaDelegate {
             String transmissionDateTime = LocalDateTime.now().format(DATE_FORMAT);
 
             // 2. 組裝電文欄位
-            // GenericMessage message = new GenericMessage(schema);
-            // message.setMti("0200");
-            // message.setField(2, sourceAccount);        // Primary Account Number
-            // message.setField(3, "400000");             // Processing Code (Transfer)
-            // message.setField(4, amount.toString());    // Transaction Amount
-            // message.setField(7, transmissionDateTime); // Transmission Date/Time
-            // message.setField(11, stan);                // STAN
-            // message.setField(37, rrn);                 // RRN
-            // message.setField(102, sourceAccount);      // Account ID 1
-            // message.setField(103, targetAccount);      // Account ID 2
-
-            // 模擬組裝完成
-            String messageHex = buildMockMessageHex(stan, rrn, amount);
+            Iso8583Message message = new Iso8583Message();
+            message.setMti("0200");
+            message.setField(2, sourceAccount);        // Primary Account Number
+            message.setField(3, "400000");             // Processing Code (Transfer)
+            message.setField(4, amount.toString());    // Transaction Amount
+            message.setField(7, transmissionDateTime); // Transmission Date/Time
+            message.setField(11, stan);                // STAN
+            message.setField(37, rrn);                 // RRN
+            message.setField(102, sourceAccount);      // Account ID 1
+            message.setField(103, targetAccount);      // Account ID 2
 
             // 3. 儲存到流程變數
+            byte[] assembledMessage = new FiscMessageAssembler().assemble(message);
             execution.setVariable("stan", stan);
             execution.setVariable("rrn", rrn);
             execution.setVariable("transmissionDateTime", transmissionDateTime);
-            execution.setVariable("requestMessage", messageHex);
             execution.setVariable("mti", "0200");
 
+            execution.setVariable("assembledMessage", assembledMessage);
             log.info("[{}] 電文組裝完成: STAN={}, RRN={}", transactionId, stan, rrn);
 
         } catch (Exception e) {
@@ -81,10 +77,5 @@ public class AssembleMessageDelegate implements JavaDelegate {
 
     private String generateRrn() {
         return LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyMMddHHmmss"));
-    }
-
-    private String buildMockMessageHex(String stan, String rrn, Long amount) {
-        // 模擬的 ISO 8583 電文 HEX
-        return String.format("0200F23844810AE08000%s%s%012d", stan, rrn, amount);
     }
 }

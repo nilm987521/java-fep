@@ -99,7 +99,7 @@
     "LOCAL_TEST_V1": {
       "connectionProfile": "LOCAL_TEST",
       "description": "Local test channel for development and testing",
-      "active": true,
+      "active": false,
       "priority": 100,
       "schemas": {
         "0200": "FISC ATM Format",

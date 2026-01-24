@@ -1,9 +1,12 @@
 package com.fep.bpmn.editor;
 
 import com.fep.bpmn.scanner.JavaDelegateScanner;
+import com.fep.bpmn.scanner.model.DelegateCategory;
+import com.fep.bpmn.scanner.model.DelegateCategorySerializer;
 import com.fep.bpmn.scanner.model.JavaDelegate;
 import com.fep.bpmn.services.DelegateRegistryService;
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 import com.google.gson.JsonObject;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.diagnostic.Logger;
@@ -47,7 +50,9 @@ import java.util.Objects;
 public class BpmnEditor extends UserDataHolderBase implements FileEditor {
 
     private static final Logger LOG = Logger.getInstance(BpmnEditor.class);
-    private static final Gson GSON = new Gson();
+    private static final Gson GSON = new GsonBuilder()
+            .registerTypeAdapter(DelegateCategory.class, new DelegateCategorySerializer())
+            .create();
 
     private final Project project;
     private final VirtualFile file;
@@ -77,9 +82,6 @@ public class BpmnEditor extends UserDataHolderBase implements FileEditor {
             @Override
             public void onLoadEnd(CefBrowser cefBrowser, CefFrame frame, int httpStatusCode) {
                 if (frame.isMain()) {
-                    // Open DevTools for debugging (remove in production)
-                    browser.openDevtools();
-
                     injectJavaScript();
                     sendThemeToWebview();
                     sendBpmnToWebview();

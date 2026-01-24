@@ -180,7 +180,7 @@ fep:
     max-connections: 5
     auto-reconnect: true
     dual-channel:
-      enabled: false
+      enabled: true
 
   # HSM Settings (Software HSM for Development)
   hsm:
@@ -289,9 +289,9 @@ fep:
     # Dual-channel mode (FISC standard)
     dual-channel:
       enabled: false  # Set to true to enable dual-channel mode
-      send-host: localhost
+      send-host: 127.0.0.1
       send-port: 9001
-      receive-host: localhost
+      receive-host: 127.0.0.1
       receive-port: 9002
       failure-strategy: FAIL_WHEN_BOTH_DOWN  # FAIL_WHEN_BOTH_DOWN, FAIL_WHEN_ANY_DOWN
 
@@ -369,7 +369,7 @@ camunda.bpm:
 
 logging:
   level:
-    root: ERROR
+    root: INFO
     com.fep: INFO
 
 fep:

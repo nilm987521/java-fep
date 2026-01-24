@@ -1,41 +1,63 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import BpmnModeler from 'bpmn-js/lib/Modeler';
 import camundaModdleDescriptor from 'camunda-bpmn-moddle/resources/camunda.json';
 import { useEditorStore } from '../stores/editorStore';
 import { sendToIde } from '../App';
 import { SelectedElement } from '../types';
-import coloredRendererModule from '../custom-renderer';
 
 // Import bpmn-js styles
 import 'bpmn-js/dist/assets/diagram-js.css';
 import 'bpmn-js/dist/assets/bpmn-js.css';
 import 'bpmn-js/dist/assets/bpmn-font/css/bpmn.css';
 
+// Theme colors configuration
+const THEME_COLORS = {
+    dark: {
+        defaultFillColor: '#2d2d2d',
+        defaultStrokeColor: '#d0d0d0',
+        defaultLabelColor: '#e0e0e0'
+    },
+    light: {
+        defaultFillColor: '#ffffff',
+        defaultStrokeColor: '#333333',
+        defaultLabelColor: '#333333'
+    }
+};
+
 const BpmnEditor: React.FC = () => {
     const containerRef = useRef<HTMLDivElement>(null);
     const modelerRef = useRef<BpmnModeler | null>(null);
+    const currentXmlRef = useRef<string>('');
+    const viewboxRef = useRef<any>(null);
     const { bpmnXml, isDarkTheme, setDirty, setSelectedElement } = useEditorStore();
 
-    useEffect(() => {
-        if (!containerRef.current) return;
+    // Create modeler with theme-specific colors
+    const createModeler = useCallback((theme: 'dark' | 'light') => {
+        if (!containerRef.current) return null;
 
-        // Initialize modeler with custom renderer
+        const colors = THEME_COLORS[theme];
+
         const modeler = new BpmnModeler({
             container: containerRef.current,
             moddleExtensions: {
                 camunda: camundaModdleDescriptor
             },
-            additionalModules: [
-                coloredRendererModule
-            ],
             keyboard: {
                 bindTo: window
+            },
+            // Apply theme colors via bpmnRenderer options
+            bpmnRenderer: {
+                defaultFillColor: colors.defaultFillColor,
+                defaultStrokeColor: colors.defaultStrokeColor,
+                defaultLabelColor: colors.defaultLabelColor
             }
         });
 
-        modelerRef.current = modeler;
+        return modeler;
+    }, []);
 
-        // Setup event listeners
+    // Setup event listeners for a modeler instance
+    const setupEventListeners = useCallback((modeler: BpmnModeler) => {
         const eventBus = modeler.get('eventBus') as any;
 
         // Track changes
@@ -62,6 +84,18 @@ const BpmnEditor: React.FC = () => {
                 setSelectedElement(null);
             }
         });
+    }, [setDirty, setSelectedElement]);
+
+    // Initialize modeler
+    useEffect(() => {
+        if (!containerRef.current) return;
+
+        const theme = isDarkTheme ? 'dark' : 'light';
+        const modeler = createModeler(theme);
+        if (!modeler) return;
+
+        modelerRef.current = modeler;
+        setupEventListeners(modeler);
 
         // Listen for commands from IDE
         const handleCommand = (e: CustomEvent<string>) => {
@@ -80,39 +114,69 @@ const BpmnEditor: React.FC = () => {
             window.removeEventListener('add-delegate', handleAddDelegate as EventListener);
             modeler.destroy();
         };
-    }, [setDirty, setSelectedElement]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []); // Only run once on mount
 
     // Load BPMN XML when it changes
     useEffect(() => {
         if (!modelerRef.current || !bpmnXml) return;
 
+        currentXmlRef.current = bpmnXml;
         modelerRef.current.importXML(bpmnXml).catch((err: Error) => {
             console.error('Failed to import BPMN:', err);
             sendToIde({ type: 'showError', message: 'Failed to load BPMN: ' + err.message });
         });
     }, [bpmnXml]);
 
-    // Update connection colors when theme changes
+    // Recreate modeler when theme changes to apply new colors
     useEffect(() => {
-        if (!containerRef.current) return;
+        if (!containerRef.current || !modelerRef.current) return;
 
-        // Get the stroke color from CSS variable
-        const strokeColor = getComputedStyle(document.body)
-            .getPropertyValue('--bpmn-connection-stroke').trim() || '#ffffff';
+        const theme = isDarkTheme ? 'dark' : 'light';
 
-        // Update all existing connection paths
-        const connections = containerRef.current.querySelectorAll('.djs-connection path');
-        connections.forEach((path) => {
-            path.setAttribute('stroke', strokeColor);
+        // Save current viewbox position
+        try {
+            const canvas = modelerRef.current.get('canvas') as any;
+            viewboxRef.current = canvas.viewbox();
+        } catch (e) {
+            // Ignore if canvas not ready
+        }
+
+        // Save current XML
+        modelerRef.current.saveXML({ format: true }).then((result) => {
+            currentXmlRef.current = result.xml || '';
+
+            // Destroy old modeler
+            modelerRef.current?.destroy();
+
+            // Create new modeler with updated theme colors
+            const newModeler = createModeler(theme);
+            if (!newModeler) return;
+
+            modelerRef.current = newModeler;
+            setupEventListeners(newModeler);
+
+            // Re-import the diagram
+            if (currentXmlRef.current) {
+                newModeler.importXML(currentXmlRef.current).then(() => {
+                    // Restore viewbox position
+                    if (viewboxRef.current) {
+                        try {
+                            const canvas = newModeler.get('canvas') as any;
+                            canvas.viewbox(viewboxRef.current);
+                        } catch (e) {
+                            // Ignore if viewbox restore fails
+                        }
+                    }
+                }).catch((err: Error) => {
+                    console.error('Failed to re-import after theme change:', err);
+                });
+            }
+        }).catch((err) => {
+            console.error('Failed to save XML before theme change:', err);
         });
-
-        // Update all markers (arrows)
-        const markers = containerRef.current.querySelectorAll('marker path');
-        markers.forEach((path) => {
-            path.setAttribute('fill', strokeColor);
-            path.setAttribute('stroke', strokeColor);
-        });
-    }, [isDarkTheme]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isDarkTheme]); // Re-create modeler when theme changes
 
     const saveCurrentXml = async () => {
         if (!modelerRef.current) return;

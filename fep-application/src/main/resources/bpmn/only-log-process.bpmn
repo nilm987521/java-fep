@@ -10,19 +10,19 @@
     <bpmn:sequenceFlow id="Flow_1" sourceRef="StartEvent_1" targetRef="Activity_08an4p5" />
     <bpmn:serviceTask id="Activity_08an4p5" name="記錄交易日誌" camunda:delegateExpression="${logTransactionDelegate}">
       <bpmn:incoming>Flow_1</bpmn:incoming>
-      <bpmn:outgoing>Flow_ToSuccessResponse</bpmn:outgoing>
+      <bpmn:outgoing>Flow_0x0kc0e</bpmn:outgoing>
     </bpmn:serviceTask>
-    <bpmn:serviceTask id="Activity_BuildSuccessResponse" name="組裝成功回應" camunda:delegateExpression="${buildSuccessResponseDelegate}">
-      <bpmn:incoming>Flow_ToSuccessResponse</bpmn:incoming>
-      <bpmn:outgoing>Flow_ToSendResponse</bpmn:outgoing>
-    </bpmn:serviceTask>
-    <bpmn:sequenceFlow id="Flow_ToSuccessResponse" sourceRef="Activity_08an4p5" targetRef="Activity_BuildSuccessResponse" />
-    <bpmn:sequenceFlow id="Flow_ToSendResponse" sourceRef="Activity_BuildSuccessResponse" targetRef="Activity_0cqy8ap" />
     <bpmn:serviceTask id="Activity_0cqy8ap" name="發送電文至財金公司" camunda:delegateExpression="${sendToFiscDelegate}">
-      <bpmn:incoming>Flow_ToSendResponse</bpmn:incoming>
+      <bpmn:incoming>Flow_0k758zv</bpmn:incoming>
       <bpmn:outgoing>Flow_1ecgxe7</bpmn:outgoing>
     </bpmn:serviceTask>
     <bpmn:sequenceFlow id="Flow_1ecgxe7" sourceRef="Activity_0cqy8ap" targetRef="EndEvent_1" />
+    <bpmn:serviceTask id="Activity_199j6bt" name="Assemble Message" camunda:delegateExpression="${assembleMessageDelegate}">
+      <bpmn:incoming>Flow_0x0kc0e</bpmn:incoming>
+      <bpmn:outgoing>Flow_0k758zv</bpmn:outgoing>
+    </bpmn:serviceTask>
+    <bpmn:sequenceFlow id="Flow_0x0kc0e" sourceRef="Activity_08an4p5" targetRef="Activity_199j6bt" />
+    <bpmn:sequenceFlow id="Flow_0k758zv" sourceRef="Activity_199j6bt" targetRef="Activity_0cqy8ap" />
   </bpmn:process>
   <bpmndi:BPMNDiagram id="BPMNDiagram_1">
     <bpmndi:BPMNPlane id="BPMNPlane_1" bpmnElement="Only_Log_Process">
@@ -42,29 +42,29 @@
         <dc:Bounds x="270" y="90" width="100" height="80" />
         <bpmndi:BPMNLabel />
       </bpmndi:BPMNShape>
-      <bpmndi:BPMNShape id="Activity_BuildSuccessResponse_di" bpmnElement="Activity_BuildSuccessResponse">
-        <dc:Bounds x="430" y="90" width="100" height="80" />
-        <bpmndi:BPMNLabel />
-      </bpmndi:BPMNShape>
       <bpmndi:BPMNShape id="Activity_0cqy8ap_di" bpmnElement="Activity_0cqy8ap">
         <dc:Bounds x="608.4617283950618" y="90.31481481481478" width="100" height="80" />
+        <bpmndi:BPMNLabel />
+      </bpmndi:BPMNShape>
+      <bpmndi:BPMNShape id="Activity_199j6bt_di" bpmnElement="Activity_199j6bt">
+        <dc:Bounds x="440" y="90" width="100" height="80" />
         <bpmndi:BPMNLabel />
       </bpmndi:BPMNShape>
       <bpmndi:BPMNEdge id="Flow_1_di" bpmnElement="Flow_1">
         <di:waypoint x="215" y="130" />
         <di:waypoint x="270" y="130" />
       </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_ToSuccessResponse_di" bpmnElement="Flow_ToSuccessResponse">
-        <di:waypoint x="370" y="130" />
-        <di:waypoint x="430" y="130" />
-      </bpmndi:BPMNEdge>
-      <bpmndi:BPMNEdge id="Flow_ToSendResponse_di" bpmnElement="Flow_ToSendResponse">
-        <di:waypoint x="530" y="130" />
-        <di:waypoint x="608" y="130" />
-      </bpmndi:BPMNEdge>
       <bpmndi:BPMNEdge id="Flow_1ecgxe7_di" bpmnElement="Flow_1ecgxe7">
         <di:waypoint x="708" y="130" />
         <di:waypoint x="752" y="130" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0x0kc0e_di" bpmnElement="Flow_0x0kc0e">
+        <di:waypoint x="370" y="130" />
+        <di:waypoint x="440" y="130" />
+      </bpmndi:BPMNEdge>
+      <bpmndi:BPMNEdge id="Flow_0k758zv_di" bpmnElement="Flow_0k758zv">
+        <di:waypoint x="540" y="130" />
+        <di:waypoint x="608" y="130" />
       </bpmndi:BPMNEdge>
     </bpmndi:BPMNPlane>
   </bpmndi:BPMNDiagram>

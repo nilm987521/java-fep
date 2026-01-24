@@ -2,7 +2,6 @@ package com.fep.communication.client;
 
 import com.fep.communication.codec.FiscMessageDecoder;
 import com.fep.communication.codec.FiscMessageEncoder;
-import com.fep.communication.config.ChannelFailureStrategy;
 import com.fep.communication.config.DualChannelConfig;
 import com.fep.communication.exception.CommunicationException;
 import com.fep.communication.handler.ReceiveChannelHandler;
@@ -13,6 +12,8 @@ import com.fep.message.iso8583.Iso8583Message;
 import com.fep.message.iso8583.Iso8583MessageFactory;
 import com.fep.message.service.ChannelMessageService;
 import io.netty.bootstrap.Bootstrap;
+import io.netty.buffer.ByteBuf;
+import io.netty.buffer.Unpooled;
 import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
@@ -540,6 +541,82 @@ public class FiscDualChannelClient implements AutoCloseable {
         });
 
         return responseFuture;
+    }
+
+    /**
+     * Sends raw bytes and waits for response.
+     *
+     * <p>This method allows sending pre-assembled byte arrays directly,
+     * avoiding the need to deserialize and re-serialize messages.
+     * The response is returned as raw bytes.
+     *
+     * @param data the raw message bytes (must include STAN in field 11)
+     * @param stan the STAN for request/response matching
+     * @return CompletableFuture that completes with the response bytes
+     */
+    public CompletableFuture<byte[]> sendRawAndReceive(byte[] data, String stan) {
+        return sendRawAndReceive(data, stan, config.getReadTimeoutMs());
+    }
+
+    /**
+     * Sends raw bytes and waits for response with custom timeout.
+     *
+     * @param data the raw message bytes
+     * @param stan the STAN for request/response matching
+     * @param timeoutMs timeout in milliseconds
+     * @return CompletableFuture that completes with the response bytes
+     */
+    public CompletableFuture<byte[]> sendRawAndReceive(byte[] data, String stan, long timeoutMs) {
+        // Determine which channel to use
+        Channel outChannel;
+        String channelName;
+        if (config.isDualChannelMode()) {
+            outChannel = sendChannel;
+            channelName = config.getSendChannelName();
+        } else {
+            outChannel = unifiedChannel;
+            channelName = config.getUnifiedChannelName();
+        }
+
+        if (outChannel == null || !outChannel.isActive()) {
+            return CompletableFuture.failedFuture(
+                CommunicationException.channelClosed("Channel is not connected"));
+        }
+
+        if (stan == null || stan.isEmpty()) {
+            return CompletableFuture.failedFuture(
+                new IllegalArgumentException("STAN is required for request/response matching"));
+        }
+
+        // Register pending request BEFORE sending (response will be Iso8583Message)
+        CompletableFuture<Iso8583Message> responseFuture =
+            pendingRequestManager.register(stan, timeoutMs);
+
+        // Wrap bytes in ByteBuf and send directly
+        ByteBuf byteBuf = Unpooled.wrappedBuffer(data);
+
+        // Send via appropriate channel (fire-and-forget)
+        outChannel.writeAndFlush(byteBuf).addListener((ChannelFutureListener) writeFuture -> {
+            if (!writeFuture.isSuccess()) {
+                // Cancel pending request on send failure
+                pendingRequestManager.cancel(stan, writeFuture.cause());
+                log.error("[{}] Failed to send raw message STAN={}: {}",
+                    channelName, stan, writeFuture.cause().getMessage());
+            } else {
+                log.debug("[{}] Raw message sent: STAN={}, size={} bytes",
+                    channelName, stan, data.length);
+            }
+        });
+
+        // Convert response Iso8583Message back to bytes
+        return responseFuture.thenApply(response -> {
+            try {
+                return messageFactory.assemble(response);
+            } catch (Exception e) {
+                log.error("[{}] Failed to serialize response: {}", channelName, e.getMessage());
+                throw new RuntimeException("Failed to serialize response", e);
+            }
+        });
     }
 
     /**
