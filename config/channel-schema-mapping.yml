@@ -1,0 +1,202 @@
+# FEP Channel Schema Mapping Configuration
+# 通道與 Schema 映射配置
+
+schema: fep-channel-schema-mapping-v1
+version: "1.0.0"
+last-modified: "2026-01-24T10:00:00Z"
+
+# Schema 檔案參考
+schema-files:
+  - path: ../schemas/atm-schemas.yml
+    description: ATM protocol schemas (FISC, NCR, Diebold, Wincor)
+
+# 通道定義
+channels:
+  - id: ATM_FISC_V1
+    name: FISC ATM Channel
+    description: Taiwan FISC standard ATM message format
+    type: ATM
+    vendor: FISC
+    version: "1.0"
+    active: true
+    request-schemas:
+      - FISC ATM Format
+    response-schemas:
+      - FISC ATM Format
+    default-request-schema: FISC ATM Format
+    default-response-schema: FISC ATM Format
+    properties:
+      encoding: ASCII
+      mac-required: "true"
+      institution-id: "822"
+    tags:
+      - production
+      - interbank
+    priority: 1
+
+  - id: ATM_NCR_V1
+    name: NCR ATM Channel V1
+    description: NCR NDC (Network Data Control) ATM protocol
+    type: ATM
+    vendor: NCR
+    version: "1.0"
+    active: true
+    request-schemas:
+      - NCR NDC Protocol
+    response-schemas:
+      - NCR NDC Protocol
+    default-request-schema: NCR NDC Protocol
+    default-response-schema: NCR NDC Protocol
+    properties:
+      encoding: ASCII
+      mac-required: "true"
+    tags:
+      - production
+    priority: 10
+
+  - id: ATM_DIEBOLD_V1
+    name: Diebold ATM Channel
+    description: Diebold Nixdorf 91x ATM protocol
+    type: ATM
+    vendor: Diebold
+    version: "1.0"
+    active: true
+    request-schemas:
+      - Diebold 91x Protocol
+    response-schemas:
+      - Diebold 91x Protocol
+    default-request-schema: Diebold 91x Protocol
+    default-response-schema: Diebold 91x Protocol
+    properties:
+      encoding: ASCII
+    tags:
+      - production
+    priority: 10
+
+  - id: ATM_WINCOR_V1
+    name: Wincor ATM Channel
+    description: Wincor Nixdorf DDC ATM protocol
+    type: ATM
+    vendor: Wincor
+    version: "1.0"
+    active: true
+    request-schemas:
+      - Wincor DDC Protocol
+    response-schemas:
+      - Wincor DDC Protocol
+    default-request-schema: Wincor DDC Protocol
+    default-response-schema: Wincor DDC Protocol
+    properties:
+      encoding: ASCII
+    tags:
+      - production
+    priority: 10
+
+  - id: FISC_INTERBANK_V1
+    name: FISC Interbank Channel
+    description: Taiwan FISC standard interbank protocol for FEP-to-FISC communication
+    type: INTERBANK
+    vendor: FISC
+    version: "1.0"
+    active: true
+    request-schemas:
+      - FISC ATM Format
+    response-schemas:
+      - FISC ATM Format
+    default-request-schema: FISC ATM Format
+    default-response-schema: FISC ATM Format
+    properties:
+      encoding: ASCII
+      mac-required: "true"
+      institution-id: "822"
+      mac-algorithm: ANSI_X9_19
+    tags:
+      - production
+      - fisc
+      - critical
+    priority: 1
+
+  - id: POS_GENERIC_V1
+    name: Generic POS Channel
+    description: Generic ISO 8583 POS terminal protocol
+    type: POS
+    vendor: GENERIC
+    version: "1.0"
+    active: true
+    request-schemas:
+      - ISO 8583 Generic
+    response-schemas:
+      - ISO 8583 Generic
+    default-request-schema: ISO 8583 Generic
+    default-response-schema: ISO 8583 Generic
+    properties:
+      encoding: ASCII
+    tags:
+      - production
+    priority: 20
+
+  - id: CBS_MAINFRAME_V1
+    name: Core Banking System
+    description: Mainframe CBS integration channel (placeholder)
+    type: CBS
+    vendor: INTERNAL
+    version: "1.0"
+    active: false
+    default-request-schema: ISO 8583 Generic
+    default-response-schema: ISO 8583 Generic
+    properties:
+      mq-queue-manager: CBS_QM
+      request-queue: CBS.REQUEST.QUEUE
+      response-queue: CBS.RESPONSE.QUEUE
+    tags:
+      - internal
+      - mainframe
+    priority: 5
+
+  - id: MOBILE_BANK_V1
+    name: Mobile Banking Channel
+    description: Mobile banking internal API protocol (placeholder)
+    type: MOBILE
+    vendor: INTERNAL
+    version: "1.0"
+    active: false
+    default-request-schema: ISO 8583 Generic
+    default-response-schema: ISO 8583 Generic
+    tags:
+      - internal
+    priority: 20
+
+  - id: INTERNET_BANK_V1
+    name: Internet Banking Channel
+    description: Internet banking API protocol (placeholder)
+    type: INTERNET
+    vendor: INTERNAL
+    version: "1.0"
+    active: false
+    default-request-schema: ISO 8583 Generic
+    default-response-schema: ISO 8583 Generic
+    tags:
+      - internal
+    priority: 20
+
+# MTI 對應 Schema 覆寫
+schema-overrides:
+  FISC_INTERBANK_V1:
+    "0100":
+      request: FISC ATM Format
+      response: FISC ATM Format
+    "0200":
+      request: FISC ATM Format
+      response: FISC ATM Format
+    "0400":
+      request: FISC ATM Format
+      response: FISC ATM Format
+    "0800":
+      request: FISC ATM Format
+      response: FISC ATM Format
+
+# 預設值
+defaults:
+  fallback-channel: FISC_INTERBANK_V1
+  unknown-channel-behavior: USE_FALLBACK
+  schema-not-found-behavior: THROW_ERROR

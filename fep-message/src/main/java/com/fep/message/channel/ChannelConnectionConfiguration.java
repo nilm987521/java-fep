@@ -32,7 +32,7 @@ import java.util.Map;
  * fep:
  *   connection:
  *     enabled: true
- *     config-path: config/channel-config.json
+ *     config-path: config/channel-config.yml
  *     hot-reload-enabled: true
  *     profile-overrides:
  *       FISC_PRIMARY:

@@ -158,7 +158,7 @@ class ChannelSchemaConfigurationTest {
                 .run(context -> {
                     ChannelSchemaProperties properties = context.getBean(ChannelSchemaProperties.class);
 
-                    assertThat(properties.getConfigFile()).isEqualTo("config/channel-schema-mapping.json");
+                    assertThat(properties.getConfigFile()).isEqualTo("config/channel-schema-mapping.yml");
                     assertThat(properties.isHotReload()).isFalse();
                     assertThat(properties.getHotReloadInterval()).isEqualTo(5000);
                     assertThat(properties.isValidateSchemaReferences()).isFalse();

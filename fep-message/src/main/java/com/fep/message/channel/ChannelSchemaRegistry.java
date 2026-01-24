@@ -32,7 +32,7 @@ import java.util.stream.Collectors;
  * <p>Usage example:
  * <pre>
  * // Load configuration
- * ChannelSchemaRegistry.getInstance().loadFromFile("config/channel-schema-mapping.json");
+ * ChannelSchemaRegistry.getInstance().loadFromFile("config/channel-schema-mapping.yml");
  *
  * // Get schema for a channel
  * MessageSchema schema = ChannelSchemaRegistry.getInstance()

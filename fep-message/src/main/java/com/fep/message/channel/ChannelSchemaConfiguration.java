@@ -32,7 +32,7 @@ import java.util.Map;
  * fep:
  *   channel:
  *     enabled: true
- *     config-file: config/channel-schema-mapping.json
+ *     config-file: config/channel-schema-mapping.yml
  *     hot-reload: true
  * </pre>
  */

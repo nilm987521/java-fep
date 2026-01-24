@@ -2,8 +2,8 @@ package com.fep.jmeter.sampler;
 
 /**
  * Source types for message schema.
- * Schema is loaded from an external JSON file only.
- * Default schema directory: ${user.dir}/schemas/atm-schemas.json
+ * Schema is loaded from an external file (JSON or YAML).
+ * Default schema directory: ${user.dir}/schemas/atm-schemas.yml
  */
 public enum SchemaSource {
 
@@ -58,6 +58,6 @@ public enum SchemaSource {
      * Get default schema file path using user.dir system property.
      */
     public static String getDefaultSchemaPath() {
-        return System.getProperty("user.dir") + "/schemas/atm-schemas.json";
+        return System.getProperty("user.dir") + "/schemas/atm-schemas.yml";
     }
 }

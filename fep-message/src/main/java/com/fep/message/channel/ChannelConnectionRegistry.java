@@ -3,6 +3,7 @@ package com.fep.message.channel;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.fep.message.interfaces.ConnectionSubscriber;
 import lombok.extern.slf4j.Slf4j;
 
@@ -68,12 +69,28 @@ public class ChannelConnectionRegistry {
     // Subscribers
     private final List<WeakReference<ConnectionSubscriber>> subscribers = new CopyOnWriteArrayList<>();
 
-    // JSON mapper
+    // JSON/YAML mappers
     private final ObjectMapper jsonMapper;
+    private final ObjectMapper yamlMapper;
 
     private ChannelConnectionRegistry() {
-        this.jsonMapper = new ObjectMapper();
-        this.jsonMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+        this.jsonMapper = createObjectMapper(null);
+        this.yamlMapper = createObjectMapper(new YAMLFactory());
+    }
+
+    private ObjectMapper createObjectMapper(com.fasterxml.jackson.core.JsonFactory factory) {
+        ObjectMapper mapper = factory != null ? new ObjectMapper(factory) : new ObjectMapper();
+        mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+        return mapper;
+    }
+
+    /**
+     * Checks if a file is YAML based on its extension.
+     */
+    private boolean isYamlFile(String filePath) {
+        if (filePath == null) return false;
+        String lower = filePath.toLowerCase();
+        return lower.endsWith(".yml") || lower.endsWith(".yaml");
     }
 
     /**
@@ -99,6 +116,7 @@ public class ChannelConnectionRegistry {
     /**
      * Loads configuration from a file.
      * Automatically detects V1 or V2 format.
+     * Supports both JSON and YAML formats based on file extension.
      *
      * @param filePath path to the configuration file
      * @throws ChannelConfigException if loading fails
@@ -118,7 +136,8 @@ public class ChannelConnectionRegistry {
             }
 
             String content = Files.readString(file.toPath());
-            loadFromJson(content, filePath);
+            ObjectMapper mapper = isYamlFile(filePath) ? yamlMapper : jsonMapper;
+            loadFromContent(content, filePath, mapper);
 
         } catch (IOException e) {
             throw ChannelConfigException.configFileError(filePath, e.getMessage());
@@ -135,7 +154,8 @@ public class ChannelConnectionRegistry {
     public synchronized void loadFromStream(InputStream inputStream, String sourceName) {
         try {
             String content = new String(inputStream.readAllBytes());
-            loadFromJson(content, sourceName);
+            ObjectMapper mapper = isYamlFile(sourceName) ? yamlMapper : jsonMapper;
+            loadFromContent(content, sourceName, mapper);
         } catch (IOException e) {
             throw ChannelConfigException.configFileError(sourceName, e.getMessage());
         }
@@ -149,8 +169,20 @@ public class ChannelConnectionRegistry {
      * @throws ChannelConfigException if parsing fails
      */
     public synchronized void loadFromJson(String json, String sourceName) {
+        loadFromContent(json, sourceName, jsonMapper);
+    }
+
+    /**
+     * Loads configuration from content using the specified mapper.
+     *
+     * @param content the configuration content
+     * @param sourceName the source name for logging
+     * @param mapper the ObjectMapper to use (JSON or YAML)
+     * @throws ChannelConfigException if parsing fails
+     */
+    private synchronized void loadFromContent(String content, String sourceName, ObjectMapper mapper) {
         try {
-            JsonNode root = jsonMapper.readTree(json);
+            JsonNode root = mapper.readTree(content);
 
             // Detect version
             String version = root.has("version") ? root.get("version").asText() : "1.0";
@@ -164,7 +196,7 @@ public class ChannelConnectionRegistry {
                 this.v2ConfigLoaded = false;
                 // V1 format - delegate to ChannelSchemaRegistry
                 if (schemaRegistry != null) {
-                    schemaRegistry.loadFromJson(json);
+                    schemaRegistry.loadFromJson(content);
                 }
             }
 
@@ -175,7 +207,7 @@ public class ChannelConnectionRegistry {
             notifySubscribers();
 
         } catch (IOException e) {
-            throw new ChannelConfigException("Failed to parse JSON configuration: " + e.getMessage(), e);
+            throw new ChannelConfigException("Failed to parse configuration: " + e.getMessage(), e);
         }
     }
 

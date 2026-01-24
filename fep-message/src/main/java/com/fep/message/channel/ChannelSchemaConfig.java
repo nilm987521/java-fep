@@ -10,7 +10,7 @@ import java.util.Map;
 
 /**
  * Root configuration object for channel-schema mapping.
- * Represents the structure of the channel-schema-mapping.json file.
+ * Represents the structure of the channel-schema-mapping configuration file (JSON or YAML).
  *
  * <p>Example configuration:
  * <pre>

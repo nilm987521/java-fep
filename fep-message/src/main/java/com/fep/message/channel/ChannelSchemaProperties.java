@@ -9,7 +9,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * <pre>
  * fep:
  *   channel:
- *     config-file: config/channel-schema-mapping.json
+ *     config-file: config/channel-schema-mapping.yml
  *     hot-reload: true
  *     hot-reload-interval: 5000
  * </pre>
@@ -20,9 +20,9 @@ public class ChannelSchemaProperties {
     /**
      * Path to the channel-schema mapping configuration file.
      * Supports both absolute and relative paths.
-     * Default: config/channel-schema-mapping.json
+     * Default: config/channel-schema-mapping.yml
      */
-    private String configFile = "config/channel-schema-mapping.json";
+    private String configFile = "config/channel-schema-mapping.yml";
 
     /**
      * Enable hot-reload of channel configuration.

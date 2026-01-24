@@ -12,6 +12,7 @@ spring:
   config:
     import:
       - classpath:bpmn.yml
+      - classpath:connection.yml
 
   # Jackson Configuration
   jackson:
@@ -72,8 +73,6 @@ camunda.bpm:
       # History Time To Live (TTL) - required in Camunda 7.22+
       # 保留歷史資料 180 天
       historyTimeToLive: P180D
-      # 或者關閉 TTL 強制檢查 (不建議用於生產環境)
-      # enforceHistoryTimeToLive: false
 
 # Logging Configuration
 logging:
@@ -143,44 +142,13 @@ camunda.bpm:
 fep:
   # Pending Transaction Configuration (Pure DB Architecture)
   pending:
-    fisc-timeout-ms: 30000          # FISC 回應超時時間
+    fisc-timeout-ms: 30000
 
   # Timeout Scanner Configuration (Pure DB Architecture)
   timeout-scanner:
-    enabled: true                    # 啟用超時掃描器
-    interval-ms: 1000               # 掃描間隔 (1 秒)
-    batch-size: 100                 # 每次掃描的最大數量
-
-  # Dynamic Connection Management
-  connection:
-    dynamic-management:
-      enabled: true                    # 啟用動態連線管理
-    config-path: ${CONNECTION_CONFIG_FILE:config/channel-config.json}
-    hot-reload-enabled: ${CONNECTION_HOT_RELOAD:false}
-    auto-connect: true
-    auto-sign-on: false
-    graceful-shutdown-timeout-ms: 5000
-
-  # Channel-Schema Mapping Configuration
-  channel:
     enabled: true
-    config-file: ${CHANNEL_CONFIG_FILE:config/channel-schema-mapping.json}
-    hot-reload: ${CHANNEL_HOT_RELOAD:false}
-    hot-reload-interval: 5000
-    fail-on-missing-config: false
-    validate-schema-references: false
-
-  # FISC Connection Settings (Development)
-  fisc:
-    host: localhost
-    port: 9000
-    connection-timeout: 10000
-    read-timeout: 30000
-    heartbeat-interval: 30000
-    max-connections: 5
-    auto-reconnect: true
-    dual-channel:
-      enabled: true
+    interval-ms: 1000
+    batch-size: 100
 
   # HSM Settings (Software HSM for Development)
   hsm:
@@ -204,14 +172,6 @@ fep:
   security:
     pin-block-format: FORMAT_0
     mac-algorithm: ANSI_X9_19
-
-  # BPMN Integration Settings
-  communication:
-    fisc:
-      default-channel: FISC_INTERBANK_V1
-      timeout-ms: 30000
-
-  # BPMN 路由設定已移至 bpmn.yml
 
 ---
 # Development Profile (H2 In-Memory)
@@ -247,53 +207,13 @@ camunda.bpm:
 fep:
   # Pending Transaction Configuration (Pure DB Architecture)
   pending:
-    fisc-timeout-ms: 30000          # FISC 回應超時時間
+    fisc-timeout-ms: 30000
 
   # Timeout Scanner Configuration (Pure DB Architecture)
-  # 使用 DB FOR UPDATE SKIP LOCKED，不需要 Redis 分散式鎖
   timeout-scanner:
-    enabled: true                    # 啟用超時掃描器
-    interval-ms: 1000               # 掃描間隔 (1 秒)
-    batch-size: 100                 # 每次掃描的最大數量
-
-  # Dynamic Connection Management
-  connection:
-    dynamic-management:
-      enabled: true                    # 啟用動態連線管理
-    config-path: ${CONNECTION_CONFIG_FILE:config/channel-config.json}
-    hot-reload-enabled: ${CONNECTION_HOT_RELOAD:false}
-    auto-connect: true                 # 開發環境不自動連線
-    auto-sign-on: false
-    graceful-shutdown-timeout-ms: 5000
-
-  # Channel-Schema Mapping Configuration
-  channel:
     enabled: true
-    config-file: ${CHANNEL_CONFIG_FILE:config/channel-schema-mapping.json}
-    hot-reload: ${CHANNEL_HOT_RELOAD:false}
-    hot-reload-interval: 5000
-    fail-on-missing-config: false
-    validate-schema-references: false
-
-  # FISC Connection Settings (Development)
-  fisc:
-    # Single-channel mode (legacy)
-    host: localhost
-    port: 9000
-    connection-timeout: 10000
-    read-timeout: 30000
-    heartbeat-interval: 30000
-    max-connections: 5
-    auto-reconnect: true
-
-    # Dual-channel mode (FISC standard)
-    dual-channel:
-      enabled: false  # Set to true to enable dual-channel mode
-      send-host: 127.0.0.1
-      send-port: 9001
-      receive-host: 127.0.0.1
-      receive-port: 9002
-      failure-strategy: FAIL_WHEN_BOTH_DOWN  # FAIL_WHEN_BOTH_DOWN, FAIL_WHEN_ANY_DOWN
+    interval-ms: 1000
+    batch-size: 100
 
   # HSM Settings (Software HSM for Development)
   hsm:
@@ -317,14 +237,6 @@ fep:
   security:
     pin-block-format: FORMAT_0
     mac-algorithm: ANSI_X9_19
-
-  # BPMN Integration Settings (Development)
-  communication:
-    fisc:
-      default-channel: FISC_INTERBANK_V1
-      timeout-ms: 30000
-
-  # BPMN 路由設定已移至 bpmn.yml
 
 ---
 # Production Profile
@@ -378,55 +290,10 @@ fep:
     fisc-timeout-ms: ${FISC_TIMEOUT_MS:30000}
 
   # Timeout Scanner Configuration (Pure DB Architecture - Production)
-  # 使用 DB FOR UPDATE SKIP LOCKED，不需要 Redis 分散式鎖
   timeout-scanner:
     enabled: ${TIMEOUT_SCANNER_ENABLED:true}
     interval-ms: ${TIMEOUT_SCANNER_INTERVAL_MS:1000}
     batch-size: ${TIMEOUT_SCANNER_BATCH_SIZE:100}
-
-  # Dynamic Connection Management (Production)
-  connection:
-    dynamic-management:
-      enabled: true
-    config-path: ${CONNECTION_CONFIG_FILE:config/channel-config.json}
-    hot-reload-enabled: ${CONNECTION_HOT_RELOAD:true}
-    auto-connect: true
-    auto-sign-on: true
-    graceful-shutdown-timeout-ms: 10000
-
-  # Channel-Schema Mapping Configuration (Production)
-  channel:
-    enabled: true
-    config-file: ${CHANNEL_CONFIG_FILE:config/channel-schema-mapping.json}
-    hot-reload: ${CHANNEL_HOT_RELOAD:true}
-    hot-reload-interval: 10000
-    fail-on-missing-config: true
-    validate-schema-references: true
-
-  # FISC Connection Settings (Production)
-  fisc:
-    # Single-channel mode (legacy/fallback)
-    host: ${FISC_HOST:192.168.1.100}
-    port: ${FISC_PORT:9000}
-    connection-timeout: 10000
-    read-timeout: 30000
-    heartbeat-interval: 30000
-    max-connections: 20
-    auto-reconnect: true
-
-    # Dual-channel mode (FISC standard - RECOMMENDED for production)
-    dual-channel:
-      enabled: ${FISC_DUAL_CHANNEL_ENABLED:true}
-      send-host: ${FISC_SEND_HOST:192.168.1.100}
-      send-port: ${FISC_SEND_PORT:9001}
-      send-backup-host: ${FISC_SEND_BACKUP_HOST:192.168.1.101}
-      send-backup-port: ${FISC_SEND_BACKUP_PORT:9001}
-      receive-host: ${FISC_RECV_HOST:192.168.1.100}
-      receive-port: ${FISC_RECV_PORT:9002}
-      receive-backup-host: ${FISC_RECV_BACKUP_HOST:192.168.1.101}
-      receive-backup-port: ${FISC_RECV_BACKUP_PORT:9002}
-      failure-strategy: FAIL_WHEN_BOTH_DOWN
-      health-check-interval: 10000
 
   # HSM Settings (Hardware HSM for Production)
   hsm:
@@ -445,11 +312,3 @@ fep:
     enabled: true
     max-tps: 5000
     algorithm: TOKEN_BUCKET
-
-  # BPMN Integration Settings (Production)
-  communication:
-    fisc:
-      default-channel: ${FISC_DEFAULT_CHANNEL:FISC_INTERBANK_V1}
-      timeout-ms: ${FISC_TIMEOUT_MS:30000}
-
-  # BPMN 路由設定已移至 bpmn.yml

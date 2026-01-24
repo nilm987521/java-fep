@@ -12,7 +12,7 @@ import java.util.Map;
  * <pre>
  * fep:
  *   connection:
- *     config-path: classpath:channel-config.json
+ *     config-path: classpath:channel-config.yml
  *     hot-reload-enabled: true
  *     hot-reload-interval-seconds: 30
  *
@@ -35,9 +35,9 @@ public class ChannelConnectionProperties {
     /**
      * Path to the unified channel configuration file.
      * Supports classpath: and file: prefixes.
-     * Default: config/channel-config.json
+     * Default: config/channel-config.yml
      */
-    private String configPath = "config/channel-config.json";
+    private String configPath = "config/channel-config.yml";
 
     /**
      * Enable hot-reload of configuration.
@@ -76,14 +76,14 @@ public class ChannelConnectionProperties {
 
     /**
      * Connection profile overrides from YAML.
-     * Allows environment-specific configuration without modifying JSON file.
+     * Allows environment-specific configuration without modifying config file.
      * Key: profile ID, Value: override settings
      */
     private Map<String, ProfileOverride> profileOverrides;
 
     /**
      * Channel connection overrides from YAML.
-     * Allows environment-specific configuration without modifying JSON file.
+     * Allows environment-specific configuration without modifying config file.
      * Key: channel ID, Value: override settings
      */
     private Map<String, ChannelOverride> channelOverrides;
@@ -172,7 +172,7 @@ public class ChannelConnectionProperties {
 
     /**
      * Override settings for a connection profile.
-     * Any non-null value will override the corresponding value from JSON config.
+     * Any non-null value will override the corresponding value from YAML config.
      */
     public static class ProfileOverride {
         private String host;
@@ -260,7 +260,7 @@ public class ChannelConnectionProperties {
 
     /**
      * Override settings for a channel connection.
-     * Any non-null value will override the corresponding value from JSON config.
+     * Any non-null value will override the corresponding value from YAML config.
      */
     public static class ChannelOverride {
         private String connectionProfile;

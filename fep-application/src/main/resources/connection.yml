@@ -1,0 +1,158 @@
+# FEP Connection Configuration
+# 連線、通道、FISC 相關設定
+
+---
+# Development Profile (Oracle)
+spring:
+  config:
+    activate:
+      on-profile: dev
+
+fep:
+  # Dynamic Connection Management
+  connection:
+    dynamic-management:
+      enabled: true
+    config-path: ${CONNECTION_CONFIG_FILE:config/channel-config.yml}
+    hot-reload-enabled: ${CONNECTION_HOT_RELOAD:false}
+    auto-connect: true
+    auto-sign-on: false
+    graceful-shutdown-timeout-ms: 5000
+
+  # Channel-Schema Mapping Configuration
+  channel:
+    enabled: true
+    config-file: ${CHANNEL_CONFIG_FILE:config/channel-schema-mapping.yml}
+    hot-reload: ${CHANNEL_HOT_RELOAD:false}
+    hot-reload-interval: 5000
+    fail-on-missing-config: false
+    validate-schema-references: false
+
+  # FISC Connection Settings (Development)
+  fisc:
+    host: localhost
+    port: 9000
+    connection-timeout: 10000
+    read-timeout: 30000
+    heartbeat-interval: 30000
+    max-connections: 5
+    auto-reconnect: true
+    dual-channel:
+      enabled: true
+
+  # BPMN Integration Settings
+  communication:
+    fisc:
+      default-channel: FISC_INTERBANK_V1
+      timeout-ms: 30000
+
+---
+# Development Profile (H2 In-Memory)
+spring:
+  config:
+    activate:
+      on-profile: dev-h2
+
+fep:
+  # Dynamic Connection Management
+  connection:
+    dynamic-management:
+      enabled: true
+    config-path: ${CONNECTION_CONFIG_FILE:config/channel-config.yml}
+    hot-reload-enabled: ${CONNECTION_HOT_RELOAD:false}
+    auto-connect: true
+    auto-sign-on: false
+    graceful-shutdown-timeout-ms: 5000
+
+  # Channel-Schema Mapping Configuration
+  channel:
+    enabled: true
+    config-file: ${CHANNEL_CONFIG_FILE:config/channel-schema-mapping.yml}
+    hot-reload: ${CHANNEL_HOT_RELOAD:false}
+    hot-reload-interval: 5000
+    fail-on-missing-config: false
+    validate-schema-references: false
+
+  # FISC Connection Settings (Development)
+  fisc:
+    # Single-channel mode (legacy)
+    host: localhost
+    port: 9000
+    connection-timeout: 10000
+    read-timeout: 30000
+    heartbeat-interval: 30000
+    max-connections: 5
+    auto-reconnect: true
+
+    # Dual-channel mode (FISC standard)
+    dual-channel:
+      enabled: false
+      send-host: 127.0.0.1
+      send-port: 9001
+      receive-host: 127.0.0.1
+      receive-port: 9002
+      failure-strategy: FAIL_WHEN_BOTH_DOWN
+
+  # BPMN Integration Settings (Development)
+  communication:
+    fisc:
+      default-channel: FISC_INTERBANK_V1
+      timeout-ms: 30000
+
+---
+# Production Profile
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+fep:
+  # Dynamic Connection Management (Production)
+  connection:
+    dynamic-management:
+      enabled: true
+    config-path: ${CONNECTION_CONFIG_FILE:config/channel-config.yml}
+    hot-reload-enabled: ${CONNECTION_HOT_RELOAD:true}
+    auto-connect: true
+    auto-sign-on: true
+    graceful-shutdown-timeout-ms: 10000
+
+  # Channel-Schema Mapping Configuration (Production)
+  channel:
+    enabled: true
+    config-file: ${CHANNEL_CONFIG_FILE:config/channel-schema-mapping.yml}
+    hot-reload: ${CHANNEL_HOT_RELOAD:true}
+    hot-reload-interval: 10000
+    fail-on-missing-config: true
+    validate-schema-references: true
+
+  # FISC Connection Settings (Production)
+  fisc:
+    # Single-channel mode (legacy/fallback)
+    host: ${FISC_HOST:192.168.1.100}
+    port: ${FISC_PORT:9000}
+    connection-timeout: 10000
+    read-timeout: 30000
+    heartbeat-interval: 30000
+    max-connections: 20
+    auto-reconnect: true
+
+    # Dual-channel mode (FISC standard - RECOMMENDED for production)
+    dual-channel:
+      enabled: ${FISC_DUAL_CHANNEL_ENABLED:true}
+      send-host: ${FISC_SEND_HOST:192.168.1.100}
+      send-port: ${FISC_SEND_PORT:9001}
+      send-backup-host: ${FISC_SEND_BACKUP_HOST:192.168.1.101}
+      send-backup-port: ${FISC_SEND_BACKUP_PORT:9001}
+      receive-host: ${FISC_RECV_HOST:192.168.1.100}
+      receive-port: ${FISC_RECV_PORT:9002}
+      receive-backup-host: ${FISC_RECV_BACKUP_HOST:192.168.1.101}
+      receive-backup-port: ${FISC_RECV_BACKUP_PORT:9002}
+      failure-strategy: FAIL_WHEN_BOTH_DOWN
+      health-check-interval: 10000
+
+  # BPMN Integration Settings (Production)
+  communication:
+    fisc:
+      default-channel: ${FISC_DEFAULT_CHANNEL:FISC_INTERBANK_V1}
+      timeout-ms: ${FISC_TIMEOUT_MS:30000}
