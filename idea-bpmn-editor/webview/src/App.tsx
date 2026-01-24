@@ -16,7 +16,12 @@ const applyTheme = (isDark: boolean) => {
 };
 
 const App: React.FC = () => {
-    const { showPalette, showProperties, setDelegates, setBpmnXml } = useEditorStore();
+    const { showPalette, showProperties, setDelegates, setBpmnXml, isDarkTheme, setTheme } = useEditorStore();
+
+    // Apply theme when isDarkTheme changes
+    useEffect(() => {
+        applyTheme(isDarkTheme);
+    }, [isDarkTheme]);
 
     useEffect(() => {
         // Setup global functions for IDE communication
@@ -36,17 +41,18 @@ const App: React.FC = () => {
 
         // Theme detection from IDE
         window.setTheme = (theme: string) => {
-            applyTheme(theme === 'dark');
+            const isDark = theme === 'dark';
+            setTheme(isDark);
         };
 
         // Initial theme detection - check if IDE provided a theme
         // If not, use system preference
         const prefersDark = window.matchMedia('(prefers-color-scheme: dark)');
-        applyTheme(prefersDark.matches);
+        setTheme(prefersDark.matches);
 
         // Listen for system theme changes
         const handleThemeChange = (e: MediaQueryListEvent) => {
-            applyTheme(e.matches);
+            setTheme(e.matches);
         };
         prefersDark.addEventListener('change', handleThemeChange);
 

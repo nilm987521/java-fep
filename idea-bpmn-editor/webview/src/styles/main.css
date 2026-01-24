@@ -17,11 +17,12 @@
     --scrollbar-thumb: #555555;
     --scrollbar-thumb-hover: #666666;
     /* BPMN element colors for dark theme */
-    --bpmn-stroke: #a0a0a0;
+    --bpmn-stroke: #d0d0d0;
     --bpmn-fill: #2d2d2d;
-    --bpmn-text: #cccccc;
+    --bpmn-text: #e0e0e0;
     --bpmn-stroke-hover: #4fc3f7;
     --bpmn-stroke-selected: #007acc;
+    --bpmn-connection-stroke: #ffffff;
 }
 
 /* Light theme */
@@ -46,6 +47,7 @@ body.light-theme {
     --bpmn-text: #333333;
     --bpmn-stroke-hover: #1976d2;
     --bpmn-stroke-selected: #007acc;
+    --bpmn-connection-stroke: #555555;
 }
 
 * {
@@ -460,27 +462,34 @@ body {
    BPMN-JS Theme Styles (supports dark/light)
    ======================================== */
 
-/* Sequence Flow (連接線) */
+/* Sequence Flow (連接線) - 加粗以提高可見度 */
 .djs-connection path.djs-visual {
-    stroke: var(--bpmn-stroke) !important;
-    stroke-width: 2px !important;
+    stroke: var(--bpmn-connection-stroke) !important;
+    stroke-width: 2.5px !important;
 }
 
 /* Sequence Flow 箭頭 */
 .djs-connection marker path {
-    fill: var(--bpmn-stroke) !important;
-    stroke: var(--bpmn-stroke) !important;
+    fill: var(--bpmn-connection-stroke) !important;
+    stroke: var(--bpmn-connection-stroke) !important;
+}
+
+/* 所有 marker 箭頭定義 - 確保箭頭可見 */
+defs marker path {
+    fill: var(--bpmn-connection-stroke) !important;
+    stroke: var(--bpmn-connection-stroke) !important;
 }
 
 /* 選中的連接線 */
 .djs-connection.selected path.djs-visual {
     stroke: var(--bpmn-stroke-selected) !important;
-    stroke-width: 2.5px !important;
+    stroke-width: 3px !important;
 }
 
 /* 滑鼠懸停的連接線 */
 .djs-connection.hover path.djs-visual {
     stroke: var(--bpmn-stroke-hover) !important;
+    stroke-width: 3px !important;
 }
 
 /* Shape 外框 */
@@ -564,7 +573,13 @@ body {
 
 /* Marker (箭頭) 定義 */
 marker path {
-    fill: var(--bpmn-stroke) !important;
+    fill: var(--bpmn-connection-stroke) !important;
+}
+
+/* SVG defs 中的 marker */
+svg defs marker path {
+    fill: var(--bpmn-connection-stroke) !important;
+    stroke: var(--bpmn-connection-stroke) !important;
 }
 
 /* Message Flow 虛線 */

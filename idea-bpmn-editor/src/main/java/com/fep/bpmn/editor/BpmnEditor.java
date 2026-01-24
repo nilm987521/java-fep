@@ -77,6 +77,9 @@ public class BpmnEditor extends UserDataHolderBase implements FileEditor {
             @Override
             public void onLoadEnd(CefBrowser cefBrowser, CefFrame frame, int httpStatusCode) {
                 if (frame.isMain()) {
+                    // Open DevTools for debugging (remove in production)
+                    browser.openDevtools();
+
                     injectJavaScript();
                     sendThemeToWebview();
                     sendBpmnToWebview();

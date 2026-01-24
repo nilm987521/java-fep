@@ -4,6 +4,7 @@ import camundaModdleDescriptor from 'camunda-bpmn-moddle/resources/camunda.json'
 import { useEditorStore } from '../stores/editorStore';
 import { sendToIde } from '../App';
 import { SelectedElement } from '../types';
+import coloredRendererModule from '../custom-renderer';
 
 // Import bpmn-js styles
 import 'bpmn-js/dist/assets/diagram-js.css';
@@ -13,17 +14,20 @@ import 'bpmn-js/dist/assets/bpmn-font/css/bpmn.css';
 const BpmnEditor: React.FC = () => {
     const containerRef = useRef<HTMLDivElement>(null);
     const modelerRef = useRef<BpmnModeler | null>(null);
-    const { bpmnXml, setDirty, setSelectedElement } = useEditorStore();
+    const { bpmnXml, isDarkTheme, setDirty, setSelectedElement } = useEditorStore();
 
     useEffect(() => {
         if (!containerRef.current) return;
 
-        // Initialize modeler
+        // Initialize modeler with custom renderer
         const modeler = new BpmnModeler({
             container: containerRef.current,
             moddleExtensions: {
                 camunda: camundaModdleDescriptor
             },
+            additionalModules: [
+                coloredRendererModule
+            ],
             keyboard: {
                 bindTo: window
             }
@@ -87,6 +91,28 @@ const BpmnEditor: React.FC = () => {
             sendToIde({ type: 'showError', message: 'Failed to load BPMN: ' + err.message });
         });
     }, [bpmnXml]);
+
+    // Update connection colors when theme changes
+    useEffect(() => {
+        if (!containerRef.current) return;
+
+        // Get the stroke color from CSS variable
+        const strokeColor = getComputedStyle(document.body)
+            .getPropertyValue('--bpmn-connection-stroke').trim() || '#ffffff';
+
+        // Update all existing connection paths
+        const connections = containerRef.current.querySelectorAll('.djs-connection path');
+        connections.forEach((path) => {
+            path.setAttribute('stroke', strokeColor);
+        });
+
+        // Update all markers (arrows)
+        const markers = containerRef.current.querySelectorAll('marker path');
+        markers.forEach((path) => {
+            path.setAttribute('fill', strokeColor);
+            path.setAttribute('stroke', strokeColor);
+        });
+    }, [isDarkTheme]);
 
     const saveCurrentXml = async () => {
         if (!modelerRef.current) return;

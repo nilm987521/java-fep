@@ -19,6 +19,7 @@ interface EditorState {
     showPalette: boolean;
     showProperties: boolean;
     paletteFilter: string;
+    isDarkTheme: boolean;
 
     // Actions
     setBpmnXml: (xml: string) => void;
@@ -30,6 +31,8 @@ interface EditorState {
     togglePalette: () => void;
     toggleProperties: () => void;
     setPaletteFilter: (filter: string) => void;
+    toggleTheme: () => void;
+    setTheme: (isDark: boolean) => void;
 
     // Computed
     getFilteredDelegates: () => JavaDelegate[];
@@ -59,6 +62,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     showPalette: true,
     showProperties: true,
     paletteFilter: '',
+    isDarkTheme: true,
 
     // Actions
     setBpmnXml: (xml) => set({ bpmnXml: xml }),
@@ -70,6 +74,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     togglePalette: () => set((state) => ({ showPalette: !state.showPalette })),
     toggleProperties: () => set((state) => ({ showProperties: !state.showProperties })),
     setPaletteFilter: (filter) => set({ paletteFilter: filter }),
+    toggleTheme: () => set((state) => ({ isDarkTheme: !state.isDarkTheme })),
+    setTheme: (isDark) => set({ isDarkTheme: isDark }),
 
     // Computed
     getFilteredDelegates: () => {
