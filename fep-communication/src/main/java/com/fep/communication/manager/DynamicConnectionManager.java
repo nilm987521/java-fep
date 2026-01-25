@@ -853,14 +853,26 @@ public class DynamicConnectionManager implements ConnectionSubscriber {
     private MessageSchema loadMessageSchema(String channelId) {
         try {
             ChannelSchemaRegistry schemaRegistry = ChannelSchemaRegistry.getInstance();
+            log.info("Loading MessageSchema for channel: {} (registry has {} channels)",
+                    channelId, schemaRegistry.getAllChannelIds().size());
+
+            if (!schemaRegistry.hasChannel(channelId)) {
+                log.warn("Channel '{}' not found in ChannelSchemaRegistry. Available channels: {}",
+                        channelId, schemaRegistry.getAllChannelIds());
+                return null;
+            }
+
             MessageSchema schema = schemaRegistry.getDefaultRequestSchema(channelId);
             if (schema != null) {
                 log.info("Loaded MessageSchema '{}' for channel: {}", schema.getName(), channelId);
+            } else {
+                log.warn("No default request schema configured for channel: {}", channelId);
             }
             return schema;
         } catch (Exception e) {
-            log.debug("Could not load MessageSchema for channel {}: {} (will use default FiscMessageDecoder)",
+            log.warn("Could not load MessageSchema for channel {}: {} (will use default FiscMessageDecoder)",
                     channelId, e.getMessage());
+            log.debug("Schema loading exception details", e);
             return null;
         }
     }

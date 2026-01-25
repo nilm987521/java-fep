@@ -22,10 +22,10 @@
                 <exclude>org.slf4j:slf4j-api</exclude>
                 <exclude>org.slf4j:slf4j-simple</exclude>
                 <exclude>org.slf4j:slf4j-log4j12</exclude>
-                <!-- Jackson - JMeter has its own version -->
+                <!-- Jackson core - JMeter has its own version -->
                 <exclude>com.fasterxml.jackson.core:*</exclude>
                 <exclude>com.fasterxml.jackson.databind:*</exclude>
-                <exclude>com.fasterxml.jackson.dataformat:*</exclude>
+                <!-- Note: jackson-dataformat-yaml is NOT excluded because JMeter doesn't include it -->
                 <!-- Apache HTTP - JMeter provides -->
                 <exclude>org.apache.httpcomponents:*</exclude>
                 <exclude>org.apache.httpcomponents.client5:*</exclude>

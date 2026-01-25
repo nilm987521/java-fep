@@ -391,4 +391,136 @@ class JsonSchemaLoaderTest {
         // Should not throw, just ignore
         assertDoesNotThrow(() -> JsonSchemaLoader.unregisterSubscriber(null));
     }
+
+    // ==================== YAML Support Tests ====================
+
+    @Test
+    void shouldLoadSchemasFromYamlFile(@TempDir Path tempDir) throws IOException {
+        // Create a YAML schema file (note: property names must match Java camelCase)
+        Path schemaFile = tempDir.resolve("test-schemas.yml");
+        String yamlContent = """
+            schemas:
+              - name: YAML Test Schema
+                version: "1.0"
+                vendor: TEST
+                description: Test schema loaded from YAML
+                header:
+                  includeLength: true
+                  lengthBytes: 4
+                  lengthEncoding: ASCII
+                  lengthIncludesHeader: false
+                fields:
+                  - id: mti
+                    name: Message Type Indicator
+                    type: NUMERIC
+                    length: 4
+                    encoding: ASCII
+                    required: true
+                  - id: processingCode
+                    name: Processing Code
+                    type: NUMERIC
+                    length: 6
+                    encoding: ASCII
+            """;
+        Files.writeString(schemaFile, yamlContent);
+
+        // Load schema from YAML
+        JsonSchemaLoader.reloadFromFilePath(schemaFile.toString());
+
+        // Verify schema was loaded
+        Map<String, MessageSchema> schemas = JsonSchemaLoader.getSchemaMap();
+        assertEquals(1, schemas.size());
+        assertTrue(schemas.containsKey("YAML Test Schema"));
+
+        MessageSchema schema = schemas.get("YAML Test Schema");
+        assertEquals("1.0", schema.getVersion());
+        assertEquals("TEST", schema.getVendor());
+        assertEquals(2, schema.getFields().size());
+
+        // Verify header configuration
+        assertNotNull(schema.getHeader());
+        assertTrue(schema.getHeader().isIncludeLength());
+        assertEquals(4, schema.getHeader().getLengthBytes());
+        assertEquals("ASCII", schema.getHeader().getLengthEncoding());
+
+        // Verify fields
+        FieldSchema mtiField = schema.getFields().get(0);
+        assertEquals("mti", mtiField.getId());
+        assertEquals(4, mtiField.getLength());
+        assertEquals("ASCII", mtiField.getEncoding());
+    }
+
+    @Test
+    void shouldLoadSchemasFromYamlWithYamlExtension(@TempDir Path tempDir) throws IOException {
+        Path schemaFile = tempDir.resolve("test-schemas.yaml");
+        String yamlContent = """
+            schemas:
+              - name: YAML Extension Test
+                fields:
+                  - id: field1
+                    length: 10
+                    encoding: ASCII
+            """;
+        Files.writeString(schemaFile, yamlContent);
+
+        JsonSchemaLoader.reloadFromFilePath(schemaFile.toString());
+
+        Map<String, MessageSchema> schemas = JsonSchemaLoader.getSchemaMap();
+        assertTrue(schemas.containsKey("YAML Extension Test"));
+    }
+
+    @Test
+    void shouldLoadFromCollectionFileWithYaml(@TempDir Path tempDir) throws IOException {
+        Path schemaFile = tempDir.resolve("collection.yml");
+        String yamlContent = """
+            schemas:
+              - name: First Schema
+                fields:
+                  - id: f1
+                    length: 5
+                    encoding: ASCII
+              - name: Second Schema
+                fields:
+                  - id: f2
+                    length: 10
+                    encoding: BCD
+            """;
+        Files.writeString(schemaFile, yamlContent);
+
+        // Load specific schema by name
+        MessageSchema schema = JsonSchemaLoader.fromCollectionFile(schemaFile, "Second Schema");
+
+        assertNotNull(schema);
+        assertEquals("Second Schema", schema.getName());
+        assertEquals(1, schema.getFields().size());
+        assertEquals("f2", schema.getFields().get(0).getId());
+    }
+
+    @Test
+    void shouldGetSchemaNamesfromYamlFile(@TempDir Path tempDir) throws IOException {
+        Path schemaFile = tempDir.resolve("schemas.yml");
+        String yamlContent = """
+            schemas:
+              - name: Schema A
+                fields:
+                  - id: a
+                    length: 1
+              - name: Schema B
+                fields:
+                  - id: b
+                    length: 2
+              - name: Schema C
+                fields:
+                  - id: c
+                    length: 3
+            """;
+        Files.writeString(schemaFile, yamlContent);
+
+        var names = JsonSchemaLoader.getSchemaNames(schemaFile);
+
+        assertEquals(3, names.size());
+        assertTrue(names.contains("Schema A"));
+        assertTrue(names.contains("Schema B"));
+        assertTrue(names.contains("Schema C"));
+    }
 }

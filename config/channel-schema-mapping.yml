@@ -3,10 +3,10 @@
 
 schema: fep-channel-schema-mapping-v1
 version: "1.0.0"
-last-modified: "2026-01-24T10:00:00Z"
+lastModified: "2026-01-24T10:00:00Z"
 
 # Schema 檔案參考
-schema-files:
+schemaFiles:
   - path: ../schemas/atm-schemas.yml
     description: ATM protocol schemas (FISC, NCR, Diebold, Wincor)
 
@@ -19,16 +19,16 @@ channels:
     vendor: FISC
     version: "1.0"
     active: true
-    request-schemas:
+    requestSchemas:
       - FISC ATM Format
-    response-schemas:
+    responseSchemas:
       - FISC ATM Format
-    default-request-schema: FISC ATM Format
-    default-response-schema: FISC ATM Format
+    defaultRequestSchema: FISC ATM Format
+    defaultResponseSchema: FISC ATM Format
     properties:
       encoding: ASCII
-      mac-required: "true"
-      institution-id: "822"
+      macRequired: "true"
+      institutionId: "822"
     tags:
       - production
       - interbank
@@ -41,15 +41,15 @@ channels:
     vendor: NCR
     version: "1.0"
     active: true
-    request-schemas:
+    requestSchemas:
       - NCR NDC Protocol
-    response-schemas:
+    responseSchemas:
       - NCR NDC Protocol
-    default-request-schema: NCR NDC Protocol
-    default-response-schema: NCR NDC Protocol
+    defaultRequestSchema: NCR NDC Protocol
+    defaultResponseSchema: NCR NDC Protocol
     properties:
       encoding: ASCII
-      mac-required: "true"
+      macRequired: "true"
     tags:
       - production
     priority: 10
@@ -61,12 +61,12 @@ channels:
     vendor: Diebold
     version: "1.0"
     active: true
-    request-schemas:
+    requestSchemas:
       - Diebold 91x Protocol
-    response-schemas:
+    responseSchemas:
       - Diebold 91x Protocol
-    default-request-schema: Diebold 91x Protocol
-    default-response-schema: Diebold 91x Protocol
+    defaultRequestSchema: Diebold 91x Protocol
+    defaultResponseSchema: Diebold 91x Protocol
     properties:
       encoding: ASCII
     tags:
@@ -80,12 +80,12 @@ channels:
     vendor: Wincor
     version: "1.0"
     active: true
-    request-schemas:
+    requestSchemas:
       - Wincor DDC Protocol
-    response-schemas:
+    responseSchemas:
       - Wincor DDC Protocol
-    default-request-schema: Wincor DDC Protocol
-    default-response-schema: Wincor DDC Protocol
+    defaultRequestSchema: Wincor DDC Protocol
+    defaultResponseSchema: Wincor DDC Protocol
     properties:
       encoding: ASCII
     tags:
@@ -99,17 +99,17 @@ channels:
     vendor: FISC
     version: "1.0"
     active: true
-    request-schemas:
+    requestSchemas:
       - FISC ATM Format
-    response-schemas:
+    responseSchemas:
       - FISC ATM Format
-    default-request-schema: FISC ATM Format
-    default-response-schema: FISC ATM Format
+    defaultRequestSchema: FISC ATM Format
+    defaultResponseSchema: FISC ATM Format
     properties:
       encoding: ASCII
-      mac-required: "true"
-      institution-id: "822"
-      mac-algorithm: ANSI_X9_19
+      macRequired: "true"
+      institutionId: "822"
+      macAlgorithm: ANSI_X9_19
     tags:
       - production
       - fisc
@@ -123,12 +123,12 @@ channels:
     vendor: GENERIC
     version: "1.0"
     active: true
-    request-schemas:
+    requestSchemas:
       - ISO 8583 Generic
-    response-schemas:
+    responseSchemas:
       - ISO 8583 Generic
-    default-request-schema: ISO 8583 Generic
-    default-response-schema: ISO 8583 Generic
+    defaultRequestSchema: ISO 8583 Generic
+    defaultResponseSchema: ISO 8583 Generic
     properties:
       encoding: ASCII
     tags:
@@ -142,12 +142,12 @@ channels:
     vendor: INTERNAL
     version: "1.0"
     active: false
-    default-request-schema: ISO 8583 Generic
-    default-response-schema: ISO 8583 Generic
+    defaultRequestSchema: ISO 8583 Generic
+    defaultResponseSchema: ISO 8583 Generic
     properties:
-      mq-queue-manager: CBS_QM
-      request-queue: CBS.REQUEST.QUEUE
-      response-queue: CBS.RESPONSE.QUEUE
+      mqQueueManager: CBS_QM
+      requestQueue: CBS.REQUEST.QUEUE
+      responseQueue: CBS.RESPONSE.QUEUE
     tags:
       - internal
       - mainframe
@@ -160,8 +160,8 @@ channels:
     vendor: INTERNAL
     version: "1.0"
     active: false
-    default-request-schema: ISO 8583 Generic
-    default-response-schema: ISO 8583 Generic
+    defaultRequestSchema: ISO 8583 Generic
+    defaultResponseSchema: ISO 8583 Generic
     tags:
       - internal
     priority: 20
@@ -173,14 +173,14 @@ channels:
     vendor: INTERNAL
     version: "1.0"
     active: false
-    default-request-schema: ISO 8583 Generic
-    default-response-schema: ISO 8583 Generic
+    defaultRequestSchema: ISO 8583 Generic
+    defaultResponseSchema: ISO 8583 Generic
     tags:
       - internal
     priority: 20
 
 # MTI 對應 Schema 覆寫
-schema-overrides:
+schemaOverrides:
   FISC_INTERBANK_V1:
     "0100":
       request: FISC ATM Format
@@ -197,6 +197,6 @@ schema-overrides:
 
 # 預設值
 defaults:
-  fallback-channel: FISC_INTERBANK_V1
-  unknown-channel-behavior: USE_FALLBACK
-  schema-not-found-behavior: THROW_ERROR
+  fallbackChannel: FISC_INTERBANK_V1
+  unknownChannelBehavior: USE_FALLBACK
+  schemaNotFoundBehavior: THROW_ERROR

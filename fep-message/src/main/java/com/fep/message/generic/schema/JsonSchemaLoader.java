@@ -3,6 +3,7 @@ package com.fep.message.generic.schema;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.fep.message.exception.MessageException;
 import com.fep.message.interfaces.SchemaSubscriber;
 import lombok.extern.slf4j.Slf4j;
@@ -20,19 +21,31 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
- * Loads and caches message schemas from JSON files or strings.
+ * Loads and caches message schemas from JSON or YAML files.
  */
 @Slf4j
 public class JsonSchemaLoader {
 
-    private static final ObjectMapper objectMapper = createObjectMapper();
+    private static final ObjectMapper jsonMapper = createObjectMapper(null);
+    private static final ObjectMapper yamlMapper = createObjectMapper(new YAMLFactory());
     private static final Map<String, MessageSchema> schemaCache = new ConcurrentHashMap<>();
     private static final List<WeakReference<SchemaSubscriber>> subscribers = new CopyOnWriteArrayList<>();
 
-    private static ObjectMapper createObjectMapper() {
-        ObjectMapper mapper = new ObjectMapper();
+    private static ObjectMapper createObjectMapper(com.fasterxml.jackson.core.JsonFactory factory) {
+        ObjectMapper mapper = factory != null ? new ObjectMapper(factory) : new ObjectMapper();
         mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
         return mapper;
+    }
+
+    /**
+     * Returns the appropriate ObjectMapper based on file extension.
+     *
+     * @param filePath the file path
+     * @return the appropriate ObjectMapper (YAML or JSON)
+     */
+    private static ObjectMapper getMapperForFile(String filePath) {
+        String lower = filePath.toLowerCase();
+        return (lower.endsWith(".yml") || lower.endsWith(".yaml")) ? yamlMapper : jsonMapper;
     }
 
     /**
@@ -44,7 +57,7 @@ public class JsonSchemaLoader {
      */
     public static MessageSchema fromJson(String json) {
         try {
-            MessageSchema schema = objectMapper.readValue(json, MessageSchema.class);
+            MessageSchema schema = jsonMapper.readValue(json, MessageSchema.class);
             validateSchema(schema);
             return schema;
         } catch (IOException e) {
@@ -119,6 +132,7 @@ public class JsonSchemaLoader {
     /**
      * Loads a specific schema by name from a collection file.
      * The collection file should have a "schemas" array containing multiple schema definitions.
+     * Supports both JSON and YAML file formats.
      *
      * @param path the file path to the collection file
      * @param schemaName the name of the schema to load
@@ -129,14 +143,15 @@ public class JsonSchemaLoader {
         String cacheKey = path.toAbsolutePath() + ":" + schemaName;
         return schemaCache.computeIfAbsent(cacheKey, k -> {
             try {
-                String json = Files.readString(path);
-                JsonNode root = objectMapper.readTree(json);
+                String content = Files.readString(path);
+                ObjectMapper mapper = getMapperForFile(path.toString());
+                JsonNode root = mapper.readTree(content);
                 JsonNode schemasNode = extractSchemasNodeFromPath(root, path);
 
                 for (JsonNode schemaNode : schemasNode) {
                     String name = schemaNode.has("name") ? schemaNode.get("name").asText() : null;
                     if (schemaName.equals(name)) {
-                        MessageSchema schema = objectMapper.treeToValue(schemaNode, MessageSchema.class);
+                        MessageSchema schema = mapper.treeToValue(schemaNode, MessageSchema.class);
                         validateSchema(schema);
                         log.info("Loaded schema '{}' from collection file: {}", schemaName, path);
                         return schema;
@@ -169,6 +184,7 @@ public class JsonSchemaLoader {
 
     /**
      * Gets all available schema names from a collection file.
+     * Supports both JSON and YAML file formats.
      *
      * @param path the file path to the collection file
      * @return list of schema names
@@ -176,14 +192,13 @@ public class JsonSchemaLoader {
      */
     public static List<String> getSchemaNames(Path path) {
         try {
-            String json = Files.readString(path);
-            JsonNode root = objectMapper.readTree(json);
-            if (!root.isArray()) {
-                return  Collections.emptyList();
-            }
+            String content = Files.readString(path);
+            ObjectMapper mapper = getMapperForFile(path.toString());
+            JsonNode root = mapper.readTree(content);
+            JsonNode schemasNode = extractSchemasNodeFromPath(root, path);
 
             List<String> schemaNames = new ArrayList<>();
-            for (JsonNode schemaNode : root) {
+            for (JsonNode schemaNode : schemasNode) {
                 if (schemaNode.has("name")) {
                     schemaNames.add(schemaNode.get("name").asText());
                 }
@@ -211,27 +226,35 @@ public class JsonSchemaLoader {
         schemaCache.remove(key);
     }
 
+    /**
+     * Reloads all schemas from a file path.
+     * Supports both JSON and YAML file formats (detected by file extension).
+     *
+     * @param filePath the file path to the schema collection file
+     * @throws MessageException if the file is not found or parsing fails
+     */
     public static void reloadFromFilePath(String filePath) {
         schemaCache.clear();
-        File jsonFile = new File(filePath);
-        if (!jsonFile.exists()) {
-            throw MessageException.parseError("Schema json file not found: " + filePath);
+        File schemaFile = new File(filePath);
+        if (!schemaFile.exists()) {
+            throw MessageException.parseError("Schema file not found: " + filePath);
         }
 
         try {
-            JsonNode root = objectMapper.readTree(jsonFile);
+            ObjectMapper mapper = getMapperForFile(filePath);
+            JsonNode root = mapper.readTree(schemaFile);
             JsonNode schemasNode = extractSchemasNode(root, filePath);
 
             for (JsonNode schemaNode : schemasNode) {
                 String name = schemaNode.has("name") ? schemaNode.get("name").asText() : null;
-                MessageSchema schema = objectMapper.treeToValue(schemaNode, MessageSchema.class);
+                MessageSchema schema = mapper.treeToValue(schemaNode, MessageSchema.class);
                 validateSchema(schema);
                 schemaCache.put(name, schema);
             }
             log.info("Loaded {} schemas from {}", schemaCache.size(), filePath);
             publishSchemaMap();
         } catch (IOException e) {
-            throw new RuntimeException(e);
+            throw MessageException.parseError("Failed to load schemas from: " + filePath + " - " + e.getMessage());
         }
     }
 

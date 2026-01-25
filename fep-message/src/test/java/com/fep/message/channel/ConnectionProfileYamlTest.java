@@ -9,32 +9,32 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /**
- * Tests for YAML parsing of ConnectionProfile with kebab-case properties.
+ * Tests for YAML parsing of ConnectionProfile with camelCase properties.
  */
 @DisplayName("ConnectionProfile YAML Parsing Tests")
 class ConnectionProfileYamlTest {
 
     private static final String YAML_CONFIG = """
-            profile-id: ATM_SERVER
+            profileId: ATM_SERVER
             host: 0.0.0.0
-            send-port: 19001
-            receive-port: 19001
-            dual-channel: false
-            connect-timeout: 3000
-            response-timeout: 10000
-            heartbeat-interval: 30000
-            max-retries: 1
-            retry-delay: 1000
-            ssl-enabled: false
-            auto-reconnect: false
-            connection-mode: SERVER
+            sendPort: 19001
+            receivePort: 19001
+            dualChannel: false
+            connectTimeout: 3000
+            responseTimeout: 10000
+            heartbeatInterval: 30000
+            maxRetries: 1
+            retryDelay: 1000
+            sslEnabled: false
+            autoReconnect: false
+            connectionMode: SERVER
             properties:
-              institution-id: "822"
+              institutionId: "822"
             """;
 
     @Test
-    @DisplayName("Should parse kebab-case YAML properties correctly")
-    void shouldParseKebabCaseYaml() throws Exception {
+    @DisplayName("Should parse camelCase YAML properties correctly")
+    void shouldParseCamelCaseYaml() throws Exception {
         ObjectMapper yamlMapper = new ObjectMapper(new YAMLFactory());
         yamlMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
@@ -54,7 +54,7 @@ class ConnectionProfileYamlTest {
         assertThat(profile.getDualChannelSetting()).isFalse();
         assertThat(profile.getConnectionMode()).isEqualTo("SERVER");
         assertThat(profile.isServerMode()).isTrue();
-        assertThat(profile.getProperties()).containsEntry("institution-id", "822");
+        assertThat(profile.getProperties()).containsEntry("institutionId", "822");
     }
 
     @Test

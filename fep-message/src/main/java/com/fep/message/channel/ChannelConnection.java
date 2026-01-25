@@ -1,6 +1,5 @@
 package com.fep.message.channel;
 
-import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -98,13 +97,12 @@ public class ChannelConnection {
 
     /**
      * JSON creator for deserialization.
-     * Supports both camelCase (JSON) and kebab-case (YAML) property names.
      */
     @JsonCreator
     public ChannelConnection(
-            @JsonProperty("channelId") @JsonAlias("channel-id") String channelId,
-            @JsonProperty("connectionProfile") @JsonAlias("connection-profile") String connectionProfileId,
-            @JsonProperty("resolvedConnectionProfile") @JsonAlias("resolved-connection-profile") ConnectionProfile resolvedConnectionProfile,
+            @JsonProperty("channelId") String channelId,
+            @JsonProperty("connectionProfile") String connectionProfileId,
+            @JsonProperty("resolvedConnectionProfile") ConnectionProfile resolvedConnectionProfile,
             @JsonProperty("channel") Channel channel,
             @JsonProperty("schemas") Map<String, String> schemas,
             @JsonProperty("properties") Map<String, String> properties,

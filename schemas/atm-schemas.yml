@@ -13,10 +13,10 @@ schemas:
     description: Taiwan FISC ATM message format (simplified)
 
     header:
-      include-length: true
-      length-bytes: 4
-      length-encoding: ASCII
-      length-includes-header: false
+      includeLength: true
+      lengthBytes: 4
+      lengthEncoding: ASCII
+      lengthIncludesHeader: false
 
     fields:
       - id: mti
@@ -63,9 +63,9 @@ schemas:
         description: Card number (Field 2)
         type: NUMERIC
         length: 19
-        length-type: FIXED
+        lengthType: FIXED
         encoding: BCD
-        length-encoding: BCD
+        lengthEncoding: BCD
         sensitive: true
 
       - id: processingCode
@@ -114,7 +114,7 @@ schemas:
         type: NUMERIC
         length: 3
         encoding: ASCII
-        default-value: "051"
+        defaultValue: "051"
 
       - id: cardSequence
         name: Card Sequence Number
@@ -136,16 +136,16 @@ schemas:
         type: NUMERIC
         length: 2
         encoding: ASCII
-        default-value: "00"
+        defaultValue: "00"
 
       - id: acquiringInstitution
         name: Acquiring Institution ID
         description: Bank code (Field 32)
         type: NUMERIC
         length: 11
-        length-type: LLVAR
+        lengthType: LLVAR
         encoding: ASCII
-        length-encoding: ASCII
+        lengthEncoding: ASCII
 
       - id: rrn
         name: Retrieval Reference Number
@@ -216,31 +216,31 @@ schemas:
         description: Additional data (Field 48)
         type: ALPHANUMERIC
         length: 999
-        length-type: LLLVAR
+        lengthType: LLLVAR
         encoding: ASCII
-        length-encoding: BCD
+        lengthEncoding: BCD
 
       - id: sourceAccount
         name: Source Account
         description: From account (Field 102)
         type: ALPHANUMERIC
         length: 28
-        length-type: LLVAR
+        lengthType: LLVAR
         encoding: ASCII
-        length-encoding: BCD
+        lengthEncoding: BCD
 
       - id: destAccount
         name: Destination Account
         description: To account (Field 103)
         type: ALPHANUMERIC
         length: 28
-        length-type: LLVAR
+        lengthType: LLVAR
         encoding: ASCII
-        length-encoding: BCD
+        lengthEncoding: BCD
 
     encoding:
-      default-charset: ASCII
-      bcd-packing: RIGHT_JUSTIFIED
+      defaultCharset: ASCII
+      bcdPacking: RIGHT_JUSTIFIED
       endianness: BIG_ENDIAN
 
     validation:
@@ -260,17 +260,17 @@ schemas:
     description: NCR NDC (Network Data Control) ATM protocol
 
     header:
-      include-length: true
-      length-bytes: 2
-      length-encoding: BINARY
-      length-includes-header: false
+      includeLength: true
+      lengthBytes: 2
+      lengthEncoding: BINARY
+      lengthIncludesHeader: false
       fields:
         - id: protocolId
           name: Protocol Identifier
           type: BINARY
           length: 2
           encoding: HEX
-          default-value: "6000"
+          defaultValue: "6000"
 
     fields:
       - id: commandCode
@@ -287,7 +287,7 @@ schemas:
         type: ALPHA
         length: 1
         encoding: ASCII
-        default-value: " "
+        defaultValue: " "
 
       - id: luno
         name: Logical Unit Number
@@ -311,9 +311,9 @@ schemas:
         description: Card track 2 data
         type: TRACK2
         length: 40
-        length-type: LLVAR
+        lengthType: LLVAR
         encoding: ASCII
-        length-encoding: ASCII
+        lengthEncoding: ASCII
         sensitive: true
 
       - id: track3
@@ -321,9 +321,9 @@ schemas:
         description: Card track 3 data
         type: ALPHANUMERIC
         length: 107
-        length-type: LLLVAR
+        lengthType: LLLVAR
         encoding: ASCII
-        length-encoding: ASCII
+        lengthEncoding: ASCII
         sensitive: true
 
       - id: pinBlock
@@ -398,7 +398,7 @@ schemas:
         type: NUMERIC
         length: 1
         encoding: ASCII
-        default-value: "0"
+        defaultValue: "0"
 
       - id: deviceStatus
         name: Device Status
@@ -486,9 +486,9 @@ schemas:
         description: Free-form message text
         type: ALPHANUMERIC
         length: 256
-        length-type: LLLVAR
+        lengthType: LLLVAR
         encoding: ASCII
-        length-encoding: ASCII
+        lengthEncoding: ASCII
 
     trailer:
       fields:
@@ -500,7 +500,7 @@ schemas:
           encoding: HEX
 
     encoding:
-      default-charset: ASCII
+      defaultCharset: ASCII
       endianness: BIG_ENDIAN
 
     validation:
@@ -535,10 +535,10 @@ schemas:
     description: Diebold 91x ATM protocol
 
     header:
-      include-length: true
-      length-bytes: 2
-      length-encoding: BCD
-      length-includes-header: false
+      includeLength: true
+      lengthBytes: 2
+      lengthEncoding: BCD
+      lengthIncludesHeader: false
 
     fields:
       - id: messageClass
@@ -572,9 +572,9 @@ schemas:
         description: Card track 2 data
         type: TRACK2
         length: 40
-        length-type: LLVAR
+        lengthType: LLVAR
         encoding: ASCII
-        length-encoding: BCD
+        lengthEncoding: BCD
         sensitive: true
 
       - id: pinBlock
@@ -610,8 +610,8 @@ schemas:
         encoding: ASCII
 
     encoding:
-      default-charset: ASCII
-      bcd-packing: RIGHT_JUSTIFIED
+      defaultCharset: ASCII
+      bcdPacking: RIGHT_JUSTIFIED
       endianness: BIG_ENDIAN
 
     validation:
@@ -629,17 +629,17 @@ schemas:
     description: Wincor Nixdorf DDC ATM protocol
 
     header:
-      include-length: true
-      length-bytes: 2
-      length-encoding: BINARY
-      length-includes-header: false
+      includeLength: true
+      lengthBytes: 2
+      lengthEncoding: BINARY
+      lengthIncludesHeader: false
       fields:
         - id: stx
           name: Start of Text
           type: BINARY
           length: 1
           encoding: HEX
-          default-value: "02"
+          defaultValue: "02"
 
     fields:
       - id: messageType
@@ -663,9 +663,9 @@ schemas:
         description: Card track 2 data
         type: TRACK2
         length: 40
-        length-type: LLVAR
+        lengthType: LLVAR
         encoding: ASCII
-        length-encoding: ASCII
+        lengthEncoding: ASCII
         sensitive: true
 
       - id: pinBlock
@@ -707,7 +707,7 @@ schemas:
           type: BINARY
           length: 1
           encoding: HEX
-          default-value: "03"
+          defaultValue: "03"
         - id: lrc
           name: Longitudinal Redundancy Check
           type: BINARY
@@ -715,7 +715,7 @@ schemas:
           encoding: HEX
 
     encoding:
-      default-charset: ASCII
+      defaultCharset: ASCII
       endianness: BIG_ENDIAN
 
     validation:
@@ -733,10 +733,10 @@ schemas:
     description: Generic ISO 8583 message format
 
     header:
-      include-length: true
-      length-bytes: 2
-      length-encoding: BCD
-      length-includes-header: false
+      includeLength: true
+      lengthBytes: 2
+      lengthEncoding: BCD
+      lengthIncludesHeader: false
 
     fields:
       - id: mti
@@ -768,9 +768,9 @@ schemas:
         description: Card number (Field 2)
         type: NUMERIC
         length: 19
-        length-type: LLVAR
+        lengthType: LLVAR
         encoding: ASCII
-        length-encoding: BCD
+        lengthEncoding: BCD
         sensitive: true
 
       - id: processingCode
@@ -829,8 +829,8 @@ schemas:
         required: true
 
     encoding:
-      default-charset: ASCII
-      bcd-packing: RIGHT_JUSTIFIED
+      defaultCharset: ASCII
+      bcdPacking: RIGHT_JUSTIFIED
       endianness: BIG_ENDIAN
 
     validation:

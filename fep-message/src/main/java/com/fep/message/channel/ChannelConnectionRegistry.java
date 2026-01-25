@@ -3,6 +3,7 @@ package com.fep.message.channel;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.PropertyNamingStrategies;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import com.fep.message.interfaces.ConnectionSubscriber;
 import lombok.extern.slf4j.Slf4j;
@@ -81,6 +82,8 @@ public class ChannelConnectionRegistry {
     private ObjectMapper createObjectMapper(com.fasterxml.jackson.core.JsonFactory factory) {
         ObjectMapper mapper = factory != null ? new ObjectMapper(factory) : new ObjectMapper();
         mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+        // Support kebab-case property names (e.g., send-port → sendPort)
+        mapper.setPropertyNamingStrategy(PropertyNamingStrategies.KEBAB_CASE);
         return mapper;
     }
 
@@ -216,8 +219,11 @@ public class ChannelConnectionRegistry {
         profiles.clear();
         connections.clear();
 
-        // Load connection profiles
+        // Load connection profiles (support both camelCase and kebab-case)
         JsonNode profilesNode = root.get("connectionProfiles");
+        if (profilesNode == null) {
+            profilesNode = root.get("connection-profiles");
+        }
         if (profilesNode != null && profilesNode.isObject()) {
             profilesNode.fields().forEachRemaining(entry -> {
                 String profileId = entry.getKey();

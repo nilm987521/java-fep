@@ -3,62 +3,62 @@
 
 schema: fep-channel-connection-config-v2
 version: "2.0"
-last-modified: "2026-01-24T10:00:00Z"
+lastModified: "2026-01-24T10:00:00Z"
 description: Unified channel connection configuration combining logical channels with physical connections
 
 # 連線 Profile 定義
-connection-profiles:
+connectionProfiles:
   FISC_PRIMARY:
     host: localhost
-    send-port: 9001
-    receive-port: 9002
-    connect-timeout: 5000
-    response-timeout: 30000
-    heartbeat-interval: 60000
-    max-retries: 60
-    retry-delay: 5000
-    ssl-enabled: false
-    pool-size: 1
-    auto-reconnect: true
-    keep-alive-interval: 30000
+    sendPort: 9001
+    receivePort: 9002
+    connectTimeout: 5000
+    responseTimeout: 30000
+    heartbeatInterval: 60000
+    maxRetries: 60
+    retryDelay: 5000
+    sslEnabled: false
+    poolSize: 1
+    autoReconnect: true
+    keepAliveInterval: 30000
     properties:
-      institution-id: "012"
-      mac-algorithm: ANSI_X9_19
+      institutionId: "012"
+      macAlgorithm: ANSI_X9_19
 
   LOCAL_TEST:
     host: localhost
-    send-port: 19001
-    receive-port: 19002
-    connect-timeout: 3000
-    response-timeout: 10000
-    heartbeat-interval: 30000
-    max-retries: 1
-    retry-delay: 1000
-    ssl-enabled: false
-    auto-reconnect: true
+    sendPort: 19001
+    receivePort: 19002
+    connectTimeout: 3000
+    responseTimeout: 10000
+    heartbeatInterval: 30000
+    maxRetries: 1
+    retryDelay: 1000
+    sslEnabled: false
+    autoReconnect: true
     properties:
-      institution-id: "999"
+      institutionId: "999"
 
   ATM_SERVER:
     host: 0.0.0.0
-    send-port: 19001
-    receive-port: 19001
-    dual-channel: false
-    connect-timeout: 3000
-    response-timeout: 10000
-    heartbeat-interval: 30000
-    max-retries: 1
-    retry-delay: 1000
-    ssl-enabled: false
-    auto-reconnect: false
-    connection-mode: SERVER
+    sendPort: 19001
+    receivePort: 19001
+    dualChannel: false
+    connectTimeout: 3000
+    responseTimeout: 10000
+    heartbeatInterval: 30000
+    maxRetries: 1
+    retryDelay: 1000
+    sslEnabled: false
+    autoReconnect: false
+    connectionMode: SERVER
     properties:
-      institution-id: "822"
+      institutionId: "822"
 
 # 邏輯通道定義
 channels:
   FISC_INTERBANK_V1:
-    connection-profile: FISC_PRIMARY
+    connectionProfile: FISC_PRIMARY
     description: Taiwan FISC standard interbank protocol for FEP-to-FISC communication
     active: true
     priority: 1
@@ -73,13 +73,13 @@ channels:
       "0810": FISC ATM Format
     properties:
       encoding: ASCII
-      mac-required: "true"
-      institution-id: "822"
-      mac-algorithm: ANSI_X9_19
-      transaction-timeout: "30000"
+      macRequired: "true"
+      institutionId: "822"
+      macAlgorithm: ANSI_X9_19
+      transactionTimeout: "30000"
 
   ATM_FISC_V1:
-    connection-profile: ATM_SERVER
+    connectionProfile: ATM_SERVER
     description: ATM connection endpoint - FEP listens for ATM connections
     active: true
     priority: 1
@@ -90,11 +90,11 @@ channels:
       "0410": FISC ATM Format
     properties:
       encoding: ASCII
-      mac-required: "true"
-      institution-id: "822"
+      macRequired: "true"
+      institutionId: "822"
 
   LOCAL_TEST_V1:
-    connection-profile: LOCAL_TEST
+    connectionProfile: LOCAL_TEST
     description: Local test channel for development and testing
     active: false
     priority: 100
@@ -107,13 +107,13 @@ channels:
       "0810": FISC ATM Format
     properties:
       encoding: ASCII
-      mac-required: "false"
-      institution-id: "999"
-      test-mode: "true"
+      macRequired: "false"
+      institutionId: "999"
+      testMode: "true"
 
 # 預設值
 defaults:
-  fallback-profile: LOCAL_TEST
-  fallback-channel: LOCAL_TEST_V1
-  unknown-channel-behavior: USE_FALLBACK
-  missing-profile-behavior: THROW_ERROR
+  fallbackProfile: LOCAL_TEST
+  fallbackChannel: LOCAL_TEST_V1
+  unknownChannelBehavior: USE_FALLBACK
+  missingProfileBehavior: THROW_ERROR

@@ -181,17 +181,21 @@ public class ChannelSchemaRegistry {
 
     private void loadSchemaFiles(List<SchemaFileReference> schemaFiles) {
         if (schemaFiles == null || schemaFiles.isEmpty()) {
+            log.info("No schema files to load");
             return;
         }
 
+        log.info("Loading {} schema file(s) from base path: {}", schemaFiles.size(), configBasePath);
         for (SchemaFileReference ref : schemaFiles) {
             Path schemaPath = configBasePath.resolve(ref.getPath());
+            log.info("Resolving schema file: {} -> {}", ref.getPath(), schemaPath);
             if (Files.exists(schemaPath)) {
                 try {
                     JsonSchemaLoader.reloadFromFilePath(schemaPath.toString());
-                    log.debug("Loaded schema file: {}", schemaPath);
+                    log.info("Successfully loaded schema file: {} ({} schemas available)",
+                            schemaPath, JsonSchemaLoader.getSchemaMap().size());
                 } catch (Exception e) {
-                    log.warn("Failed to load schema file {}: {}", schemaPath, e.getMessage());
+                    log.error("Failed to load schema file {}: {}", schemaPath, e.getMessage(), e);
                 }
             } else {
                 log.warn("Schema file not found: {}", schemaPath);
