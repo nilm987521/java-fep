@@ -2,6 +2,14 @@
 # 此檔案定義 BPMN 流程路由規則
 # 新增 MTI 時，只需在此加入規則 + 部署對應 BPMN 流程，不需修改 Java 代碼
 
+# ===== 預設設定 (所有 Profile 共用) =====
+fep:
+  bpmn:
+    highTpsMode: true
+    processRouting:
+      enabled: true
+      defaultProcess: Process_TransferRequest
+
 ---
 # Development Profile (Oracle)
 spring:
@@ -11,49 +19,13 @@ spring:
 
 fep:
   bpmn:
-    high-tps-mode: true
-    process-routing:
-      enabled: true
-      default-process: Process_TransferRequest
-
+    processRouting:
       rules:
-        # ===== 金融交易 =====
         - name: 跨行轉帳
           mti: "0200"
-          processing-code: "010000"
-          process-key: Only_Log_Process
+          processingCode: "010000"
+          processKey: ATM_Request_Process
           priority: 100
-
-        - name: 跨行提款
-          mti: "0200"
-          processing-code: "01"
-          process-key: Process_TransferRequest
-          priority: 100
-
-        - name: 餘額查詢
-          mti: "0200"
-          processing-code: "31"
-          process-key: Process_TransferRequest
-          priority: 100
-
-        # ===== 沖正交易 =====
-        - name: 沖正交易
-          mti: "0400"
-          process-key: Process_TransferRequest
-          priority: 100
-
-        # ===== 網路管理 =====
-        - name: 網路管理
-          mti: "0800"
-          process-key: Only_Log_Process
-          priority: 100
-
-        # ===== 特殊通道 =====
-        - name: ATM 2500 交易
-          channel-pattern: "ATM.*"
-          mti: "2500"
-          process-key: Only_Log_Process
-          priority: 10
 
 ---
 # Development Profile (H2 In-Memory)
@@ -64,42 +36,38 @@ spring:
 
 fep:
   bpmn:
-    high-tps-mode: true
-    process-routing:
-      enabled: true
-      default-process: Process_TransferRequest
-
+    processRouting:
       rules:
         # ===== 金融交易 =====
         - name: 跨行轉帳
           mti: "0200"
-          processing-code: "010000"
-          process-key: Only_Log_Process
+          processingCode: "010000"
+          processKey: Only_Log_Process
           priority: 100
 
         - name: 餘額查詢
           mti: "0200"
-          processing-code: "31"
-          process-key: Process_TransferRequest
+          processingCode: "31"
+          processKey: Process_TransferRequest
           priority: 100
 
         # ===== 沖正交易 =====
         - name: 沖正交易
           mti: "0400"
-          process-key: Process_TransferRequest
+          processKey: Process_TransferRequest
           priority: 100
 
         # ===== 網路管理 =====
         - name: 網路管理
           mti: "0800"
-          process-key: Only_Log_Process
+          processKey: Only_Log_Process
           priority: 100
 
         # ===== 特殊通道 =====
         - name: ATM 2500 交易
-          channel-pattern: "ATM.*"
+          channelPattern: "ATM.*"
           mti: "2500"
-          process-key: Only_Log_Process
+          processKey: Only_Log_Process
           priority: 10
 
 ---
@@ -111,46 +79,46 @@ spring:
 
 fep:
   bpmn:
-    high-tps-mode: ${BPMN_HIGH_TPS_MODE:true}
-    process-routing:
+    highTpsMode: ${BPMN_HIGH_TPS_MODE:true}
+    processRouting:
       enabled: ${BPMN_ROUTING_ENABLED:true}
-      default-process: ${BPMN_DEFAULT_PROCESS:Process_TransferRequest}
+      defaultProcess: ${BPMN_DEFAULT_PROCESS:Process_TransferRequest}
 
       rules:
         # ===== 金融交易 =====
         - name: 跨行轉帳
           mti: "0200"
-          processing-code: "40"
-          process-key: Process_TransferRequest
+          processingCode: "40"
+          processKey: Process_TransferRequest
           priority: 100
 
         - name: 跨行提款
           mti: "0200"
-          processing-code: "01"
-          process-key: Process_TransferRequest
+          processingCode: "01"
+          processKey: Process_TransferRequest
           priority: 100
 
         - name: 餘額查詢
           mti: "0200"
-          processing-code: "31"
-          process-key: Process_TransferRequest
+          processingCode: "31"
+          processKey: Process_TransferRequest
           priority: 100
 
         # ===== 沖正交易 =====
         - name: 沖正交易
           mti: "0400"
-          process-key: Process_TransferRequest
+          processKey: Process_TransferRequest
           priority: 100
 
         # ===== 網路管理 =====
         - name: 網路管理
           mti: "0800"
-          process-key: Process_NetworkManagement
+          processKey: Process_NetworkManagement
           priority: 100
 
         # ===== 特殊通道 =====
         - name: ATM 2500 交易
-          channel-pattern: "ATM.*"
+          channelPattern: "ATM.*"
           mti: "2500"
-          process-key: Only_Log_Process
+          processKey: Only_Log_Process
           priority: 10
