@@ -1,0 +1,227 @@
+# FEP Internal Message Schema
+# 此 Schema 定義 FEP 內部統一的訊息格式
+# 所有外部電文轉換為此格式進行處理
+
+name: "FEP_Internal_V1"
+version: "1.0"
+description: "FEP 內部標準訊息格式"
+
+# 欄位定義
+fields:
+  # ==================== 訊息識別 ====================
+  - id: messageType
+    name: "訊息類型"
+    description: "訊息類型 (FINANCIAL_REQUEST, FINANCIAL_RESPONSE, etc.)"
+    type: ENUM
+    required: true
+
+  - id: transactionCode
+    name: "交易類型代碼"
+    description: "交易類型代碼，對應 Processing Code"
+    type: STRING
+    maxLength: 6
+    required: true
+
+  - id: traceNumber
+    name: "系統追蹤號"
+    description: "STAN (System Trace Audit Number)"
+    type: STRING
+    length: 6
+    required: true
+
+  - id: referenceNumber
+    name: "參考號"
+    description: "RRN (Retrieval Reference Number)"
+    type: STRING
+    maxLength: 12
+
+  - id: businessKey
+    name: "業務鍵"
+    description: "用於 BPMN 流程識別"
+    type: STRING
+    maxLength: 64
+
+  # ==================== 通道資訊 ====================
+  - id: sourceChannelId
+    name: "來源通道"
+    description: "來源通道 ID"
+    type: STRING
+    maxLength: 32
+
+  - id: sourceClientId
+    name: "來源客戶端"
+    description: "來源客戶端 ID (如 IP:Port)"
+    type: STRING
+    maxLength: 64
+
+  - id: targetChannelId
+    name: "目標通道"
+    description: "目標通道 ID"
+    type: STRING
+    maxLength: 32
+
+  # ==================== 卡片/帳戶資訊 ====================
+  - id: cardNumber
+    name: "卡號"
+    description: "PAN (Primary Account Number)"
+    type: STRING
+    maxLength: 19
+    sensitive: true
+
+  - id: sourceAccount
+    name: "來源帳號"
+    description: "扣款帳號"
+    type: STRING
+    maxLength: 20
+    sensitive: true
+
+  - id: destinationAccount
+    name: "目的帳號"
+    description: "入款帳號"
+    type: STRING
+    maxLength: 20
+    sensitive: true
+
+  - id: sourceBankCode
+    name: "來源銀行代碼"
+    description: "扣款銀行代碼"
+    type: STRING
+    maxLength: 11
+
+  - id: destinationBankCode
+    name: "目標銀行代碼"
+    description: "入款銀行代碼"
+    type: STRING
+    maxLength: 11
+
+  # ==================== 交易資訊 ====================
+  - id: transactionAmount
+    name: "交易金額"
+    description: "交易金額 (最小單位，如分)"
+    type: NUMERIC
+    length: 12
+
+  - id: currencyCode
+    name: "幣別代碼"
+    description: "交易幣別 (TWD=901)"
+    type: STRING
+    length: 3
+    defaultValue: "901"
+
+  - id: transactionTime
+    name: "交易時間"
+    description: "交易發生時間"
+    type: DATETIME
+
+  # ==================== 終端資訊 ====================
+  - id: terminalId
+    name: "終端機代碼"
+    description: "ATM/POS 終端機代碼"
+    type: STRING
+    maxLength: 8
+
+  - id: merchantId
+    name: "商戶代碼"
+    description: "商戶識別碼"
+    type: STRING
+    maxLength: 15
+
+  - id: merchantName
+    name: "商戶名稱"
+    description: "商戶名稱/地址"
+    type: STRING
+    maxLength: 40
+
+  # ==================== 回應資訊 ====================
+  - id: responseCode
+    name: "回應碼"
+    description: "交易回應碼 (00=成功)"
+    type: STRING
+    length: 2
+
+  - id: responseMessage
+    name: "回應訊息"
+    description: "回應碼對應的訊息"
+    type: STRING
+    maxLength: 100
+
+  - id: authorizationCode
+    name: "授權碼"
+    description: "授權識別碼"
+    type: STRING
+    maxLength: 6
+
+  # ==================== 安全資訊 ====================
+  - id: pinBlock
+    name: "PIN Block"
+    description: "加密的 PIN"
+    type: BINARY
+    sensitive: true
+
+  - id: track2Data
+    name: "Track 2 Data"
+    description: "磁條第二軌資料"
+    type: STRING
+    sensitive: true
+
+  - id: iccData
+    name: "ICC Data"
+    description: "晶片卡資料 (EMV)"
+    type: STRING
+
+  # ==================== 追蹤資訊 ====================
+  - id: traceId
+    name: "追蹤 ID"
+    description: "用於日誌關聯的追蹤識別碼"
+    type: STRING
+    maxLength: 64
+
+  - id: processKey
+    name: "流程 Key"
+    description: "BPMN 流程定義 Key"
+    type: STRING
+    maxLength: 64
+
+# 回應碼定義
+responseCodes:
+  "00": "交易成功"
+  "01": "請聯絡發卡銀行"
+  "03": "無效商店"
+  "04": "沒收卡片"
+  "05": "不予承兌"
+  "12": "無效交易"
+  "13": "無效金額"
+  "14": "無效卡號"
+  "30": "格式錯誤"
+  "41": "掛失卡"
+  "43": "被竊卡"
+  "51": "餘額不足"
+  "54": "過期卡"
+  "55": "密碼錯誤"
+  "57": "不允許此卡交易"
+  "58": "不允許終端機交易"
+  "61": "超過提款限額"
+  "62": "受限制卡片"
+  "65": "超過使用次數"
+  "75": "密碼錯誤次數過多"
+  "76": "查無原交易"
+  "77": "資料不符"
+  "78": "查無帳戶"
+  "91": "發卡銀行無法連線"
+  "94": "重複交易"
+  "96": "系統異常"
+
+# 交易類型定義 (Processing Code 前兩碼)
+transactionTypes:
+  "00": "商品購買/服務"
+  "01": "提款"
+  "02": "借記調整"
+  "09": "商品購買退貨"
+  "20": "退貨"
+  "21": "存款"
+  "22": "存款調整"
+  "28": "存款退款"
+  "30": "餘額查詢"
+  "31": "餘額查詢"
+  "40": "轉帳"
+  "50": "繳費"

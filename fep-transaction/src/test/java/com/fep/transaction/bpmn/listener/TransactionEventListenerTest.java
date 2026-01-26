@@ -2,6 +2,8 @@ package com.fep.transaction.bpmn.listener;
 
 import com.fep.common.event.FiscResponseEvent;
 import com.fep.common.event.TransactionRequestEvent;
+import com.fep.common.message.InternalMessage;
+import com.fep.message.iso8583.Iso8583MessageFactory;
 import com.fep.transaction.bpmn.service.TransferProcessService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -31,6 +33,9 @@ class TransactionEventListenerTest {
     @Mock
     private TransferProcessService processService;
 
+    @Mock
+    private Iso8583MessageFactory messageFactory;
+
     @InjectMocks
     private TransactionEventListener listener;
 
@@ -47,7 +52,7 @@ class TransactionEventListenerTest {
         @DisplayName("should start BPMN process when receiving transfer request with processKey")
         void shouldStartBpmnProcessForTransferRequest() {
             // Given - 使用新的 startProcessWithKey 方法（因為有 processKey）
-            when(processService.startProcessWithKey(any(), eq(TEST_PROCESS_KEY), any(), any(), any()))
+            when(processService.startProcessWithKey(any(), eq(TEST_PROCESS_KEY), any(), any(), any(), any(), any()))
                     .thenReturn(TEST_PROCESS_ID);
 
             TransactionRequestEvent event = createTransactionRequestEvent(
@@ -56,16 +61,18 @@ class TransactionEventListenerTest {
             // When
             listener.handleTransactionRequest(event);
 
-            // Then
-            verify(processService).startProcessWithKey(any(), eq(TEST_PROCESS_KEY), any(), any(), any());
-            assertThat(listener.getProcessId(TEST_STAN)).isEqualTo(TEST_PROCESS_ID);
+            // Then - callbackKey 格式: channelId:clientId:stan
+            String expectedCallbackKey = TransactionEventListener.generateCallbackKey(
+                    TEST_CHANNEL_ID, "127.0.0.1:12345", TEST_STAN);
+            verify(processService).startProcessWithKey(any(), eq(TEST_PROCESS_KEY), any(), any(), any(), any(), any());
+            assertThat(listener.getProcessId(expectedCallbackKey)).isEqualTo(TEST_PROCESS_ID);
         }
 
         @Test
         @DisplayName("should register STAN to process mapping")
         void shouldRegisterStanToProcessMapping() {
             // Given
-            when(processService.startProcessWithKey(any(), eq(TEST_PROCESS_KEY), any(), any(), any()))
+            when(processService.startProcessWithKey(any(), eq(TEST_PROCESS_KEY), any(), any(), any(), any(), any()))
                     .thenReturn(TEST_PROCESS_ID);
 
             TransactionRequestEvent event = createTransactionRequestEvent(
@@ -74,35 +81,24 @@ class TransactionEventListenerTest {
             // When
             listener.handleTransactionRequest(event);
 
-            // Then
-            assertThat(listener.getProcessId(TEST_STAN)).isEqualTo(TEST_PROCESS_ID);
-            assertThat(listener.getStan(TEST_PROCESS_ID)).isEqualTo(TEST_STAN);
+            // Then - callbackKey 格式: channelId:clientId:stan
+            String expectedCallbackKey = TransactionEventListener.generateCallbackKey(
+                    TEST_CHANNEL_ID, "127.0.0.1:12345", TEST_STAN);
+            assertThat(listener.getProcessId(expectedCallbackKey)).isEqualTo(TEST_PROCESS_ID);
+            assertThat(listener.getCallbackKey(TEST_PROCESS_ID)).isEqualTo(expectedCallbackKey);
         }
 
         @Test
         @DisplayName("should register response callback")
         void shouldRegisterResponseCallback() {
             // Given
-            when(processService.startProcessWithKey(any(), eq(TEST_PROCESS_KEY), any(), any(), any()))
+            when(processService.startProcessWithKey(any(), eq(TEST_PROCESS_KEY), any(), any(), any(), any(), any()))
                     .thenReturn(TEST_PROCESS_ID);
             AtomicBoolean callbackCalled = new AtomicBoolean(false);
 
-            TransactionRequestEvent event = TransactionRequestEvent.builder()
-                    .source(this)
-                    .transactionType(TransactionRequestEvent.TransactionType.TRANSFER)
-                    .mti("0200")
-                    .stan(TEST_STAN)
-                    .channelId(TEST_CHANNEL_ID)
-                    .clientId("127.0.0.1:12345")
-                    .processingCode("400000")
-                    .amount("10000")
-                    .pan("1234567890123456")
-                    .targetAccount("9876543210987654")
-                    .sourceBankCode("812")
-                    .targetBankCode("013")
-                    .processKey(TEST_PROCESS_KEY)
-                    .responseCallback(data -> callbackCalled.set(true))
-                    .build();
+            TransactionRequestEvent event = createTransactionRequestEventWithCallback(
+                    TransactionRequestEvent.TransactionType.TRANSFER,
+                    data -> callbackCalled.set(true));
 
             // When
             listener.handleTransactionRequest(event);
@@ -115,7 +111,7 @@ class TransactionEventListenerTest {
         @DisplayName("should increment pending count")
         void shouldIncrementPendingCount() {
             // Given
-            when(processService.startProcessWithKey(any(), eq(TEST_PROCESS_KEY), any(), any(), any()))
+            when(processService.startProcessWithKey(any(), eq(TEST_PROCESS_KEY), any(), any(), any(), any(), any()))
                     .thenReturn(TEST_PROCESS_ID);
             int initialCount = listener.getPendingCount();
 
@@ -135,9 +131,20 @@ class TransactionEventListenerTest {
     class HandleFiscResponseTests {
 
         @BeforeEach
-        void setUp() {
+        void setUp() throws Exception {
+            // 測試傳統模式（非高 TPS 模式）- 使用反射設定 highTpsMode 為 false
+            java.lang.reflect.Field highTpsModeField = TransactionEventListener.class.getDeclaredField("highTpsMode");
+            highTpsModeField.setAccessible(true);
+            highTpsModeField.setBoolean(listener, false);
+
+            // 註冊 FISC STAN → CallbackKey 映射（模擬 AssembleMessageDelegate 的行為）
+            // 在非高 TPS 模式下，handleFiscResponse 使用 fiscStanToCallbackKeyMap 來查找 callbackKey
+            String callbackKey = TransactionEventListener.generateCallbackKey(
+                    TEST_CHANNEL_ID, "127.0.0.1:12345", TEST_STAN);
+            listener.registerFiscStanMapping(TEST_STAN, callbackKey);
+
             // Pre-register a mapping
-            when(processService.startProcessWithKey(any(), eq(TEST_PROCESS_KEY), any(), any(), any()))
+            when(processService.startProcessWithKey(any(), eq(TEST_PROCESS_KEY), any(), any(), any(), any(), any()))
                     .thenReturn(TEST_PROCESS_ID);
             listener.handleTransactionRequest(createTransactionRequestEvent(
                     TransactionRequestEvent.TransactionType.TRANSFER));
@@ -249,30 +256,17 @@ class TransactionEventListenerTest {
         @DisplayName("should send response via callback")
         void shouldSendResponseViaCallback() {
             // Given
-            when(processService.startProcessWithKey(any(), eq(TEST_PROCESS_KEY), any(), any(), any()))
+            when(processService.startProcessWithKey(any(), eq(TEST_PROCESS_KEY), any(), any(), any(), any(), any()))
                     .thenReturn(TEST_PROCESS_ID);
             AtomicBoolean callbackCalled = new AtomicBoolean(false);
             byte[] expectedData = new byte[]{1, 2, 3};
 
-            TransactionRequestEvent event = TransactionRequestEvent.builder()
-                    .source(this)
-                    .transactionType(TransactionRequestEvent.TransactionType.TRANSFER)
-                    .mti("0200")
-                    .stan(TEST_STAN)
-                    .channelId(TEST_CHANNEL_ID)
-                    .clientId("127.0.0.1:12345")
-                    .processingCode("400000")
-                    .amount("10000")
-                    .pan("1234567890123456")
-                    .targetAccount("9876543210987654")
-                    .sourceBankCode("812")
-                    .targetBankCode("013")
-                    .processKey(TEST_PROCESS_KEY)
-                    .responseCallback(data -> {
+            TransactionRequestEvent event = createTransactionRequestEventWithCallback(
+                    TransactionRequestEvent.TransactionType.TRANSFER,
+                    data -> {
                         callbackCalled.set(true);
                         assertThat(data).isEqualTo(expectedData);
-                    })
-                    .build();
+                    });
 
             listener.handleTransactionRequest(event);
 
@@ -298,25 +292,11 @@ class TransactionEventListenerTest {
         @DisplayName("should cleanup mappings after sending response")
         void shouldCleanupMappingsAfterSendingResponse() {
             // Given
-            when(processService.startProcessWithKey(any(), eq(TEST_PROCESS_KEY), any(), any(), any()))
+            when(processService.startProcessWithKey(any(), eq(TEST_PROCESS_KEY), any(), any(), any(), any(), any()))
                     .thenReturn(TEST_PROCESS_ID);
 
-            TransactionRequestEvent event = TransactionRequestEvent.builder()
-                    .source(this)
-                    .transactionType(TransactionRequestEvent.TransactionType.TRANSFER)
-                    .mti("0200")
-                    .stan(TEST_STAN)
-                    .channelId(TEST_CHANNEL_ID)
-                    .clientId("127.0.0.1:12345")
-                    .processingCode("400000")
-                    .amount("10000")
-                    .pan("1234567890123456")
-                    .targetAccount("9876543210987654")
-                    .sourceBankCode("812")
-                    .targetBankCode("013")
-                    .processKey(TEST_PROCESS_KEY)
-                    .responseCallback(data -> {})
-                    .build();
+            TransactionRequestEvent event = createTransactionRequestEvent(
+                    TransactionRequestEvent.TransactionType.TRANSFER);
 
             listener.handleTransactionRequest(event);
             int countBefore = listener.getPendingCount();
@@ -326,28 +306,68 @@ class TransactionEventListenerTest {
 
             // Then
             assertThat(listener.getPendingCount()).isEqualTo(countBefore - 1);
-            assertThat(listener.getProcessId(TEST_STAN)).isNull();
+            // callbackKey 格式: channelId:clientId:stan
+            String expectedCallbackKey = TransactionEventListener.generateCallbackKey(
+                    TEST_CHANNEL_ID, "127.0.0.1:12345", TEST_STAN);
+            assertThat(listener.getProcessId(expectedCallbackKey)).isNull();
         }
     }
 
     // ==================== Helper Methods ====================
 
     private TransactionRequestEvent createTransactionRequestEvent(TransactionRequestEvent.TransactionType type) {
+        // 建立 InternalMessage
+        InternalMessage internal = InternalMessage.builder()
+                .messageType(type == TransactionRequestEvent.TransactionType.REVERSAL
+                        ? InternalMessage.MessageType.REVERSAL_REQUEST
+                        : InternalMessage.MessageType.FINANCIAL_REQUEST)
+                .traceNumber(TEST_STAN)
+                .transactionCode("400000")
+                .transactionAmount(10000L)
+                .cardNumber("1234567890123456")
+                .sourceAccount("1234567890123456")
+                .destinationAccount("9876543210987654")
+                .sourceBankCode("812")
+                .destinationBankCode("013")
+                .sourceChannelId(TEST_CHANNEL_ID)
+                .sourceClientId("127.0.0.1:12345")
+                .build();
+
         return TransactionRequestEvent.builder()
                 .source(this)
+                .message(internal)
                 .transactionType(type)
-                .mti(type == TransactionRequestEvent.TransactionType.REVERSAL ? "0400" : "0200")
-                .stan(TEST_STAN)
-                .channelId(TEST_CHANNEL_ID)
-                .clientId("127.0.0.1:12345")
-                .processingCode("400000")
-                .amount("10000")
-                .pan("1234567890123456")
-                .targetAccount("9876543210987654")
-                .sourceBankCode("812")
-                .targetBankCode("013")
                 .processKey(TEST_PROCESS_KEY)
                 .responseCallback(data -> {})
+                .build();
+    }
+
+    private TransactionRequestEvent createTransactionRequestEventWithCallback(
+            TransactionRequestEvent.TransactionType type,
+            Consumer<byte[]> callback) {
+        // 建立 InternalMessage
+        InternalMessage internal = InternalMessage.builder()
+                .messageType(type == TransactionRequestEvent.TransactionType.REVERSAL
+                        ? InternalMessage.MessageType.REVERSAL_REQUEST
+                        : InternalMessage.MessageType.FINANCIAL_REQUEST)
+                .traceNumber(TEST_STAN)
+                .transactionCode("400000")
+                .transactionAmount(10000L)
+                .cardNumber("1234567890123456")
+                .sourceAccount("1234567890123456")
+                .destinationAccount("9876543210987654")
+                .sourceBankCode("812")
+                .destinationBankCode("013")
+                .sourceChannelId(TEST_CHANNEL_ID)
+                .sourceClientId("127.0.0.1:12345")
+                .build();
+
+        return TransactionRequestEvent.builder()
+                .source(this)
+                .message(internal)
+                .transactionType(type)
+                .processKey(TEST_PROCESS_KEY)
+                .responseCallback(callback)
                 .build();
     }
 }

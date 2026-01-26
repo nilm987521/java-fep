@@ -1,5 +1,6 @@
 package com.fep.common.event;
 
+import com.fep.common.message.InternalMessage;
 import lombok.Builder;
 import lombok.Getter;
 import lombok.ToString;
@@ -10,8 +11,11 @@ import java.util.function.Consumer;
 /**
  * 交易請求事件
  *
- * <p>當 FEP Server 收到來自 ATM/POS 的交易請求 (0200/0400) 時發布此事件，
+ * <p>當 FEP Server 收到來自 ATM/POS 的交易請求時發布此事件，
  * 用於觸發 BPMN 流程處理。
+ *
+ * <p>此事件包含 InternalMessage（FEP 內部統一格式），
+ * 業務邏輯只需操作 InternalMessage，不需關心外部電文格式。
  *
  * <p>事件驅動架構的好處：
  * <ul>
@@ -24,6 +28,9 @@ import java.util.function.Consumer;
  * <pre>
  * ATM ──0200──► BpmnServerMessageHandler
  *                        │
+ *                        ▼ [MessageTransformer.toInternal]
+ *               InternalMessage
+ *                        │
  *                        ▼ (publish event)
  *               TransactionRequestEvent
  *                        │
@@ -35,8 +42,13 @@ import java.util.function.Consumer;
  * </pre>
  */
 @Getter
-@ToString
+@ToString(exclude = "responseCallback")
 public class TransactionRequestEvent extends ApplicationEvent {
+
+    /**
+     * 內部訊息（FEP 統一格式）
+     */
+    private final InternalMessage message;
 
     /**
      * 交易類型
@@ -44,63 +56,7 @@ public class TransactionRequestEvent extends ApplicationEvent {
     private final TransactionType transactionType;
 
     /**
-     * 原始電文內容 (序列化後的 byte 陣列)
-     */
-    private final byte[] rawMessage;
-
-    /**
-     * MTI (Message Type Indicator)
-     */
-    private final String mti;
-
-    /**
-     * STAN (System Trace Audit Number)
-     */
-    private final String stan;
-
-    /**
-     * 通道 ID (e.g., "ATM_FISC_V1")
-     */
-    private final String channelId;
-
-    /**
-     * 客戶端 ID (e.g., "127.0.0.1:12345")
-     */
-    private final String clientId;
-
-    /**
-     * Processing Code (欄位 3)
-     */
-    private final String processingCode;
-
-    /**
-     * 交易金額 (欄位 4)
-     */
-    private final String amount;
-
-    /**
-     * 主帳號 PAN (欄位 2)
-     */
-    private final String pan;
-
-    /**
-     * 目標帳號 (欄位 103, 用於轉帳)
-     */
-    private final String targetAccount;
-
-    /**
-     * 來源銀行代碼 (欄位 32)
-     */
-    private final String sourceBankCode;
-
-    /**
-     * 目標銀行代碼 (欄位 100)
-     */
-    private final String targetBankCode;
-
-    /**
      * BPMN 流程 Key - 由 ProcessRouterService 解析後傳入
-     * <p>例如: "Process_TransferRequest", "Process_NetworkManagement"
      */
     private final String processKey;
 
@@ -115,36 +71,136 @@ public class TransactionRequestEvent extends ApplicationEvent {
     @Builder
     public TransactionRequestEvent(
             Object source,
+            InternalMessage message,
             TransactionType transactionType,
-            byte[] rawMessage,
-            String mti,
-            String stan,
-            String channelId,
-            String clientId,
-            String processingCode,
-            String amount,
-            String pan,
-            String targetAccount,
-            String sourceBankCode,
-            String targetBankCode,
             String processKey,
             Consumer<byte[]> responseCallback) {
 
         super(source);
+        this.message = message;
         this.transactionType = transactionType;
-        this.rawMessage = rawMessage;
-        this.mti = mti;
-        this.stan = stan;
-        this.channelId = channelId;
-        this.clientId = clientId;
-        this.processingCode = processingCode;
-        this.amount = amount;
-        this.pan = pan;
-        this.targetAccount = targetAccount;
-        this.sourceBankCode = sourceBankCode;
-        this.targetBankCode = targetBankCode;
         this.processKey = processKey;
         this.responseCallback = responseCallback;
+    }
+
+    // ==================== 便捷存取方法（委派給 InternalMessage）====================
+
+    /**
+     * 取得 MTI
+     */
+    public String getMti() {
+        if (message == null) return null;
+        if (message.getMessageType() != null) {
+            return message.getMessageType().getMtiCode();
+        }
+        // Fallback: 檢查擴充欄位中的原始 MTI（用於未知 MTI）
+        return message.getExtendedFieldAsString("originalMti");
+    }
+
+    /**
+     * 取得 STAN
+     */
+    public String getStan() {
+        return message != null ? message.getTraceNumber() : null;
+    }
+
+    /**
+     * 取得通道 ID
+     */
+    public String getChannelId() {
+        return message != null ? message.getSourceChannelId() : null;
+    }
+
+    /**
+     * 取得客戶端 ID
+     */
+    public String getClientId() {
+        return message != null ? message.getSourceClientId() : null;
+    }
+
+    /**
+     * 取得 Processing Code
+     */
+    public String getProcessingCode() {
+        return message != null ? message.getTransactionCode() : null;
+    }
+
+    /**
+     * 取得交易金額
+     */
+    public Long getAmount() {
+        return message != null ? message.getTransactionAmount() : null;
+    }
+
+    /**
+     * 取得交易金額（字串格式）
+     */
+    public String getAmountAsString() {
+        Long amount = getAmount();
+        return amount != null ? String.valueOf(amount) : null;
+    }
+
+    /**
+     * 取得卡號
+     */
+    public String getPan() {
+        return message != null ? message.getCardNumber() : null;
+    }
+
+    /**
+     * 取得來源帳號
+     */
+    public String getSourceAccount() {
+        return message != null ? message.getSourceAccount() : null;
+    }
+
+    /**
+     * 取得目標帳號
+     */
+    public String getTargetAccount() {
+        return message != null ? message.getDestinationAccount() : null;
+    }
+
+    /**
+     * 取得來源銀行代碼
+     */
+    public String getSourceBankCode() {
+        return message != null ? message.getSourceBankCode() : null;
+    }
+
+    /**
+     * 取得目標銀行代碼
+     */
+    public String getTargetBankCode() {
+        return message != null ? message.getDestinationBankCode() : null;
+    }
+
+    /**
+     * 取得終端機 ID
+     */
+    public String getTerminalId() {
+        return message != null ? message.getTerminalId() : null;
+    }
+
+    /**
+     * 取得商戶 ID
+     */
+    public String getMerchantId() {
+        return message != null ? message.getMerchantId() : null;
+    }
+
+    /**
+     * 取得 RRN
+     */
+    public String getRrn() {
+        return message != null ? message.getReferenceNumber() : null;
+    }
+
+    /**
+     * 取得原始電文
+     */
+    public byte[] getRawMessage() {
+        return message != null ? message.getRawData() : null;
     }
 
     /**
@@ -177,8 +233,42 @@ public class TransactionRequestEvent extends ApplicationEvent {
         REVERSAL,
 
         /**
+         * 網路管理 (MTI: 0800)
+         */
+        NETWORK_MANAGEMENT,
+
+        /**
          * 未知交易類型
          */
-        UNKNOWN
+        UNKNOWN;
+
+        /**
+         * 從 MTI 和 Processing Code 判斷交易類型
+         */
+        public static TransactionType fromMtiAndProcessingCode(String mti, String processingCode) {
+            // 沖正交易
+            if (mti != null && (mti.startsWith("04"))) {
+                return REVERSAL;
+            }
+
+            // 網路管理
+            if (mti != null && mti.startsWith("08")) {
+                return NETWORK_MANAGEMENT;
+            }
+
+            // 根據 Processing Code 判斷
+            if (processingCode == null || processingCode.length() < 2) {
+                return UNKNOWN;
+            }
+
+            String typeCode = processingCode.substring(0, 2);
+            return switch (typeCode) {
+                case "40" -> TRANSFER;
+                case "01" -> WITHDRAWAL;
+                case "31", "30" -> BALANCE_INQUIRY;
+                case "50" -> BILL_PAYMENT;
+                default -> UNKNOWN;
+            };
+        }
     }
 }

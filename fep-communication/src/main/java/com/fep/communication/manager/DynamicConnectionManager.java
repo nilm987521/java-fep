@@ -720,18 +720,20 @@ public class DynamicConnectionManager implements ConnectionSubscriber {
         log.info("Setting up messageHandler for server {}: serverMessageHandler is {}",
                 channelId, serverMessageHandler != null ? "SET" : "NULL");
         if (serverMessageHandler != null) {
-            server.setMessageHandler((clientId, message) -> {
-                log.info("MessageHandler lambda invoked for channel={}, client={}, MTI={}",
-                        channelId, clientId, message.getMti());
+            // Use new GenericMessageCallback to pass both message types
+            server.setGenericMessageCallback((clientId, isoMessage, genericMessage) -> {
+                log.info("MessageHandler callback invoked for channel={}, client={}, MTI={}, hasGeneric={}",
+                        channelId, clientId, isoMessage.getMti(), genericMessage != null);
                 ServerMessageHandler.ServerMessageContext context = DefaultServerMessageContext.builder()
                         .channelId(channelId)
                         .clientId(clientId)
-                        .message(message)
+                        .message(isoMessage)
+                        .genericMessage(genericMessage)
                         .server(server)
                         .build();
                 serverMessageHandler.handleMessage(context);
             });
-            log.info("Configured message handler for server: {}", channelId);
+            log.info("Configured GenericMessage callback for server: {}", channelId);
         } else {
             log.warn("serverMessageHandler is NULL, server {} will not process messages!", channelId);
         }

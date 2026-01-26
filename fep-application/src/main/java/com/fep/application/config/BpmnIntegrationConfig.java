@@ -6,6 +6,7 @@ import com.fep.communication.handler.ServerMessageHandler;
 import com.fep.communication.manager.DynamicConnectionManager;
 import com.fep.message.iso8583.Iso8583Message;
 import com.fep.message.iso8583.Iso8583MessageFactory;
+import com.fep.message.transform.MessageTransformer;
 import com.fep.transaction.bpmn.config.ProcessRoutingProperties;
 import com.fep.transaction.bpmn.service.FiscCommunicationService;
 import com.fep.transaction.bpmn.service.FiscCommunicationService.FiscClientBridge;
@@ -64,6 +65,7 @@ public class BpmnIntegrationConfig {
     private final FiscCommunicationService fiscCommunicationService;
     private final DynamicConnectionManager connectionManager;
     private final ProcessRouterService processRouterService;
+    private final MessageTransformer messageTransformer;
 
     private Iso8583MessageFactory messageFactory;
 
@@ -129,7 +131,7 @@ public class BpmnIntegrationConfig {
                 (channelId, mti, processingCode) ->
                         processRouterService.resolveProcessKey(channelId, mti, processingCode);
 
-        return new BpmnServerMessageHandler(eventPublisher, resolver);
+        return new BpmnServerMessageHandler(eventPublisher, resolver, messageTransformer);
     }
 
     /**
@@ -144,7 +146,7 @@ public class BpmnIntegrationConfig {
                         processRouterService.resolveProcessKey(channelId, mti, processingCode);
 
         // 建立 BPMN Handler
-        BpmnServerMessageHandler bpmnHandler = new BpmnServerMessageHandler(eventPublisher, resolver);
+        BpmnServerMessageHandler bpmnHandler = new BpmnServerMessageHandler(eventPublisher, resolver, messageTransformer);
 
         // 設定到 DynamicConnectionManager
         connectionManager.setServerMessageHandler(bpmnHandler);

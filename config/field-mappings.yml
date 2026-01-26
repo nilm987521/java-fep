@@ -1,0 +1,256 @@
+# FEP Field Mapping Configuration
+# 定義各通道與內部格式之間的欄位映射
+
+# 全域設定
+global:
+  # 預設的內部 Schema 版本
+  internalSchemaVersion: "FEP_Internal_V1"
+
+  # 是否啟用嚴格模式 (遇到未映射欄位時報錯)
+  strictMode: false
+
+  # 預設值設定
+  defaults:
+    currencyCode: "901"
+
+# 通道映射定義
+channelMappings:
+  # ==================== ATM 通道 ====================
+  ATM_FISC_V1:
+    description: "ATM 通道欄位映射 (FISC ATM Format)"
+    schemaName: "FISC ATM Format"
+
+    # 外部欄位 → 內部欄位 (接收轉換)
+    toInternal:
+      # 訊息識別
+      mti: messageType
+      processingCode: transactionCode
+      stan: traceNumber
+      rrn: referenceNumber
+
+      # 卡片/帳戶
+      pan: cardNumber
+      sourceAccount: sourceAccount
+      destAccount: destinationAccount
+      acquiringInstitution: sourceBankCode
+
+      # 交易資訊
+      amount: transactionAmount
+      currencyCode: currencyCode
+      localTime: _transactionTime.time
+      localDate: _transactionTime.date
+
+      # 終端資訊
+      terminalId: terminalId
+      merchantId: merchantId
+      cardAcceptorName: merchantName
+
+      # 回應
+      responseCode: responseCode
+      authCode: authorizationCode
+
+      # 安全
+      pinBlock: pinBlock
+
+    # 內部欄位 → 外部欄位 (發送轉換)
+    fromInternal:
+      messageType: mti
+      transactionCode: processingCode
+      traceNumber: stan
+      referenceNumber: rrn
+
+      cardNumber: pan
+      sourceAccount: sourceAccount
+      destinationAccount: destAccount
+      sourceBankCode: acquiringInstitution
+
+      transactionAmount: amount
+      currencyCode: currencyCode
+
+      terminalId: terminalId
+      merchantId: merchantId
+      merchantName: cardAcceptorName
+
+      responseCode: responseCode
+      authorizationCode: authCode
+
+      pinBlock: pinBlock
+
+    # 欄位轉換規則
+    transformations:
+      # MTI 轉換
+      - field: messageType
+        type: MTI_TO_ENUM
+
+      # 金額轉換 (字串 → 數字)
+      - field: transactionAmount
+        type: STRING_TO_LONG
+        direction: toInternal
+
+      # 金額轉換 (數字 → 字串，補零)
+      - field: amount
+        type: LONG_TO_PADDED_STRING
+        direction: fromInternal
+        params:
+          length: 12
+          padChar: "0"
+
+      # 時間組合
+      - field: _transactionTime
+        type: COMBINE_DATETIME
+        direction: toInternal
+        params:
+          timeField: localTime
+          dateField: localDate
+          pattern: "HHmmss MMdd"
+
+  # ==================== FISC 跨行通道 ====================
+  FISC_INTERBANK_V1:
+    description: "FISC 跨行通道欄位映射 (ISO 8583)"
+    schemaName: "FISC ISO 8583"
+
+    toInternal:
+      mti: messageType
+      processingCode: transactionCode
+      stan: traceNumber
+      rrn: referenceNumber
+
+      pan: cardNumber
+      sourceAccount: sourceAccount
+      destAccount: destinationAccount
+      acquiringInstitution: sourceBankCode
+      receivingInstitution: destinationBankCode
+
+      amount: transactionAmount
+      currencyCode: currencyCode
+      localTime: _transactionTime.time
+      localDate: _transactionTime.date
+
+      terminalId: terminalId
+      merchantId: merchantId
+
+      responseCode: responseCode
+      authCode: authorizationCode
+
+    fromInternal:
+      messageType: mti
+      transactionCode: processingCode
+      traceNumber: stan
+      referenceNumber: rrn
+
+      cardNumber: pan
+      sourceAccount: sourceAccount
+      destinationAccount: destAccount
+      sourceBankCode: acquiringInstitution
+      destinationBankCode: receivingInstitution
+
+      transactionAmount: amount
+      currencyCode: currencyCode
+
+      terminalId: terminalId
+      merchantId: merchantId
+
+      responseCode: responseCode
+      authorizationCode: authCode
+
+    transformations:
+      - field: messageType
+        type: MTI_TO_ENUM
+      - field: transactionAmount
+        type: STRING_TO_LONG
+        direction: toInternal
+      - field: amount
+        type: LONG_TO_PADDED_STRING
+        direction: fromInternal
+        params:
+          length: 12
+          padChar: "0"
+
+  # ==================== 核心銀行通道 ====================
+  CBS_INTERNAL_V1:
+    description: "核心銀行系統通道 (內部格式)"
+    schemaName: "CBS Internal Format"
+
+    toInternal:
+      txnType: transactionCode
+      seqNo: traceNumber
+      refNo: referenceNumber
+
+      acctNo: sourceAccount
+      toAcctNo: destinationAccount
+      bankCode: sourceBankCode
+      toBankCode: destinationBankCode
+
+      amt: transactionAmount
+      ccy: currencyCode
+      txnTime: transactionTime
+
+      termId: terminalId
+
+      rspCode: responseCode
+      rspMsg: responseMessage
+
+    fromInternal:
+      transactionCode: txnType
+      traceNumber: seqNo
+      referenceNumber: refNo
+
+      sourceAccount: acctNo
+      destinationAccount: toAcctNo
+      sourceBankCode: bankCode
+      destinationBankCode: toBankCode
+
+      transactionAmount: amt
+      currencyCode: ccy
+      transactionTime: txnTime
+
+      terminalId: termId
+
+      responseCode: rspCode
+      responseMessage: rspMsg
+
+# 轉換類型定義
+transformationTypes:
+  MTI_TO_ENUM:
+    description: "MTI 代碼轉換為 MessageType 枚舉"
+    bidirectional: true
+
+  STRING_TO_LONG:
+    description: "字串轉換為 Long"
+    bidirectional: false
+
+  LONG_TO_PADDED_STRING:
+    description: "Long 轉換為補零字串"
+    bidirectional: false
+    params:
+      - name: length
+        type: int
+        required: true
+      - name: padChar
+        type: string
+        default: "0"
+
+  COMBINE_DATETIME:
+    description: "組合日期時間欄位"
+    bidirectional: false
+    params:
+      - name: timeField
+        type: string
+        required: true
+      - name: dateField
+        type: string
+        required: true
+      - name: pattern
+        type: string
+        default: "HHmmss MMdd"
+
+  SPLIT_DATETIME:
+    description: "拆分日期時間欄位"
+    bidirectional: false
+    params:
+      - name: timeField
+        type: string
+        required: true
+      - name: dateField
+        type: string
+        required: true

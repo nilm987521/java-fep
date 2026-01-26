@@ -1,8 +1,11 @@
 package com.fep.communication.handler;
 
 import com.fep.common.event.TransactionRequestEvent;
+import com.fep.common.message.InternalMessage;
 import com.fep.communication.server.FiscDualChannelServer;
+import com.fep.message.generic.message.GenericMessage;
 import com.fep.message.iso8583.Iso8583Message;
+import com.fep.message.transform.MessageTransformer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -36,6 +39,9 @@ class BpmnServerMessageHandlerTest {
     @Mock
     private FiscDualChannelServer server;
 
+    @Mock
+    private MessageTransformer messageTransformer;
+
     private BpmnServerMessageHandler handler;
 
     private static final String TEST_CHANNEL_ID = "ATM_FISC_V1";
@@ -54,7 +60,50 @@ class BpmnServerMessageHandlerTest {
             return DEFAULT_PROCESS_KEY;
         };
 
-        handler = new BpmnServerMessageHandler(eventPublisher, resolver);
+        // 設定 MessageTransformer mock 行為（使用 lenient 因為不是所有測試都需要）
+        lenient().when(messageTransformer.toInternal(any(GenericMessage.class), anyString()))
+                .thenAnswer(invocation -> {
+                    GenericMessage generic = invocation.getArgument(0);
+                    String channelId = invocation.getArgument(1);
+
+                    // 建立 Builder
+                    InternalMessage.InternalMessageBuilder builder = InternalMessage.builder()
+                            .traceNumber(generic.getFieldAsString("stan"))
+                            .cardNumber(generic.getFieldAsString("pan"))
+                            .transactionCode(generic.getFieldAsString("processingCode"))
+                            .sourceChannelId(channelId)
+                            .sourceBankCode(generic.getFieldAsString("sourceBank"))
+                            .destinationBankCode(generic.getFieldAsString("targetBank"))
+                            .destinationAccount(generic.getFieldAsString("targetAccount"));
+
+                    // 解析金額
+                    String amountStr = generic.getFieldAsString("amount");
+                    if (amountStr != null && !amountStr.isEmpty()) {
+                        try {
+                            builder.transactionAmount(Long.parseLong(amountStr.trim()));
+                        } catch (NumberFormatException ignored) {
+                        }
+                    }
+
+                    // 設定 MessageType 根據 MTI
+                    String mti = generic.getFieldAsString("mti");
+                    InternalMessage.MessageType messageType = null;
+                    if (mti != null) {
+                        messageType = InternalMessage.MessageType.fromMti(mti);
+                        builder.messageType(messageType);
+                    }
+
+                    InternalMessage internal = builder.build();
+
+                    // 處理未知 MTI：將原始 MTI 存入擴充欄位讓測試可以驗證
+                    if (messageType == null && mti != null) {
+                        internal.setExtendedField("originalMti", mti);
+                    }
+
+                    return internal;
+                });
+
+        handler = new BpmnServerMessageHandler(eventPublisher, resolver, messageTransformer);
     }
 
     @Nested
@@ -144,7 +193,7 @@ class BpmnServerMessageHandlerTest {
 
             TransactionRequestEvent event = eventCaptor.getValue();
             assertThat(event.getPan()).isEqualTo("1234567890123456");
-            assertThat(event.getAmount()).isEqualTo("000000010000");
+            assertThat(event.getAmount()).isEqualTo(10000L); // 金額已從字串轉為 Long
             assertThat(event.getSourceBankCode()).isEqualTo("812");
             assertThat(event.getTargetBankCode()).isEqualTo("013");
             assertThat(event.getTargetAccount()).isEqualTo("9876543210987654");
@@ -273,7 +322,11 @@ class BpmnServerMessageHandlerTest {
             verify(eventPublisher).publishEvent(eventCaptor.capture());
 
             TransactionRequestEvent event = eventCaptor.getValue();
-            assertThat(event.getMti()).isEqualTo("9999");
+            // 對於未知 MTI，messageType 為 null，所以 getMti() 會回傳擴充欄位中的 originalMti
+            // 驗證原始 MTI 被保存在擴充欄位中
+            assertThat(event.getMessage()).isNotNull();
+            assertThat(event.getMessage().getMessageType()).isNull();
+            assertThat(event.getMessage().getExtendedFieldAsString("originalMti")).isEqualTo("9999");
             assertThat(event.getProcessKey()).isEqualTo(DEFAULT_PROCESS_KEY);
             assertThat(event.getTransactionType()).isEqualTo(TransactionRequestEvent.TransactionType.UNKNOWN);
         }
@@ -286,34 +339,35 @@ class BpmnServerMessageHandlerTest {
         @Test
         @DisplayName("should send response through callback")
         void shouldSendResponseThroughCallback() {
-            // Given - 先發送請求以註冊 callback
+            // Given - 設定 toExternal mock
+            GenericMessage externalMessage = mock(GenericMessage.class);
+            lenient().when(messageTransformer.toExternal(any(InternalMessage.class), anyString()))
+                    .thenReturn(externalMessage);
+            lenient().when(externalMessage.getSchema()).thenReturn(null);
+            lenient().when(externalMessage.getAllFields()).thenReturn(new java.util.HashMap<>());
+
+            // 先發送請求以註冊 callback
             Iso8583Message request = createRequest("0200", "400000");
             TestServerMessageContext context = new TestServerMessageContext(request);
 
             handler.handleMessage(context);
 
-            // When - 發送回應
-            Iso8583Message response = new Iso8583Message();
-            response.setMti("0210");
-            response.setField(39, "00");
-
-            boolean result = handler.sendResponseByStan(TEST_STAN, response);
+            // When - 發送回應（使用新的 callback key 方式）
+            String callbackKey = TEST_CHANNEL_ID + ":" + TEST_CLIENT_ID + ":" + TEST_STAN;
+            byte[] responseData = new byte[]{0x02, 0x10, 0x00};
+            boolean result = handler.sendResponseByCallbackKey(callbackKey, responseData);
 
             // Then
             assertThat(result).isTrue();
-            assertThat(context.responseSent).isTrue();
+            assertThat(context.rawResponseSent).isTrue();
+            assertThat(context.sentRawResponse).isEqualTo(responseData);
         }
 
         @Test
         @DisplayName("should return false when STAN not found")
         void shouldReturnFalseWhenStanNotFound() {
-            // Given
-            Iso8583Message response = new Iso8583Message();
-            response.setMti("0210");
-            response.setField(39, "00");
-
-            // When
-            boolean result = handler.sendResponseByStan("UNKNOWN_STAN", response);
+            // When - 使用新的 callback key 方式
+            boolean result = handler.sendResponseByCallbackKey("UNKNOWN_KEY", new byte[]{1, 2, 3});
 
             // Then
             assertThat(result).isFalse();
@@ -332,7 +386,7 @@ class BpmnServerMessageHandlerTest {
                     (channelId, mti, processingCode) -> "Custom_Process_" + mti;
 
             BpmnServerMessageHandler customHandler =
-                    new BpmnServerMessageHandler(eventPublisher, customResolver);
+                    new BpmnServerMessageHandler(eventPublisher, customResolver, messageTransformer);
 
             Iso8583Message request = createRequest("0200", "400000");
             ServerMessageHandler.ServerMessageContext context = createContext(request);
@@ -360,8 +414,26 @@ class BpmnServerMessageHandlerTest {
         return message;
     }
 
+    /**
+     * 建立 GenericMessage 用於測試
+     * 使用 lenient 因為不是所有測試都會使用所有欄位
+     */
+    private GenericMessage createGenericMessage(Iso8583Message iso) {
+        GenericMessage generic = mock(GenericMessage.class);
+        lenient().when(generic.getFieldAsString("mti")).thenReturn(iso.getMti());
+        lenient().when(generic.getFieldAsString("processingCode")).thenReturn(iso.getFieldAsString(3));
+        lenient().when(generic.getFieldAsString("stan")).thenReturn(iso.getFieldAsString(11));
+        lenient().when(generic.getFieldAsString("pan")).thenReturn(iso.getFieldAsString(2));
+        lenient().when(generic.getFieldAsString("amount")).thenReturn(iso.getFieldAsString(4));
+        lenient().when(generic.getFieldAsString("sourceBank")).thenReturn(iso.getFieldAsString(32));
+        lenient().when(generic.getFieldAsString("targetBank")).thenReturn(iso.getFieldAsString(100));
+        lenient().when(generic.getFieldAsString("targetAccount")).thenReturn(iso.getFieldAsString(103));
+        return generic;
+    }
+
     private ServerMessageHandler.ServerMessageContext createContext(Iso8583Message request) {
-        return new TestServerMessageContext(request);
+        GenericMessage genericMessage = createGenericMessage(request);
+        return new TestServerMessageContext(request, genericMessage);
     }
 
     /**
@@ -369,11 +441,19 @@ class BpmnServerMessageHandlerTest {
      */
     private class TestServerMessageContext implements ServerMessageHandler.ServerMessageContext {
         private final Iso8583Message message;
+        private final GenericMessage genericMessage;
         boolean responseSent = false;
+        boolean rawResponseSent = false;
         Iso8583Message sentResponse;
+        byte[] sentRawResponse;
 
         TestServerMessageContext(Iso8583Message message) {
+            this(message, createGenericMessage(message));
+        }
+
+        TestServerMessageContext(Iso8583Message message, GenericMessage genericMessage) {
             this.message = message;
+            this.genericMessage = genericMessage;
         }
 
         @Override
@@ -387,8 +467,14 @@ class BpmnServerMessageHandlerTest {
         }
 
         @Override
+        @Deprecated
         public Iso8583Message getMessage() {
             return message;
+        }
+
+        @Override
+        public GenericMessage getGenericMessage() {
+            return genericMessage;
         }
 
         @Override
@@ -397,9 +483,17 @@ class BpmnServerMessageHandlerTest {
         }
 
         @Override
+        @Deprecated
         public boolean sendResponse(Iso8583Message response) {
             responseSent = true;
             sentResponse = response;
+            return true;
+        }
+
+        @Override
+        public boolean sendRawResponse(byte[] data) {
+            rawResponseSent = true;
+            sentRawResponse = data;
             return true;
         }
     }

@@ -92,10 +92,41 @@ public class FiscDualChannelServer implements AutoCloseable {
 
     // Message handling
     @Setter
+    @Deprecated
     private BiConsumer<String, Iso8583Message> messageHandler;
+
+    /**
+     * 新架構的訊息處理 callback
+     * 同時傳遞 Iso8583Message 和 GenericMessage
+     */
+    private GenericMessageCallback genericMessageCallback;
 
     @Setter
     private ChannelMessageService channelMessageService;
+
+    /**
+     * 設定支援 GenericMessage 的訊息處理 callback
+     *
+     * @param callback 訊息處理 callback
+     */
+    public void setGenericMessageCallback(GenericMessageCallback callback) {
+        this.genericMessageCallback = callback;
+    }
+
+    /**
+     * 訊息處理 callback 介面
+     */
+    @FunctionalInterface
+    public interface GenericMessageCallback {
+        /**
+         * 處理收到的訊息
+         *
+         * @param clientId 客戶端 ID
+         * @param isoMessage ISO 8583 訊息（向後相容，可能由 GenericMessage 轉換而來）
+         * @param genericMessage 原始 GenericMessage（如果來源是 GenericMessage，否則為 null）
+         */
+        void onMessage(String clientId, Iso8583Message isoMessage, GenericMessage genericMessage);
+    }
 
     // Listeners
     private final List<ConnectionListener> connectionListeners = new CopyOnWriteArrayList<>();
@@ -422,6 +453,62 @@ public class FiscDualChannelServer implements AutoCloseable {
     }
 
     /**
+     * Sends raw byte array to a specific client.
+     *
+     * <p>此方法用於發送已經編碼好的電文 byte[]，
+     * 直接寫入 channel，不經過 Netty pipeline 的 encoder。
+     *
+     * <p>適用於新架構：
+     * <pre>
+     * InternalMessage → MessageTransformer.toExternal() → GenericMessage
+     *                → GenericMessageAssembler.assemble() → byte[]
+     *                → sendRawToClient()
+     * </pre>
+     *
+     * @param clientId the client identifier
+     * @param data     the encoded message bytes
+     * @return true if sent successfully
+     */
+    public boolean sendRawToClient(String clientId, byte[] data) {
+        if (data == null || data.length == 0) {
+            log.warn("[{}] Cannot send empty data to client {}", channelId, clientId);
+            return false;
+        }
+
+        ClientConnection client = clientConnections.get(clientId);
+        if (client == null) {
+            log.warn("[{}] Cannot send raw data to client {}: not found", channelId, clientId);
+            return false;
+        }
+
+        // Determine which channel to use
+        Channel outChannel;
+        if (config.isDualChannelMode()) {
+            outChannel = client.receiveChannel;
+        } else {
+            outChannel = client.unifiedChannel;
+        }
+
+        if (outChannel == null || !outChannel.isActive()) {
+            log.warn("[{}] Cannot send raw data to client {}: channel not connected", channelId, clientId);
+            return false;
+        }
+
+        try {
+            // Wrap byte array in ByteBuf and write directly
+            io.netty.buffer.ByteBuf buf = outChannel.alloc().buffer(data.length);
+            buf.writeBytes(data);
+            outChannel.writeAndFlush(buf).sync();
+            messagesSent.incrementAndGet();
+            log.debug("[{}] Sent raw data to client {}: {} bytes", channelId, clientId, data.length);
+            return true;
+        } catch (Exception e) {
+            log.error("[{}] Failed to send raw data to client {}", channelId, clientId, e);
+            return false;
+        }
+    }
+
+    /**
      * Gets the actual Send port after binding.
      */
     public int getActualSendPort() {
@@ -676,6 +763,9 @@ public class FiscDualChannelServer implements AutoCloseable {
         protected void channelRead0(ChannelHandlerContext ctx, Object msg) {
             messagesReceived.incrementAndGet();
 
+            // Extract GenericMessage if present
+            GenericMessage genericMessage = (msg instanceof GenericMessage) ? (GenericMessage) msg : null;
+
             // Handle both message types
             Iso8583Message message = convertToIso8583(msg);
             if (message == null) {
@@ -689,8 +779,15 @@ public class FiscDualChannelServer implements AutoCloseable {
 
             notifyMessageReceived(clientId, message);
 
-            // Process message if handler is set
-            if (messageHandler != null) {
+            // Process message - prefer new callback
+            if (genericMessageCallback != null) {
+                try {
+                    genericMessageCallback.onMessage(clientId, message, genericMessage);
+                } catch (Exception e) {
+                    log.error("[{}] Error processing message from {}", channelId, clientId, e);
+                }
+            } else if (messageHandler != null) {
+                // Fallback to legacy handler
                 try {
                     messageHandler.accept(clientId, message);
                 } catch (Exception e) {
@@ -795,6 +892,9 @@ public class FiscDualChannelServer implements AutoCloseable {
         protected void channelRead0(ChannelHandlerContext ctx, Object msg) {
             messagesReceived.incrementAndGet();
 
+            // Extract GenericMessage if present
+            GenericMessage genericMessage = (msg instanceof GenericMessage) ? (GenericMessage) msg : null;
+
             // Handle both message types
             Iso8583Message message = convertToIso8583(msg);
             if (message == null) {
@@ -808,8 +908,15 @@ public class FiscDualChannelServer implements AutoCloseable {
 
             notifyMessageReceived(clientId, message);
 
-            // Process message if handler is set
-            if (messageHandler != null) {
+            // Process message - prefer new callback
+            if (genericMessageCallback != null) {
+                try {
+                    genericMessageCallback.onMessage(clientId, message, genericMessage);
+                } catch (Exception e) {
+                    log.error("[{}] Error processing message from {}", channelId, clientId, e);
+                }
+            } else if (messageHandler != null) {
+                // Fallback to legacy handler
                 try {
                     messageHandler.accept(clientId, message);
                 } catch (Exception e) {
@@ -864,6 +971,14 @@ public class FiscDualChannelServer implements AutoCloseable {
 
         // Map raw data
         iso.setRawData(generic.getRawData());
+
+        // Debug: log all available fields
+        if (log.isDebugEnabled()) {
+            log.debug("GenericMessage fields available: {}", generic.getAllFields().keySet());
+            for (var entry : generic.getAllFields().entrySet()) {
+                log.debug("  Field [{}] = '{}'", entry.getKey(), entry.getValue());
+            }
+        }
 
         // Map common fields by convention
         // Field 2: PAN

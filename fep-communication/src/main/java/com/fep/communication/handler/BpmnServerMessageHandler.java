@@ -2,68 +2,45 @@ package com.fep.communication.handler;
 
 import com.fep.common.event.TransactionRequestEvent;
 import com.fep.common.event.TransactionRequestEvent.TransactionType;
-import com.fep.message.iso8583.Iso8583Message;
-import com.fep.message.iso8583.Iso8583MessageFactory;
+import com.fep.common.message.InternalMessage;
+import com.fep.message.generic.message.GenericMessage;
+import com.fep.message.generic.parser.GenericMessageAssembler;
+import com.fep.message.generic.schema.MessageSchema;
+import com.fep.message.transform.MessageTransformer;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /**
  * BPMN 整合的 ServerMessageHandler 實作
  *
- * <p>此 Handler 將所有收到的交易請求透過 Spring Application Events
- * 發布給 fep-transaction 模組，觸發 BPMN 流程處理。
+ * <p>此 Handler 將收到的 GenericMessage 轉換為 InternalMessage，
+ * 然後透過 Spring Application Events 發布給 fep-transaction 模組。
  *
- * <p><b>完全配置化設計</b>：
- * <ul>
- *   <li>所有 MTI（包含 0800 網路管理）統一走 BPMN 流程</li>
- *   <li>具體走哪個流程，完全由 {@code ProcessRoutingProperties} 決定</li>
- *   <li>新增 MTI 時，只需在 application.yml 加入規則 + 部署對應 BPMN 流程</li>
- * </ul>
- *
- * <p>配置範例（高 TPS 架構）：
+ * <p>轉換流程：
  * <pre>
- * fep:
- *   bpmn:
- *     high-tps-mode: true
- *     process-routing:
- *       enabled: true
- *       default-process: Process_TransferRequest
- *       rules:
- *         - name: 跨行轉帳
- *           mti: "0200"
- *           processing-code: "40"
- *           process-key: Process_TransferRequest
- *         - name: 網路管理
- *           mti: "0800"
- *           process-key: Process_NetworkManagement
- * </pre>
- *
- * <p>流程：
- * <pre>
- * ATM/POS Request (任意 MTI)
+ * GenericMessage (外部格式，如 ATM/FISC)
+ *         ↓ [MessageTransformer.toInternal]
+ * InternalMessage (FEP 內部統一格式)
+ *         ↓ [發布事件]
+ * TransactionRequestEvent
  *         ↓
- * BpmnServerMessageHandler.handleMessage()
+ * BPMN 流程處理
  *         ↓
- * ProcessRouterService.resolveProcessKey(channelId, mti, processingCode)
- *         ↓ (從 application.yml 規則中匹配)
- * TransactionRequestEvent (含 processKey)
- *         ↓
- * TransactionEventListener.handleTransactionRequest()
- *         ↓
- * Camunda: startProcessInstanceByKey(processKey, ...)
+ * InternalMessage (回應)
+ *         ↓ [MessageTransformer.toExternal]
+ * GenericMessage (外部格式)
+ *         ↓ [Encoder]
+ * byte[] (發送給客戶端)
  * </pre>
  */
 @Slf4j
 public class BpmnServerMessageHandler implements ServerMessageHandler {
-
-    private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofPattern("HHmmss");
-    private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("MMdd");
 
     /**
      * Spring 事件發布器
@@ -71,18 +48,27 @@ public class BpmnServerMessageHandler implements ServerMessageHandler {
     private final ApplicationEventPublisher eventPublisher;
 
     /**
-     * 流程路由解析器 - 根據 MTI/processingCode 決定啟動哪個 BPMN 流程
+     * 流程路由解析器
      */
     private final ProcessKeyResolver processKeyResolver;
 
     /**
-     * ISO 8583 電文工廠 - 用於序列化/反序列化電文
+     * 訊息轉換器
      */
-    private final Iso8583MessageFactory messageFactory;
+    private final MessageTransformer messageTransformer;
+
+    /**
+     * Schema 提供者（用於組裝回應）
+     */
+    private final Supplier<Map<String, MessageSchema>> schemaProvider;
+
+    /**
+     * 訊息組裝器
+     */
+    private final GenericMessageAssembler assembler;
 
     /**
      * STAN → Response Callback 映射
-     * 用於在 BPMN 流程完成後發送回應
      */
     private final Map<String, ResponseCallbackInfo> pendingCallbacks = new ConcurrentHashMap<>();
 
@@ -93,158 +79,109 @@ public class BpmnServerMessageHandler implements ServerMessageHandler {
 
     /**
      * 流程 Key 解析器介面
-     * <p>由 fep-application 模組實作並注入
      */
     @FunctionalInterface
     public interface ProcessKeyResolver {
-        /**
-         * 解析流程 Key
-         *
-         * @param channelId 通道 ID
-         * @param mti MTI
-         * @param processingCode Processing Code
-         * @return BPMN 流程 Key
-         */
         String resolve(String channelId, String mti, String processingCode);
     }
 
     /**
      * 建構函數
-     *
-     * @param eventPublisher Spring 事件發布器
-     * @param processKeyResolver 流程 Key 解析器
-     */
-    public BpmnServerMessageHandler(ApplicationEventPublisher eventPublisher,
-                                     ProcessKeyResolver processKeyResolver) {
-        this(eventPublisher, processKeyResolver, new Iso8583MessageFactory());
-    }
-
-    /**
-     * 建構函數（含自訂 MessageFactory）
-     *
-     * @param eventPublisher Spring 事件發布器
-     * @param processKeyResolver 流程 Key 解析器
-     * @param messageFactory ISO 8583 電文工廠
      */
     public BpmnServerMessageHandler(ApplicationEventPublisher eventPublisher,
                                      ProcessKeyResolver processKeyResolver,
-                                     Iso8583MessageFactory messageFactory) {
+                                     MessageTransformer messageTransformer) {
+        this(eventPublisher, processKeyResolver, messageTransformer, null);
+    }
+
+    /**
+     * 建構函數（含 Schema 提供者）
+     */
+    public BpmnServerMessageHandler(ApplicationEventPublisher eventPublisher,
+                                     ProcessKeyResolver processKeyResolver,
+                                     MessageTransformer messageTransformer,
+                                     Supplier<Map<String, MessageSchema>> schemaProvider) {
         this.eventPublisher = eventPublisher;
         this.processKeyResolver = processKeyResolver;
-        this.messageFactory = messageFactory;
+        this.messageTransformer = messageTransformer;
+        this.schemaProvider = schemaProvider;
+        this.assembler = new GenericMessageAssembler();
 
-        log.info("BpmnServerMessageHandler 初始化完成，所有 MTI 統一走 BPMN 流程");
+        log.info("BpmnServerMessageHandler 初始化完成 (使用 InternalMessage 架構)");
     }
 
     @Override
     public void handleMessage(ServerMessageContext context) {
-        Iso8583Message request = context.getMessage();
-        String mti = request.getMti();
-        String channelId = context.getChannelId();
-        String clientId = context.getClientId();
-        String stan = request.getFieldAsString(11);
-        String processingCode = extractProcessingCode(request);
-
-        if (log.isDebugEnabled()) {
-            log.debug("[{}] BPMN Handler 收到訊息: MTI={}, STAN={}, processingCode={}, client={}",
-                    channelId, mti, stan, processingCode, clientId);
+        // 取得 GenericMessage（由 FiscDualChannelServer 轉換）
+        GenericMessage genericMessage = context.getGenericMessage();
+        if (genericMessage == null) {
+            log.error("[{}] 無法取得 GenericMessage", context.getChannelId());
+            sendErrorResponse(context, "96");
+            return;
         }
 
+        String channelId = context.getChannelId();
+        String clientId = context.getClientId();
+        String mti = genericMessage.getFieldAsString("mti");
+        String stan = genericMessage.getFieldAsString("stan");
+        String processingCode = genericMessage.getFieldAsString("processingCode");
+
+        log.debug("[{}] BPMN Handler 收到訊息: MTI={}, STAN={}, processingCode={}, client={}",
+                channelId, mti, stan, processingCode, clientId);
+
         try {
-            // 透過 ProcessKeyResolver 解析流程 Key
+            // 1. 轉換為內部格式
+            InternalMessage internal = messageTransformer.toInternal(genericMessage, channelId);
+            internal.setSourceClientId(clientId);
+            internal.setTransactionTime(LocalDateTime.now());
+
+            // 2. 解析流程 Key
             String processKey = processKeyResolver.resolve(channelId, mti, processingCode);
+            internal.setProcessKey(processKey);
             log.debug("[{}] MTI={} 路由至流程: {}", channelId, mti, processKey);
 
-            // 統一走 BPMN 流程
-            handleBpmnRequest(context, processKey);
+            // 3. 判斷交易類型
+            TransactionType transactionType = TransactionType.fromMtiAndProcessingCode(mti, processingCode);
+
+            // 4. 建立 response callback
+            Consumer<byte[]> responseCallback = createResponseCallback(context, internal);
+
+            // 5. 註冊 callback
+            registerCallback(stan, channelId, clientId, context, responseCallback, internal);
+
+            // 6. 發布事件
+            publishTransactionEvent(internal, transactionType, processKey, responseCallback);
 
         } catch (Exception e) {
             log.error("[{}] 處理訊息失敗: MTI={}, STAN={}, error={}",
                     channelId, mti, stan, e.getMessage(), e);
-            sendErrorResponse(context, "96"); // System malfunction
+            sendErrorResponse(context, "96");
         }
-    }
-
-    /**
-     * 統一的 BPMN 請求處理
-     *
-     * @param context 訊息上下文
-     * @param processKey BPMN 流程 Key
-     */
-    private void handleBpmnRequest(ServerMessageContext context, String processKey) {
-        Iso8583Message request = context.getMessage();
-        String stan = request.getFieldAsString(11);
-        String processingCode = extractProcessingCode(request);
-
-        // 判斷交易類型 (用於日誌和監控)
-        TransactionType transactionType = determineTransactionType(request.getMti(), processingCode);
-
-        // 建立 response callback
-        Consumer<byte[]> responseCallback = createResponseCallback(context, stan);
-
-        // 註冊 callback
-        registerCallback(stan, context, responseCallback);
-
-        // 發布事件 (含 processKey)
-        publishTransactionEvent(context, transactionType, processKey, responseCallback);
-    }
-
-    /**
-     * 提取 Processing Code
-     */
-    private String extractProcessingCode(Iso8583Message request) {
-        String code = request.getFieldAsString(3);
-        return code != null ? code : "";
-    }
-
-    /**
-     * 根據 MTI 和 Processing Code 判斷交易類型
-     */
-    private TransactionType determineTransactionType(String mti, String processingCode) {
-        // 沖正交易
-        if ("0400".equals(mti) || "0420".equals(mti)) {
-            return TransactionType.REVERSAL;
-        }
-
-        // 網路管理
-        if ("0800".equals(mti) || "0810".equals(mti)) {
-            return TransactionType.UNKNOWN; // 可考慮新增 NETWORK_MANAGEMENT 類型
-        }
-
-        // 根據 Processing Code 判斷
-        if (processingCode == null || processingCode.length() < 2) {
-            return TransactionType.UNKNOWN;
-        }
-
-        String typeCode = processingCode.substring(0, 2);
-        return switch (typeCode) {
-            case "40" -> TransactionType.TRANSFER;      // 轉帳
-            case "01" -> TransactionType.WITHDRAWAL;    // 提款
-            case "31" -> TransactionType.BALANCE_INQUIRY; // 餘額查詢
-            case "50" -> TransactionType.BILL_PAYMENT;  // 繳費
-            default -> TransactionType.UNKNOWN;
-        };
     }
 
     /**
      * 建立回應 callback
      */
-    private Consumer<byte[]> createResponseCallback(ServerMessageContext context, String stan) {
+    private Consumer<byte[]> createResponseCallback(ServerMessageContext context,
+                                                     InternalMessage requestInternal) {
+        String channelId = context.getChannelId();
+        String stan = requestInternal.getTraceNumber();
+
         return responseData -> {
             try {
-                // 將 response data 轉換為 Iso8583Message 並發送
-                Iso8583Message response = deserializeResponse(responseData);
-                if (response != null) {
-                    context.sendResponse(response);
+                if (responseData != null && responseData.length > 0) {
+                    // 回應資料是已組裝好的 byte[]，直接發送
+                    context.sendRawResponse(responseData);
+                    log.debug("[{}] 已發送回應: STAN={}, {} bytes",
+                            channelId, stan, responseData.length);
                 } else {
-                    log.error("[{}] 無法反序列化回應: STAN={}", context.getChannelId(), stan);
+                    log.error("[{}] 回應資料為空: STAN={}", channelId, stan);
                 }
             } catch (Exception e) {
                 log.error("[{}] 發送回應失敗: STAN={}, error={}",
-                        context.getChannelId(), stan, e.getMessage(), e);
+                        channelId, stan, e.getMessage(), e);
             } finally {
-                // 清理 callback
-                removeCallback(stan);
+                removeCallback(stan, channelId, context.getClientId());
             }
         };
     }
@@ -252,88 +189,139 @@ public class BpmnServerMessageHandler implements ServerMessageHandler {
     /**
      * 發布交易請求事件
      */
-    private void publishTransactionEvent(ServerMessageContext context,
-                                         TransactionType transactionType,
-                                         String processKey,
-                                         Consumer<byte[]> responseCallback) {
-        Iso8583Message request = context.getMessage();
-
+    private void publishTransactionEvent(InternalMessage internal,
+                                          TransactionType transactionType,
+                                          String processKey,
+                                          Consumer<byte[]> responseCallback) {
         TransactionRequestEvent event = TransactionRequestEvent.builder()
                 .source(this)
+                .message(internal)
                 .transactionType(transactionType)
-                .rawMessage(serializeMessage(request))
-                .mti(request.getMti())
-                .stan(request.getFieldAsString(11))
-                .channelId(context.getChannelId())
-                .clientId(context.getClientId())
-                .processingCode(request.getFieldAsString(3))
-                .amount(request.getFieldAsString(4))
-                .pan(request.getFieldAsString(2))
-                .targetAccount(request.getFieldAsString(103))
-                .sourceBankCode(request.getFieldAsString(32))
-                .targetBankCode(request.getFieldAsString(100))
                 .processKey(processKey)
                 .responseCallback(responseCallback)
                 .build();
 
         log.debug("[{}] 發布 TransactionRequestEvent: STAN={}, processKey={}, type={}",
-                context.getChannelId(), event.getStan(), processKey, transactionType);
+                internal.getSourceChannelId(), internal.getTraceNumber(),
+                processKey, transactionType);
 
         eventPublisher.publishEvent(event);
     }
 
     /**
-     * 序列化 ISO 8583 訊息
+     * 將 InternalMessage 組裝為 byte[] 回應
      *
-     * <p>使用 Iso8583MessageFactory 組裝符合 ISO 8583 標準格式的電文，
-     * 包含欄位長度補齊、LLVAR/LLLVAR 長度前綴、BCD/ASCII 編碼等處理
+     * <p>轉換流程：
+     * <pre>
+     * InternalMessage → MessageTransformer.toExternal() → GenericMessage (含 Schema)
+     *                → GenericMessageAssembler.assemble() → byte[]
+     * </pre>
+     *
+     * @param internal 內部訊息
+     * @param targetChannelId 目標通道 ID
+     * @return 組裝好的 byte[]
      */
-    private byte[] serializeMessage(Iso8583Message message) {
+    public byte[] assembleResponse(InternalMessage internal, String targetChannelId) {
         try {
-            return messageFactory.assemble(message);
+            // 轉換為外部格式 (toExternal 已經設定好 Schema)
+            GenericMessage external = messageTransformer.toExternal(internal, targetChannelId);
+
+            // 確保有 Schema
+            if (external.getSchema() == null) {
+                // Fallback: 從 schemaProvider 取得
+                MessageSchema schema = getSchemaFromProvider(targetChannelId);
+                if (schema == null) {
+                    log.error("找不到 Schema: channelId={}", targetChannelId);
+                    return new byte[0];
+                }
+                // 建立新的 GenericMessage 並複製欄位
+                external = copyMessageWithSchema(external, schema);
+            }
+
+            // 組裝為 byte[]
+            return assembler.assemble(external);
+
         } catch (Exception e) {
-            log.error("序列化訊息失敗: {}", e.getMessage());
+            log.error("組裝回應失敗: channelId={}, error={}", targetChannelId, e.getMessage(), e);
             return new byte[0];
         }
     }
 
     /**
-     * 反序列化回應訊息
-     *
-     * <p>使用 Iso8583MessageFactory 解析 ISO 8583 格式電文
+     * 從 Provider 取得 Schema
      */
-    private Iso8583Message deserializeResponse(byte[] data) {
-        if (data == null || data.length == 0) {
-            return null;
+    private MessageSchema getSchemaFromProvider(String channelId) {
+        if (schemaProvider != null) {
+            Map<String, MessageSchema> schemas = schemaProvider.get();
+            if (schemas != null) {
+                return schemas.get(channelId);
+            }
         }
-        try {
-            return messageFactory.parse(data);
-        } catch (Exception e) {
-            log.error("反序列化回應失敗: {}", e.getMessage());
-            return null;
+        return null;
+    }
+
+    /**
+     * 複製訊息並設定新的 Schema
+     */
+    private GenericMessage copyMessageWithSchema(GenericMessage source, MessageSchema schema) {
+        GenericMessage target = new GenericMessage(schema);
+        for (Map.Entry<String, Object> entry : source.getAllFields().entrySet()) {
+            target.setField(entry.getKey(), entry.getValue());
         }
+        return target;
+    }
+
+    /**
+     * 取得 Schema (向下相容方法)
+     * @deprecated 使用 {@link #getSchemaFromProvider(String)} 代替
+     */
+    @Deprecated
+    private MessageSchema getSchema(String channelId, GenericMessage message) {
+        if (message.getSchema() != null) {
+            return message.getSchema();
+        }
+        if (schemaProvider != null) {
+            Map<String, MessageSchema> schemas = schemaProvider.get();
+            if (schemas != null) {
+                return schemas.get(channelId);
+            }
+        }
+        return null;
     }
 
     /**
      * 註冊 callback
      */
-    private void registerCallback(String stan, ServerMessageContext context,
-                                   Consumer<byte[]> callback) {
+    private void registerCallback(String stan, String channelId, String clientId,
+                                   ServerMessageContext context,
+                                   Consumer<byte[]> callback,
+                                   InternalMessage internal) {
+        String callbackKey = generateCallbackKey(channelId, clientId, stan);
         ResponseCallbackInfo info = new ResponseCallbackInfo(
-                callback, context, System.currentTimeMillis());
-        pendingCallbacks.put(stan, info);
-        log.debug("註冊 callback: STAN={}, pending count={}", stan, pendingCallbacks.size());
+                callback, context, internal, System.currentTimeMillis());
+        pendingCallbacks.put(callbackKey, info);
+        log.debug("註冊 callback: key={}, pending count={}", callbackKey, pendingCallbacks.size());
 
-        // 清理過期的 callbacks
         cleanupExpiredCallbacks();
     }
 
     /**
      * 移除 callback
      */
-    private void removeCallback(String stan) {
-        pendingCallbacks.remove(stan);
-        log.debug("移除 callback: STAN={}, pending count={}", stan, pendingCallbacks.size());
+    private void removeCallback(String stan, String channelId, String clientId) {
+        String callbackKey = generateCallbackKey(channelId, clientId, stan);
+        pendingCallbacks.remove(callbackKey);
+        log.debug("移除 callback: key={}, pending count={}", callbackKey, pendingCallbacks.size());
+    }
+
+    /**
+     * 產生 callback key
+     */
+    private String generateCallbackKey(String channelId, String clientId, String stan) {
+        return String.format("%s:%s:%s",
+                channelId != null ? channelId : "UNKNOWN",
+                clientId != null ? clientId : "UNKNOWN",
+                stan != null ? stan : "000000");
     }
 
     /**
@@ -349,7 +337,7 @@ public class BpmnServerMessageHandler implements ServerMessageHandler {
             if (now - entry.getValue().createdTime() > CALLBACK_TTL_MS) {
                 iterator.remove();
                 removed++;
-                log.warn("清理過期 callback: STAN={}", entry.getKey());
+                log.warn("清理過期 callback: key={}", entry.getKey());
             }
         }
 
@@ -362,93 +350,133 @@ public class BpmnServerMessageHandler implements ServerMessageHandler {
      * 發送錯誤回應
      */
     private void sendErrorResponse(ServerMessageContext context, String responseCode) {
-        Iso8583Message request = context.getMessage();
-        Iso8583Message response = new Iso8583Message();
+        GenericMessage request = context.getGenericMessage();
+        if (request == null) {
+            log.error("[{}] 無法發送錯誤回應：request 為 null", context.getChannelId());
+            return;
+        }
 
-        // 計算回應 MTI
-        String responseMti = calculateResponseMti(request.getMti());
-        response.setMti(responseMti);
-
-        // 複製關鍵欄位
-        copyField(request, response, 2);  // PAN
-        copyField(request, response, 3);  // Processing Code
-        copyField(request, response, 4);  // Amount
-        copyField(request, response, 11); // STAN
-        copyField(request, response, 41); // Terminal ID
-        copyField(request, response, 42); // Merchant ID
-
-        // 設定回應碼
-        response.setField(39, responseCode);
-
-        // 設定時間
-        LocalDateTime now = LocalDateTime.now();
-        response.setField(12, now.format(TIME_FORMAT));
-        response.setField(13, now.format(DATE_FORMAT));
-
-        context.sendResponse(response);
-        log.warn("[{}] 發送錯誤回應: MTI={}, RC={}",
-                context.getChannelId(), responseMti, responseCode);
-    }
-
-    /**
-     * 計算回應 MTI
-     */
-    private String calculateResponseMti(String requestMti) {
         try {
-            int mti = Integer.parseInt(requestMti);
-            return String.format("%04d", mti + 10);
-        } catch (NumberFormatException e) {
-            return "0210";
+            // 建立錯誤回應的 InternalMessage
+            InternalMessage errorInternal = InternalMessage.builder()
+                    .messageType(InternalMessage.MessageType.FINANCIAL_RESPONSE)
+                    .transactionCode(request.getFieldAsString("processingCode"))
+                    .traceNumber(request.getFieldAsString("stan"))
+                    .cardNumber(request.getFieldAsString("pan"))
+                    .terminalId(request.getFieldAsString("terminalId"))
+                    .merchantId(request.getFieldAsString("merchantId"))
+                    .responseCode(responseCode)
+                    .transactionTime(LocalDateTime.now())
+                    .build();
+
+            // 轉換金額
+            String amount = request.getFieldAsString("amount");
+            if (amount != null) {
+                try {
+                    errorInternal.setTransactionAmount(Long.parseLong(amount.trim()));
+                } catch (NumberFormatException e) {
+                    // ignore
+                }
+            }
+
+            // 組裝並發送
+            byte[] responseBytes = assembleResponse(errorInternal, context.getChannelId());
+            if (responseBytes.length > 0) {
+                context.sendRawResponse(responseBytes);
+            }
+
+            log.warn("[{}] 發送錯誤回應: STAN={}, RC={}",
+                    context.getChannelId(),
+                    request.getFieldAsString("stan"),
+                    responseCode);
+
+        } catch (Exception e) {
+            log.error("[{}] 發送錯誤回應失敗: {}", context.getChannelId(), e.getMessage(), e);
         }
     }
 
     /**
-     * 複製欄位
-     */
-    private void copyField(Iso8583Message source, Iso8583Message target, int fieldNum) {
-        Object value = source.getField(fieldNum);
-        if (value != null) {
-            target.setField(fieldNum, value);
-        }
-    }
-
-    /**
-     * 取得待處理的 callback 數量 (監控用)
+     * 取得待處理的 callback 數量
      */
     public int getPendingCallbackCount() {
         return pendingCallbacks.size();
     }
 
     /**
-     * 透過 STAN 直接發送回應 (供 BPMN 流程使用)
-     *
-     * @param stan 交易追蹤號
-     * @param response 回應訊息
-     * @return true 如果成功發送
+     * 透過 callback key 發送回應
      */
-    public boolean sendResponseByStan(String stan, Iso8583Message response) {
-        ResponseCallbackInfo info = pendingCallbacks.get(stan);
+    public boolean sendResponseByCallbackKey(String callbackKey, byte[] responseData) {
+        ResponseCallbackInfo info = pendingCallbacks.get(callbackKey);
         if (info == null) {
-            log.warn("找不到 callback: STAN={}", stan);
+            log.warn("找不到 callback: key={}", callbackKey);
             return false;
         }
 
         try {
-            byte[] responseData = serializeMessage(response);
             info.callback().accept(responseData);
             return true;
         } catch (Exception e) {
-            log.error("發送回應失敗: STAN={}, error={}", stan, e.getMessage(), e);
+            log.error("發送回應失敗: key={}, error={}", callbackKey, e.getMessage(), e);
             return false;
         }
     }
 
     /**
-     * 取得 ServerMessageContext (供 BPMN 流程使用)
+     * 取得原始請求的 InternalMessage
      */
-    public ServerMessageContext getContext(String stan) {
-        ResponseCallbackInfo info = pendingCallbacks.get(stan);
-        return info != null ? info.context() : null;
+    public InternalMessage getRequestInternal(String callbackKey) {
+        ResponseCallbackInfo info = pendingCallbacks.get(callbackKey);
+        return info != null ? info.requestInternal() : null;
+    }
+
+    /**
+     * 透過 STAN 發送回應 (向下相容方法)
+     *
+     * <p>此方法遍歷所有 pending callbacks，找到以指定 STAN 結尾的 key。
+     * 不建議使用此方法，因為當有多個客戶端使用相同 STAN 時會產生歧義。
+     *
+     * @param stan 交易序號
+     * @param response 回應訊息 (Iso8583Message)
+     * @return true 如果發送成功
+     * @deprecated 使用 {@link #sendResponseByCallbackKey(String, byte[])} 代替
+     */
+    @Deprecated
+    public boolean sendResponseByStan(String stan, com.fep.message.iso8583.Iso8583Message response) {
+        // 遍歷找到以 stan 結尾的 callback key
+        for (String key : pendingCallbacks.keySet()) {
+            if (key.endsWith(":" + stan)) {
+                ResponseCallbackInfo info = pendingCallbacks.get(key);
+                if (info != null) {
+                    try {
+                        // 組裝回應 byte[]
+                        byte[] responseData = assembleResponse(
+                                createInternalMessageFromIso(response),
+                                info.context().getChannelId());
+                        if (responseData.length > 0) {
+                            info.callback().accept(responseData);
+                            return true;
+                        }
+                    } catch (Exception e) {
+                        log.error("發送回應失敗: stan={}, error={}", stan, e.getMessage(), e);
+                    }
+                }
+            }
+        }
+        log.warn("找不到 STAN 對應的 callback: stan={}", stan);
+        return false;
+    }
+
+    /**
+     * 從 Iso8583Message 建立 InternalMessage (簡易轉換)
+     */
+    private InternalMessage createInternalMessageFromIso(com.fep.message.iso8583.Iso8583Message iso) {
+        return InternalMessage.builder()
+                .messageType(InternalMessage.MessageType.fromMti(iso.getMti()))
+                .traceNumber(iso.getFieldAsString(11))
+                .responseCode(iso.getFieldAsString(39))
+                .cardNumber(iso.getFieldAsString(2))
+                .transactionCode(iso.getFieldAsString(3))
+                .build();
     }
 
     /**
@@ -457,6 +485,7 @@ public class BpmnServerMessageHandler implements ServerMessageHandler {
     private record ResponseCallbackInfo(
             Consumer<byte[]> callback,
             ServerMessageContext context,
+            InternalMessage requestInternal,
             long createdTime
     ) {}
 }
