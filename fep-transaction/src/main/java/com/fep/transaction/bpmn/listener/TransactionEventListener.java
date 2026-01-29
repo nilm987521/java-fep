@@ -573,6 +573,11 @@ public class TransactionEventListener {
                 .designated(false) // 預設非約定，後續可從 DB 查詢
                 .channel(event.getChannelId())
                 .rawMessage(event.getRawMessage()) // 原始電文 (用於組裝回應)
+                // 新增欄位 - 用於組裝回應訊息
+                .pan(event.getPan())
+                .terminalId(event.getTerminalId())
+                .merchantId(event.getMerchantId())
+                .rrn(event.getRrn())
                 .build();
     }
 

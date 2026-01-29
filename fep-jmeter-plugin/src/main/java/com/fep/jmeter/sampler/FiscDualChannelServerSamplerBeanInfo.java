@@ -52,7 +52,9 @@ public class FiscDualChannelServerSamplerBeanInfo extends BeanInfoSupport {
         createPropertyGroup(RESPONSE_GROUP, new String[]{
             FiscDualChannelServerSampler.DEFAULT_RESPONSE_CODE,
             FiscDualChannelServerSampler.RESPONSE_DELAY,
-            FiscDualChannelServerSampler.BALANCE_AMOUNT
+            FiscDualChannelServerSampler.BALANCE_AMOUNT,
+            FiscDualChannelServerSampler.ENABLE_RESPONSE_SCHEMA,
+            FiscDualChannelServerSampler.RESPONSE_SCHEMA_NAME
         });
 
         createPropertyGroup(VALIDATION_GROUP, new String[]{
@@ -133,6 +135,27 @@ public class FiscDualChannelServerSamplerBeanInfo extends BeanInfoSupport {
         balanceAmountProp.setValue(DEFAULT, "");
         balanceAmountProp.setDisplayName("Balance Amount");
         balanceAmountProp.setShortDescription("Account balance for Field 54. Format: amount in cents.");
+
+        PropertyDescriptor enableResponseSchemaProp = property(FiscDualChannelServerSampler.ENABLE_RESPONSE_SCHEMA);
+        enableResponseSchemaProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
+        enableResponseSchemaProp.setValue(DEFAULT, Boolean.FALSE);
+        enableResponseSchemaProp.setValue(NOT_EXPRESSION, Boolean.TRUE);
+        enableResponseSchemaProp.setValue(NOT_OTHER, Boolean.TRUE);
+        enableResponseSchemaProp.setDisplayName("Enable Response Schema");
+        enableResponseSchemaProp.setShortDescription(
+            "Enable schema-based response encoding with default values.\n" +
+            "Requires SchemaConfigElement to be configured in the test plan."
+        );
+
+        PropertyDescriptor responseSchemaProp = property(FiscDualChannelServerSampler.RESPONSE_SCHEMA_NAME);
+        responseSchemaProp.setValue(NOT_UNDEFINED, Boolean.TRUE);
+        responseSchemaProp.setValue(DEFAULT, "FISC ATM Format");
+        responseSchemaProp.setDisplayName("Response Schema Name");
+        responseSchemaProp.setShortDescription(
+            "Name of the schema to use for response encoding.\n" +
+            "Schema must be loaded via SchemaConfigElement.\n" +
+            "Default: FISC ATM Format"
+        );
 
         // Validation properties
         PropertyDescriptor enableValidationProp = property(FiscDualChannelServerSampler.ENABLE_VALIDATION);

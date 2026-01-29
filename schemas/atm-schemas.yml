@@ -62,10 +62,9 @@ schemas:
         name: Primary Account Number
         description: Card number (Field 2)
         type: NUMERIC
-        length: 19
+        length: 16
         lengthType: FIXED
-        encoding: BCD
-        lengthEncoding: BCD
+        encoding: ASCII
         sensitive: true
 
       - id: processingCode

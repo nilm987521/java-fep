@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <!-- 引入 Spring Boot 預設配置 -->
+    <include resource="org/springframework/boot/logging/logback/defaults.xml"/>
+
+    <!-- 定義變數 -->
+    <property name="LOG_PATH" value="${LOG_PATH:-logs}"/>
+    <!-- 日誌格式包含 traceId 和 channelName 以支援全流程追蹤 -->
+    <property name="LOG_PATTERN" value="%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] [%X{traceId:-}] [%X{channelName:-}] %-5level %logger{36} - %msg%n"/>
+
+    <!-- Console Appender -->
+    <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <!-- 主應用程式日誌 -->
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH}/fep-application.log</file>
+        <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}/fep-application.%d{yyyy-MM-dd}.log</fileNamePattern>
+            <maxHistory>30</maxHistory>
+        </rollingPolicy>
+        <encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <!-- Channel 專用 SiftingAppender：依據 MDC 中的 channelName 分離日誌 -->
+    <appender name="CHANNEL_SIFT" class="ch.qos.logback.classic.sift.SiftingAppender">
+        <!-- 使用 MDC 中的 channelName 作為區分依據 -->
+        <discriminator>
+            <key>channelName</key>
+            <!-- 沒有設定 channelName 的日誌（如系統初始化）會寫入 channel-system.log -->
+            <defaultValue>system</defaultValue>
+        </discriminator>
+        <sift>
+            <appender name="FILE-${channelName}" class="ch.qos.logback.core.rolling.RollingFileAppender">
+                <file>${LOG_PATH}/channel-${channelName}.log</file>
+                <rollingPolicy class="ch.qos.logback.core.rolling.TimeBasedRollingPolicy">
+                    <fileNamePattern>${LOG_PATH}/channel-${channelName}.%d{yyyy-MM-dd}.log</fileNamePattern>
+                    <maxHistory>30</maxHistory>
+                </rollingPolicy>
+                <encoder>
+                    <pattern>%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] [%X{traceId:-}] %-5level %logger{36} - %msg%n</pattern>
+                    <charset>UTF-8</charset>
+                </encoder>
+            </appender>
+        </sift>
+    </appender>
+
+    <!-- 通訊模組專用 logger：同時輸出到主檔案和 channel 專用檔案 -->
+    <logger name="com.fep.communication" level="DEBUG" additivity="false">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="FILE"/>
+        <appender-ref ref="CHANNEL_SIFT"/>
+    </logger>
+
+    <!-- 電文處理模組 -->
+    <logger name="com.fep.message" level="DEBUG" additivity="false">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="FILE"/>
+        <appender-ref ref="CHANNEL_SIFT"/>
+    </logger>
+
+    <!-- 交易處理模組 -->
+    <logger name="com.fep.transaction" level="DEBUG" additivity="false">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="FILE"/>
+    </logger>
+
+    <!-- Camunda BPMN -->
+    <logger name="org.camunda" level="INFO" additivity="false">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="FILE"/>
+    </logger>
+
+    <!-- Netty -->
+    <logger name="io.netty" level="INFO" additivity="false">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="FILE"/>
+    </logger>
+
+    <!-- Root logger -->
+    <root level="INFO">
+        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="FILE"/>
+    </root>
+</configuration>

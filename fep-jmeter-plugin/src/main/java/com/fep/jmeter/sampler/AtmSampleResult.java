@@ -63,6 +63,9 @@ public class AtmSampleResult extends SampleResult {
     // Response code (extracted after parsing)
     private String extractedResponseCode;
 
+    // Parse error message (includes progress info when parsing fails)
+    private transient String parseErrorMessage;
+
     public AtmSampleResult() {
         super();
     }
@@ -141,6 +144,7 @@ public class AtmSampleResult extends SampleResult {
         this.parsedResponse = null;
         this.formattedResponse = null;
         this.extractedResponseCode = null;
+        this.parseErrorMessage = null;
     }
 
     /**
@@ -169,6 +173,8 @@ public class AtmSampleResult extends SampleResult {
             responseParsed = true;
         } catch (Exception e) {
             log.warn("Failed to parse response: {}", e.getMessage());
+            // Capture the error message (includes parse progress from GenericMessageParser)
+            parseErrorMessage = e.getMessage();
             responseParsed = true; // Mark as parsed to avoid retry
         }
     }
@@ -216,9 +222,17 @@ public class AtmSampleResult extends SampleResult {
             sb.append("Fields:\n");
             sb.append(response.toString(true)).append("\n\n");
         } else {
-            sb.append("=== ATM Response (Raw) ===\n");
-            sb.append("Length: ").append(rawResponseBytes.length).append(" bytes\n");
-            sb.append("(Failed to parse response)\n\n");
+            sb.append("=== ATM Response (Parse Failed) ===\n");
+            sb.append("Schema: ").append(responseSchema != null ? responseSchema.getName() : "unknown").append("\n");
+            sb.append("Length: ").append(rawResponseBytes.length).append(" bytes\n\n");
+
+            // Display parse error with progress information
+            if (parseErrorMessage != null) {
+                sb.append("Parse Error:\n");
+                sb.append(parseErrorMessage).append("\n\n");
+            } else {
+                sb.append("(Failed to parse response - no error details available)\n\n");
+            }
         }
 
         sb.append("Hex:\n");

@@ -119,7 +119,7 @@ public class GenericMessageAssembler {
 
         // Handle BITMAP field - generate bitmap based on which controlled fields have values
         if (fieldSchema.isBitmap()) {
-            encodeBitmapField(fieldSchema, buffer, message);
+            encodeBitmapField(fieldSchema, buffer, message, schema);
             return;
         }
 
@@ -152,8 +152,9 @@ public class GenericMessageAssembler {
 
     /**
      * Encodes a bitmap field based on which controlled fields have values.
+     * Also considers default values from the schema to match field encoding behavior.
      */
-    private void encodeBitmapField(FieldSchema fieldSchema, ByteBuf buffer, GenericMessage message) {
+    private void encodeBitmapField(FieldSchema fieldSchema, ByteBuf buffer, GenericMessage message, MessageSchema schema) {
         java.util.List<String> controls = fieldSchema.getControls();
         if (controls == null || controls.isEmpty()) {
             log.warn("Bitmap field [{}] has no controls defined, writing zeros", fieldSchema.getId());
@@ -175,10 +176,18 @@ public class GenericMessageAssembler {
         }
         byte[] bitmap = new byte[bitmapBytes];
 
-        // Set bits for fields that have values
+        // Set bits for fields that have values (including default values)
         for (int i = 0; i < controls.size() && i < totalBits; i++) {
             String controlledFieldId = controls.get(i);
             Object fieldValue = message.getField(controlledFieldId);
+
+            // Also check for default value if message doesn't have the field
+            if (fieldValue == null && schema != null) {
+                FieldSchema controlledField = schema.getField(controlledFieldId).orElse(null);
+                if (controlledField != null) {
+                    fieldValue = controlledField.getDefaultValue();
+                }
+            }
 
             if (fieldValue != null) {
                 // Bit positions: bit 0 is MSB of first byte

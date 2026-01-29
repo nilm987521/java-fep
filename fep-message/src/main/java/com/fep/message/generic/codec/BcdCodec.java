@@ -2,11 +2,13 @@ package com.fep.message.generic.codec;
 
 import com.fep.message.generic.schema.FieldSchema;
 import io.netty.buffer.ByteBuf;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * BCD (Binary Coded Decimal) encoding codec.
  * Each byte holds two decimal digits.
  */
+@Slf4j
 public class BcdCodec implements GenericCodec {
 
     private static final String NAME = "BCD";
@@ -48,7 +50,22 @@ public class BcdCodec implements GenericCodec {
         byte[] data = new byte[byteLength];
         buffer.readBytes(data);
 
+        // Debug: Log BCD decoding
+        if (log.isDebugEnabled()) {
+            String fieldId = field != null ? field.getId() : "unknown";
+            log.debug("BcdCodec.decode [{}]: dataLength={}, byteLength={}, rawBytes=[{}]",
+                    fieldId, dataLength, byteLength,
+                    java.util.HexFormat.of().formatHex(data));
+        }
+
         String bcdStr = bcdToString(data);
+
+        // Debug: Log decoded BCD string
+        if (log.isDebugEnabled()) {
+            String fieldId = field != null ? field.getId() : "unknown";
+            log.debug("BcdCodec.decode [{}]: bcdToString result='{}' (length={})",
+                    fieldId, bcdStr, bcdStr.length());
+        }
 
         // Handle odd-length values (may have extra leading zero)
         if (bcdStr.length() > dataLength) {

@@ -78,7 +78,7 @@ camunda.bpm:
 logging:
   level:
     root: INFO
-    com.fep: DEBUG
+    com.fep: INFO
     org.springframework.web: INFO
     org.hibernate.SQL: OFF
     org.hibernate.type.descriptor.sql: OFF

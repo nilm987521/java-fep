@@ -1,7 +1,9 @@
 package com.fep.jmeter.sampler;
 
+import com.fep.jmeter.config.SchemaConfigElement;
 import com.fep.jmeter.engine.FiscDualChannelSimulatorEngine;
 import com.fep.jmeter.validation.MessageValidationEngine;
+import com.fep.message.generic.schema.MessageSchema;
 import com.fep.message.iso8583.Iso8583Message;
 import com.fep.message.iso8583.MessageType;
 import org.apache.jmeter.samplers.AbstractSampler;
@@ -64,6 +66,10 @@ public class FiscDualChannelServerSampler extends AbstractSampler implements Tes
     public static final String RESPONSE_RULES = "responseRules";
     public static final String CUSTOM_RESPONSE_FIELDS = "customResponseFields";
     public static final String MTI_RESPONSE_RULES = "mtiResponseRules";
+
+    // Schema properties
+    public static final String ENABLE_RESPONSE_SCHEMA = "enableResponseSchema";
+    public static final String RESPONSE_SCHEMA_NAME = "responseSchemaName";
 
     // Operation mode properties
     public static final String OPERATION_MODE = "operationMode";
@@ -446,6 +452,10 @@ public class FiscDualChannelServerSampler extends AbstractSampler implements Tes
                 // Create new engine (receivePort=where Sampler receives, sendPort=where Sampler sends)
                 FiscDualChannelSimulatorEngine engine = new FiscDualChannelSimulatorEngine(receivePort, sendPort);
 
+                // Configure length encoding to match FEP (ASCII 4 bytes)
+                engine.setLengthEncoding("ASCII");
+                engine.setLengthFieldBytes(4);
+
                 // Configure engine
                 engine.setDefaultResponseCode(getDefaultResponseCode());
                 engine.setResponseDelayMs(getResponseDelay());
@@ -462,6 +472,9 @@ public class FiscDualChannelServerSampler extends AbstractSampler implements Tes
                         engine.setValidationCallback(validationEngine.createValidationCallback());
                     }
                 }
+
+                // Configure response schema for default value population
+                configureResponseSchema(engine);
 
                 // Configure MTI response rules (JSON format) - takes precedence
                 String mtiRules = getMtiResponseRules();
@@ -504,6 +517,9 @@ public class FiscDualChannelServerSampler extends AbstractSampler implements Tes
                     instance.engine.setValidationCallback(null);
                 }
 
+                // Update response schema
+                configureResponseSchema(instance.engine);
+
                 // Update MTI response rules or legacy response rules
                 String mtiRules = getMtiResponseRules();
                 if (mtiRules != null && !mtiRules.isEmpty()) {
@@ -520,6 +536,36 @@ public class FiscDualChannelServerSampler extends AbstractSampler implements Tes
             }
 
             return instance;
+        }
+    }
+
+    /**
+     * Configures response schema for default value population.
+     * When enabled, responses will use GenericMessage with schema defaults applied.
+     */
+    private void configureResponseSchema(FiscDualChannelSimulatorEngine engine) {
+        if (!isEnableResponseSchema()) {
+            engine.setResponseSchema(null);
+            return;
+        }
+
+        String schemaName = getResponseSchemaName();
+        if (schemaName == null || schemaName.isBlank()) {
+            schemaName = "FISC ATM Format"; // default schema
+        }
+
+        if (SchemaConfigElement.isInitialized()) {
+            try {
+                MessageSchema schema = SchemaConfigElement.getSchema(schemaName);
+                engine.setResponseSchema(schema);
+                log.info("Response schema configured: {}", schemaName);
+            } catch (Exception e) {
+                log.warn("Failed to load response schema '{}': {}", schemaName, e.getMessage());
+                engine.setResponseSchema(null);
+            }
+        } else {
+            log.warn("SchemaConfigElement not initialized. Response schema disabled.");
+            engine.setResponseSchema(null);
         }
     }
 
@@ -784,6 +830,23 @@ public class FiscDualChannelServerSampler extends AbstractSampler implements Tes
 
     public void setMtiResponseRules(String rules) {
         setProperty(MTI_RESPONSE_RULES, rules);
+    }
+
+    // Response schema getters and setters
+    public boolean isEnableResponseSchema() {
+        return getPropertyAsBoolean(ENABLE_RESPONSE_SCHEMA, false);
+    }
+
+    public void setEnableResponseSchema(boolean enable) {
+        setProperty(ENABLE_RESPONSE_SCHEMA, enable);
+    }
+
+    public String getResponseSchemaName() {
+        return getPropertyAsString(RESPONSE_SCHEMA_NAME, "FISC ATM Format");
+    }
+
+    public void setResponseSchemaName(String schemaName) {
+        setProperty(RESPONSE_SCHEMA_NAME, schemaName);
     }
 
     // Operation mode getters and setters

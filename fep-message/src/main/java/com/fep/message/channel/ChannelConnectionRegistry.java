@@ -184,6 +184,8 @@ public class ChannelConnectionRegistry {
      * @throws ChannelConfigException if parsing fails
      */
     private synchronized void loadFromContent(String content, String sourceName, ObjectMapper mapper) {
+        log.info("loadFromContent called: sourceName={}, mapperType={}, isYaml={}",
+                sourceName, mapper == yamlMapper ? "YAML" : "JSON", isYamlFile(sourceName));
         try {
             JsonNode root = mapper.readTree(content);
 
@@ -199,7 +201,12 @@ public class ChannelConnectionRegistry {
                 this.v2ConfigLoaded = false;
                 // V1 format - delegate to ChannelSchemaRegistry
                 if (schemaRegistry != null) {
-                    schemaRegistry.loadFromJson(content);
+                    // Use appropriate method based on file type
+                    if (isYamlFile(sourceName)) {
+                        schemaRegistry.loadFromYaml(content);
+                    } else {
+                        schemaRegistry.loadFromJson(content);
+                    }
                 }
             }
 

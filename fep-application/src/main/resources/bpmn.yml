@@ -21,10 +21,17 @@ fep:
   bpmn:
     processRouting:
       rules:
-        - name: 跨行轉帳
+        - name: 跨行轉帳-請求
           mti: "0200"
-          processingCode: "010000"
           processKey: ATM_Request_Process
+          processingCode: "010000"
+          channelPattern: "ATM.*"
+          priority: 100
+        - name: 跨行轉帳-回應
+          mti: "0210"
+          processKey: ATM_Response_Process
+          processingCode: "010000"
+          channelPattern: "FISC.*"
           priority: 100
 
 ---
@@ -42,33 +49,16 @@ fep:
         - name: 跨行轉帳
           mti: "0200"
           processingCode: "010000"
-          processKey: Only_Log_Process
+          channelPattern: "ATM.*"
+          processKey: ATM_Request_Process
           priority: 100
 
         - name: 餘額查詢
           mti: "0200"
           processingCode: "31"
-          processKey: Process_TransferRequest
-          priority: 100
-
-        # ===== 沖正交易 =====
-        - name: 沖正交易
-          mti: "0400"
-          processKey: Process_TransferRequest
-          priority: 100
-
-        # ===== 網路管理 =====
-        - name: 網路管理
-          mti: "0800"
-          processKey: Only_Log_Process
-          priority: 100
-
-        # ===== 特殊通道 =====
-        - name: ATM 2500 交易
           channelPattern: "ATM.*"
-          mti: "2500"
-          processKey: Only_Log_Process
-          priority: 10
+          processKey: Process_TransferRequest
+          priority: 100
 
 ---
 # Production Profile

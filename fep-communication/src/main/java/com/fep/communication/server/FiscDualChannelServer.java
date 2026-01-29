@@ -8,6 +8,7 @@ import com.fep.communication.codec.FiscMessageDecoder;
 import com.fep.communication.codec.FiscMessageEncoder;
 import com.fep.communication.codec.GenericMessageEncoder;
 import com.fep.communication.codec.GenericMessageDecoder;
+import com.fep.communication.logging.ChannelMdcUtil;
 import com.fep.message.generic.message.GenericMessage;
 import com.fep.message.iso8583.Iso8583Message;
 import com.fep.message.service.ChannelMessageService;
@@ -425,10 +426,11 @@ public class FiscDualChannelServer implements AutoCloseable {
             return false;
         }
 
-        try {
+        try (var ignored = ChannelMdcUtil.withChannel(channelId)) {
             outChannel.writeAndFlush(message).sync();
             messagesSent.incrementAndGet();
             log.debug("[{}] Sent message to client {}: MTI={}", channelId, clientId, message.getMti());
+            // Note: Raw data logging is handled by GenericMessageEncoder
             return true;
         } catch (Exception e) {
             log.error("[{}] Failed to send to client {}", channelId, clientId, e);
@@ -494,16 +496,26 @@ public class FiscDualChannelServer implements AutoCloseable {
             return false;
         }
 
-        try {
+        try (var ignored = ChannelMdcUtil.withChannel(channelId)) {
             // Wrap byte array in ByteBuf and write directly
             io.netty.buffer.ByteBuf buf = outChannel.alloc().buffer(data.length);
             buf.writeBytes(data);
             outChannel.writeAndFlush(buf).sync();
             messagesSent.incrementAndGet();
-            log.debug("[{}] Sent raw data to client {}: {} bytes", channelId, clientId, data.length);
+
+            // Include traceId in log (from MDC, set by upstream handler)
+            String traceId = ChannelMdcUtil.getTraceId();
+            log.debug("[{}] Sent raw data to client {}: {} bytes, traceId={}",
+                    channelId, clientId, data.length, traceId);
+            // Log raw outbound data at DEBUG level
+            if (log.isDebugEnabled()) {
+                log.debug("[{}] Outbound raw data to {}: {}", channelId, clientId,
+                        ChannelMdcUtil.formatHex(data, 256));
+            }
             return true;
         } catch (Exception e) {
-            log.error("[{}] Failed to send raw data to client {}", channelId, clientId, e);
+            String traceId = ChannelMdcUtil.getTraceId();
+            log.error("[{}] Failed to send raw data to client {}, traceId={}", channelId, clientId, traceId, e);
             return false;
         }
     }
@@ -731,74 +743,106 @@ public class FiscDualChannelServer implements AutoCloseable {
 
         @Override
         public void channelActive(ChannelHandlerContext ctx) {
-            String remoteAddr = ctx.channel().remoteAddress().toString();
-            // Extract IP:port as client ID
-            clientId = remoteAddr.replaceAll(CLIENT_ID_PATTERN, "");
+            try (var ignored = ChannelMdcUtil.withChannel(channelId)) {
+                String remoteAddr = ctx.channel().remoteAddress().toString();
+                // Extract IP:port as client ID
+                clientId = remoteAddr.replaceAll(CLIENT_ID_PATTERN, "");
 
-            ClientConnection client = clientConnections.computeIfAbsent(clientId,
-                    id -> new ClientConnection(id, remoteAddr));
-            client.sendChannel = ctx.channel();
+                ClientConnection client = clientConnections.computeIfAbsent(clientId,
+                        id -> new ClientConnection(id, remoteAddr));
+                client.sendChannel = ctx.channel();
 
-            totalClientsConnected.incrementAndGet();
-            log.info("[{}] Client connected to Send port: {} (total: {})",
-                    channelId, clientId, getConnectedClientCount());
-            notifyClientConnected(clientId, remoteAddr);
+                totalClientsConnected.incrementAndGet();
+                log.info("[{}] Client connected to Send port: {} (total: {})",
+                        channelId, clientId, getConnectedClientCount());
+                notifyClientConnected(clientId, remoteAddr);
+            }
         }
 
         @Override
         public void channelInactive(ChannelHandlerContext ctx) {
-            log.info("[{}] Client disconnected from Send port: {}", channelId, clientId);
-            ClientConnection client = clientConnections.get(clientId);
-            if (client != null) {
-                client.sendChannel = null;
-                // If both channels are gone, remove the client
-                if (client.receiveChannel == null || !client.receiveChannel.isActive()) {
-                    clientConnections.remove(clientId);
-                    notifyClientDisconnected(clientId);
+            try (var ignored = ChannelMdcUtil.withChannel(channelId)) {
+                log.info("[{}] Client disconnected from Send port: {}", channelId, clientId);
+                ClientConnection client = clientConnections.get(clientId);
+                if (client != null) {
+                    client.sendChannel = null;
+                    // If both channels are gone, remove the client
+                    if (client.receiveChannel == null || !client.receiveChannel.isActive()) {
+                        clientConnections.remove(clientId);
+                        notifyClientDisconnected(clientId);
+                    }
                 }
             }
         }
 
         @Override
         protected void channelRead0(ChannelHandlerContext ctx, Object msg) {
-            messagesReceived.incrementAndGet();
+            // Set MDC for channel-specific logging
+            try (var ignored = ChannelMdcUtil.withChannel(channelId)) {
+                messagesReceived.incrementAndGet();
 
-            // Extract GenericMessage if present
-            GenericMessage genericMessage = (msg instanceof GenericMessage) ? (GenericMessage) msg : null;
+                // Generate TraceId at the earliest point
+                String traceId = ChannelMdcUtil.generateTraceId();
+                ChannelMdcUtil.setTraceId(traceId);
 
-            // Handle both message types
-            Iso8583Message message = convertToIso8583(msg);
-            if (message == null) {
-                log.warn("[{}] Received unsupported message type from client {}: {}",
-                        channelId, clientId, msg.getClass().getSimpleName());
-                return;
-            }
+                // Extract GenericMessage if present
+                GenericMessage genericMessage = (msg instanceof GenericMessage) ? (GenericMessage) msg : null;
 
-            log.debug("[{}] Received from client {}: MTI={}, STAN={}",
-                    channelId, clientId, message.getMti(), message.getFieldAsString(11));
-
-            notifyMessageReceived(clientId, message);
-
-            // Process message - prefer new callback
-            if (genericMessageCallback != null) {
-                try {
-                    genericMessageCallback.onMessage(clientId, message, genericMessage);
-                } catch (Exception e) {
-                    log.error("[{}] Error processing message from {}", channelId, clientId, e);
+                // Set traceId to GenericMessage for downstream propagation
+                if (genericMessage != null) {
+                    genericMessage.setTraceId(traceId);
                 }
-            } else if (messageHandler != null) {
-                // Fallback to legacy handler
-                try {
-                    messageHandler.accept(clientId, message);
-                } catch (Exception e) {
-                    log.error("[{}] Error processing message from {}", channelId, clientId, e);
+
+                // Handle both message types
+                Iso8583Message message = convertToIso8583(msg);
+                if (message == null) {
+                    log.warn("[{}] Received unsupported message type from client {}: {}, traceId={}",
+                            channelId, clientId, msg.getClass().getSimpleName(), traceId);
+                    return;
+                }
+
+                // Set transaction context for detailed logging
+                String stan = message.getFieldAsString(11);
+                String mti = message.getMti();
+                ChannelMdcUtil.setTransactionContext(stan, mti);
+
+                log.debug("[{}] Received from client {}: MTI={}, STAN={}, traceId={}",
+                        channelId, clientId, mti, stan, traceId);
+
+                // Log raw request data at DEBUG level
+                if (log.isDebugEnabled()) {
+                    byte[] rawData = (genericMessage != null) ? genericMessage.getRawData() : message.getRawData();
+                    if (rawData != null) {
+                        log.debug("[{}] Inbound raw data from {}: {}", channelId, clientId,
+                                ChannelMdcUtil.formatHex(rawData, 256));
+                    }
+                }
+
+                notifyMessageReceived(clientId, message);
+
+                // Process message - prefer new callback
+                if (genericMessageCallback != null) {
+                    try {
+                        genericMessageCallback.onMessage(clientId, message, genericMessage);
+                    } catch (Exception e) {
+                        log.error("[{}] Error processing message from {}, traceId={}", channelId, clientId, traceId, e);
+                    }
+                } else if (messageHandler != null) {
+                    // Fallback to legacy handler
+                    try {
+                        messageHandler.accept(clientId, message);
+                    } catch (Exception e) {
+                        log.error("[{}] Error processing message from {}, traceId={}", channelId, clientId, traceId, e);
+                    }
                 }
             }
         }
 
         @Override
         public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-            log.error("[{}] Exception on Send port for client {}", channelId, clientId, cause);
+            try (var ignored = ChannelMdcUtil.withChannel(channelId)) {
+                log.error("[{}] Exception on Send port for client {}", channelId, clientId, cause);
+            }
             ctx.close();
         }
     }
@@ -812,43 +856,51 @@ public class FiscDualChannelServer implements AutoCloseable {
 
         @Override
         public void channelActive(ChannelHandlerContext ctx) {
-            String remoteAddr = ctx.channel().remoteAddress().toString();
-            clientId = remoteAddr.replaceAll(CLIENT_ID_PATTERN, "");
+            try (var ignored = ChannelMdcUtil.withChannel(channelId)) {
+                String remoteAddr = ctx.channel().remoteAddress().toString();
+                clientId = remoteAddr.replaceAll(CLIENT_ID_PATTERN, "");
 
-            ClientConnection client = clientConnections.computeIfAbsent(clientId,
-                    id -> new ClientConnection(id, remoteAddr));
-            client.receiveChannel = ctx.channel();
+                ClientConnection client = clientConnections.computeIfAbsent(clientId,
+                        id -> new ClientConnection(id, remoteAddr));
+                client.receiveChannel = ctx.channel();
 
-            log.info("[{}] Client connected to Receive port: {}", channelId, clientId);
+                log.info("[{}] Client connected to Receive port: {}", channelId, clientId);
+            }
         }
 
         @Override
         public void channelInactive(ChannelHandlerContext ctx) {
-            log.info("[{}] Client disconnected from Receive port: {}", channelId, clientId);
-            ClientConnection client = clientConnections.get(clientId);
-            if (client != null) {
-                client.receiveChannel = null;
-                // If both channels are gone, remove the client
-                if (client.sendChannel == null || !client.sendChannel.isActive()) {
-                    clientConnections.remove(clientId);
-                    notifyClientDisconnected(clientId);
+            try (var ignored = ChannelMdcUtil.withChannel(channelId)) {
+                log.info("[{}] Client disconnected from Receive port: {}", channelId, clientId);
+                ClientConnection client = clientConnections.get(clientId);
+                if (client != null) {
+                    client.receiveChannel = null;
+                    // If both channels are gone, remove the client
+                    if (client.sendChannel == null || !client.sendChannel.isActive()) {
+                        clientConnections.remove(clientId);
+                        notifyClientDisconnected(clientId);
+                    }
                 }
             }
         }
 
         @Override
         protected void channelRead0(ChannelHandlerContext ctx, Object msg) {
-            // In dual-channel mode, Receive port is for sending, not receiving
-            // But handle gracefully if client sends something
-            Iso8583Message message = convertToIso8583(msg);
-            String mti = (message != null) ? message.getMti() : "unknown";
-            log.warn("[{}] Unexpected message on Receive port from {}: MTI={}",
-                    channelId, clientId, mti);
+            try (var ignored = ChannelMdcUtil.withChannel(channelId)) {
+                // In dual-channel mode, Receive port is for sending, not receiving
+                // But handle gracefully if client sends something
+                Iso8583Message message = convertToIso8583(msg);
+                String mti = (message != null) ? message.getMti() : "unknown";
+                log.warn("[{}] Unexpected message on Receive port from {}: MTI={}",
+                        channelId, clientId, mti);
+            }
         }
 
         @Override
         public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-            log.error("[{}] Exception on Receive port for client {}", channelId, clientId, cause);
+            try (var ignored = ChannelMdcUtil.withChannel(channelId)) {
+                log.error("[{}] Exception on Receive port for client {}", channelId, clientId, cause);
+            }
             ctx.close();
         }
     }
@@ -863,73 +915,105 @@ public class FiscDualChannelServer implements AutoCloseable {
 
         @Override
         public void channelActive(ChannelHandlerContext ctx) {
-            String remoteAddr = ctx.channel().remoteAddress().toString();
-            // Extract IP:port as client ID
-            clientId = remoteAddr.replaceAll(CLIENT_ID_PATTERN, "");
+            try (var ignored = ChannelMdcUtil.withChannel(channelId)) {
+                String remoteAddr = ctx.channel().remoteAddress().toString();
+                // Extract IP:port as client ID
+                clientId = remoteAddr.replaceAll(CLIENT_ID_PATTERN, "");
 
-            ClientConnection client = clientConnections.computeIfAbsent(clientId,
-                    id -> new ClientConnection(id, remoteAddr));
-            client.unifiedChannel = ctx.channel();
+                ClientConnection client = clientConnections.computeIfAbsent(clientId,
+                        id -> new ClientConnection(id, remoteAddr));
+                client.unifiedChannel = ctx.channel();
 
-            totalClientsConnected.incrementAndGet();
-            log.info("[{}] Client connected to Unified port: {} (total: {})",
-                    channelId, clientId, getConnectedClientCount());
-            notifyClientConnected(clientId, remoteAddr);
+                totalClientsConnected.incrementAndGet();
+                log.info("[{}] Client connected to Unified port: {} (total: {})",
+                        channelId, clientId, getConnectedClientCount());
+                notifyClientConnected(clientId, remoteAddr);
+            }
         }
 
         @Override
         public void channelInactive(ChannelHandlerContext ctx) {
-            log.info("[{}] Client disconnected from Unified port: {}", channelId, clientId);
-            ClientConnection client = clientConnections.get(clientId);
-            if (client != null) {
-                client.unifiedChannel = null;
-                clientConnections.remove(clientId);
-                notifyClientDisconnected(clientId);
+            try (var ignored = ChannelMdcUtil.withChannel(channelId)) {
+                log.info("[{}] Client disconnected from Unified port: {}", channelId, clientId);
+                ClientConnection client = clientConnections.get(clientId);
+                if (client != null) {
+                    client.unifiedChannel = null;
+                    clientConnections.remove(clientId);
+                    notifyClientDisconnected(clientId);
+                }
             }
         }
 
         @Override
         protected void channelRead0(ChannelHandlerContext ctx, Object msg) {
-            messagesReceived.incrementAndGet();
+            // Set MDC for channel-specific logging
+            try (var ignored = ChannelMdcUtil.withChannel(channelId)) {
+                messagesReceived.incrementAndGet();
 
-            // Extract GenericMessage if present
-            GenericMessage genericMessage = (msg instanceof GenericMessage) ? (GenericMessage) msg : null;
+                // Generate TraceId at the earliest point
+                String traceId = ChannelMdcUtil.generateTraceId();
+                ChannelMdcUtil.setTraceId(traceId);
 
-            // Handle both message types
-            Iso8583Message message = convertToIso8583(msg);
-            if (message == null) {
-                log.warn("[{}] Received unsupported message type from client {}: {}",
-                        channelId, clientId, msg.getClass().getSimpleName());
-                return;
-            }
+                // Extract GenericMessage if present
+                GenericMessage genericMessage = (msg instanceof GenericMessage) ? (GenericMessage) msg : null;
 
-            log.debug("[{}] Received from client {} (unified): MTI={}, STAN={}",
-                    channelId, clientId, message.getMti(), message.getFieldAsString(11));
-
-            notifyMessageReceived(clientId, message);
-
-            // Process message - prefer new callback
-            if (genericMessageCallback != null) {
-                try {
-                    genericMessageCallback.onMessage(clientId, message, genericMessage);
-                } catch (Exception e) {
-                    log.error("[{}] Error processing message from {}", channelId, clientId, e);
+                // Set traceId to GenericMessage for downstream propagation
+                if (genericMessage != null) {
+                    genericMessage.setTraceId(traceId);
                 }
-            } else if (messageHandler != null) {
-                // Fallback to legacy handler
-                try {
-                    messageHandler.accept(clientId, message);
-                } catch (Exception e) {
-                    log.error("[{}] Error processing message from {}", channelId, clientId, e);
+
+                // Handle both message types
+                Iso8583Message message = convertToIso8583(msg);
+                if (message == null) {
+                    log.warn("[{}] Received unsupported message type from client {}: {}, traceId={}",
+                            channelId, clientId, msg.getClass().getSimpleName(), traceId);
+                    return;
                 }
-            } else {
-                log.warn("[{}] No messageHandler configured, message not processed!", channelId);
+
+                // Set transaction context for detailed logging
+                String stan = message.getFieldAsString(11);
+                String mti = message.getMti();
+                ChannelMdcUtil.setTransactionContext(stan, mti);
+
+                log.debug("[{}] Received from client {} (unified): MTI={}, STAN={}, traceId={}",
+                        channelId, clientId, mti, stan, traceId);
+
+                // Log raw request data at DEBUG level
+                if (log.isDebugEnabled()) {
+                    byte[] rawData = (genericMessage != null) ? genericMessage.getRawData() : message.getRawData();
+                    if (rawData != null) {
+                        log.debug("[{}] Inbound raw data from {}: {}", channelId, clientId,
+                                ChannelMdcUtil.formatHex(rawData, 256));
+                    }
+                }
+
+                notifyMessageReceived(clientId, message);
+
+                // Process message - prefer new callback
+                if (genericMessageCallback != null) {
+                    try {
+                        genericMessageCallback.onMessage(clientId, message, genericMessage);
+                    } catch (Exception e) {
+                        log.error("[{}] Error processing message from {}, traceId={}", channelId, clientId, traceId, e);
+                    }
+                } else if (messageHandler != null) {
+                    // Fallback to legacy handler
+                    try {
+                        messageHandler.accept(clientId, message);
+                    } catch (Exception e) {
+                        log.error("[{}] Error processing message from {}, traceId={}", channelId, clientId, traceId, e);
+                    }
+                } else {
+                    log.warn("[{}] No messageHandler configured, message not processed! traceId={}", channelId, traceId);
+                }
             }
         }
 
         @Override
         public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) {
-            log.error("[{}] Exception on Unified port for client {}", channelId, clientId, cause);
+            try (var ignored = ChannelMdcUtil.withChannel(channelId)) {
+                log.error("[{}] Exception on Unified port for client {}", channelId, clientId, cause);
+            }
             ctx.close();
         }
     }

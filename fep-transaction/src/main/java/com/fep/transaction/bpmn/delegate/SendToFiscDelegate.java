@@ -59,8 +59,6 @@ public class SendToFiscDelegate implements JavaDelegate {
     @Override
     public void execute(DelegateExecution execution) throws Exception {
         String processId = execution.getProcessInstanceId();
-        String sourceAccount = (String) execution.getVariable("sourceAccount");
-        String targetAccount = (String) execution.getVariable("targetAccount");
         Long amount = (Long) execution.getVariable("amount");
         String sourceBankCode = (String) execution.getVariable("sourceBankCode");
         String targetBankCode = (String) execution.getVariable("targetBankCode");
@@ -72,6 +70,9 @@ public class SendToFiscDelegate implements JavaDelegate {
             // 1. 檢查 FISC 連線狀態
             if (!fiscCommunicationService.isConnected()) {
                 log.error("[{}] FISC 連線不可用", processId);
+                // 設定回應碼，供 BuildFailResponseDelegate 使用
+                execution.setVariable("responseCode", "91"); // 91 = 發卡機構無法連線
+                execution.setVariable("errorMessage", "FISC 連線不可用");
                 throw new BpmnError("FISC_UNAVAILABLE", "FISC 連線不可用");
             }
 
@@ -83,6 +84,9 @@ public class SendToFiscDelegate implements JavaDelegate {
             byte[] assembledMessage = (byte[]) execution.getVariable("assembledMessage");
             if (assembledMessage == null || assembledMessage.length == 0) {
                 log.error("[{}] 找不到組裝好的電文", processId);
+                // 設定回應碼，供 BuildFailResponseDelegate 使用
+                execution.setVariable("responseCode", "96"); // 96 = 系統異常
+                execution.setVariable("errorMessage", "找不到組裝好的電文");
                 throw new BpmnError("MESSAGE_NOT_FOUND", "找不到組裝好的電文");
             }
 
@@ -123,6 +127,9 @@ public class SendToFiscDelegate implements JavaDelegate {
             throw e; // 重新拋出 BPMN 錯誤
         } catch (Exception e) {
             log.error("[{}] 發送至 FISC 失敗: {}", processId, e.getMessage(), e);
+            // 設定回應碼，供 BuildFailResponseDelegate 使用
+            execution.setVariable("responseCode", "96"); // 96 = 系統異常
+            execution.setVariable("errorMessage", "發送失敗: " + e.getMessage());
             throw new BpmnError("FISC_ERROR", "發送失敗: " + e.getMessage());
         }
     }

@@ -12,6 +12,7 @@ import io.netty.buffer.ByteBuf;
 import io.netty.buffer.Unpooled;
 import lombok.extern.slf4j.Slf4j;
 
+import java.nio.charset.StandardCharsets;
 import java.util.Set;
 import java.util.TreeSet;
 
@@ -22,15 +23,26 @@ import java.util.TreeSet;
  * <pre>
  * +--------+--------+--------+------+
  * | Length |  MTI   | Bitmap | Data |
- * | 2 bytes| 4 bytes| 8/16 B | var  |
+ * | N bytes| 4 bytes| 8/16 B | var  |
  * +--------+--------+--------+------+
  * </pre>
+ *
+ * <p>Supports configurable length prefix encoding:
+ * <ul>
+ *   <li>BCD: 2 bytes BCD encoded (default)</li>
+ *   <li>ASCII: 4 bytes ASCII encoded</li>
+ *   <li>BINARY: 2 bytes binary (big-endian)</li>
+ * </ul>
  */
 @Slf4j
 public class FiscMessageAssembler implements MessageAssembler {
 
-    /** Length prefix size in bytes */
-    private static final int LENGTH_PREFIX_SIZE = 2;
+    /** Length encoding types */
+    public enum LengthEncoding {
+        BCD,    // 2 bytes BCD (default)
+        ASCII,  // 4 bytes ASCII
+        BINARY  // 2 bytes binary big-endian
+    }
 
     /** MTI size in bytes (BCD encoded) */
     private static final int MTI_SIZE = 2;
@@ -38,14 +50,17 @@ public class FiscMessageAssembler implements MessageAssembler {
     /** Whether to include length prefix when assembling */
     private final boolean includeLengthPrefix;
 
+    /** Length encoding type */
+    private final LengthEncoding lengthEncoding;
+
     /** Field codec for encoding/decoding fields */
     private final FieldCodec fieldCodec;
 
     /**
-     * Creates an assembler with default settings (with length prefix).
+     * Creates an assembler with default settings (with BCD length prefix).
      */
     public FiscMessageAssembler() {
-        this(true);
+        this(true, LengthEncoding.BCD);
     }
 
     /**
@@ -54,7 +69,27 @@ public class FiscMessageAssembler implements MessageAssembler {
      * @param includeLengthPrefix whether to include length prefix
      */
     public FiscMessageAssembler(boolean includeLengthPrefix) {
+        this(includeLengthPrefix, LengthEncoding.BCD);
+    }
+
+    /**
+     * Creates an assembler with specified length encoding.
+     *
+     * @param lengthEncoding the length prefix encoding type
+     */
+    public FiscMessageAssembler(LengthEncoding lengthEncoding) {
+        this(true, lengthEncoding);
+    }
+
+    /**
+     * Creates an assembler with full configuration.
+     *
+     * @param includeLengthPrefix whether to include length prefix
+     * @param lengthEncoding the length prefix encoding type
+     */
+    public FiscMessageAssembler(boolean includeLengthPrefix, LengthEncoding lengthEncoding) {
         this.includeLengthPrefix = includeLengthPrefix;
+        this.lengthEncoding = lengthEncoding;
         this.fieldCodec = new DefaultFieldCodec();
     }
 
@@ -110,12 +145,39 @@ public class FiscMessageAssembler implements MessageAssembler {
     }
 
     /**
-     * Writes the 2-byte length prefix in BCD format.
+     * Writes the length prefix based on configured encoding.
      */
     private void writeLengthPrefix(int length, ByteBuf buffer) {
         if (length > 9999) {
             throw MessageException.assembleError("Message too long: " + length);
         }
+
+        switch (lengthEncoding) {
+            case ASCII -> writeAsciiLength(length, buffer);
+            case BINARY -> writeBinaryLength(length, buffer);
+            case BCD -> writeBcdLength(length, buffer);
+        }
+    }
+
+    /**
+     * Writes 4-byte ASCII encoded length (e.g., 100 -> "0100").
+     */
+    private void writeAsciiLength(int length, ByteBuf buffer) {
+        String lengthStr = String.format("%04d", length);
+        buffer.writeBytes(lengthStr.getBytes(StandardCharsets.US_ASCII));
+    }
+
+    /**
+     * Writes 2-byte binary encoded length (big-endian).
+     */
+    private void writeBinaryLength(int length, ByteBuf buffer) {
+        buffer.writeShort(length);
+    }
+
+    /**
+     * Writes 2-byte BCD encoded length (e.g., 100 -> 0x01 0x00).
+     */
+    private void writeBcdLength(int length, ByteBuf buffer) {
         String lengthStr = HexUtils.leftPad(String.valueOf(length), 4, '0');
         byte[] lengthBcd = HexUtils.stringToBcd(lengthStr);
         buffer.writeBytes(lengthBcd);

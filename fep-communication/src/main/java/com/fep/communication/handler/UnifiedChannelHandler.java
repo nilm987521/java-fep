@@ -2,6 +2,7 @@ package com.fep.communication.handler;
 
 import com.fep.communication.client.ConnectionListener;
 import com.fep.communication.client.ConnectionState;
+import com.fep.communication.logging.ChannelMdcUtil;
 import com.fep.communication.manager.PendingRequestManager;
 import com.fep.message.generic.message.GenericMessage;
 import com.fep.message.iso8583.Iso8583Message;
@@ -135,82 +136,98 @@ public class UnifiedChannelHandler extends ChannelDuplexHandler {
 
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
-        log.info("[{}] Unified channel active: {}", connectionName, ctx.channel().remoteAddress());
-        updateState(ConnectionState.CONNECTED);
-        if (listener != null) {
-            listener.onConnected(connectionName);
+        try (var ignored = ChannelMdcUtil.withChannel(connectionName)) {
+            log.info("[{}] Unified channel active: {}", connectionName, ctx.channel().remoteAddress());
+            updateState(ConnectionState.CONNECTED);
+            if (listener != null) {
+                listener.onConnected(connectionName);
+            }
         }
         super.channelActive(ctx);
     }
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-        log.info("[{}] Unified channel inactive", connectionName);
-        updateState(ConnectionState.DISCONNECTED);
-        if (listener != null) {
-            listener.onDisconnected(connectionName, null);
+        try (var ignored = ChannelMdcUtil.withChannel(connectionName)) {
+            log.info("[{}] Unified channel inactive", connectionName);
+            updateState(ConnectionState.DISCONNECTED);
+            if (listener != null) {
+                listener.onDisconnected(connectionName, null);
+            }
         }
         super.channelInactive(ctx);
     }
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-        if (msg instanceof Iso8583Message message) {
-            handleMessage(message);
-        } else {
-            log.warn("[{}] Unexpected message type on Unified channel: {}",
-                connectionName, msg.getClass());
-            super.channelRead(ctx, msg);
+        try (var ignored = ChannelMdcUtil.withChannel(connectionName)) {
+            if (msg instanceof Iso8583Message message) {
+                handleMessage(message);
+            } else {
+                log.warn("[{}] Unexpected message type on Unified channel: {}",
+                    connectionName, msg.getClass());
+                super.channelRead(ctx, msg);
+            }
         }
     }
 
     @Override
     public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
-        if (msg instanceof Iso8583Message message) {
-            String mti = message.getMti();
-            String stan = message.getFieldAsString(11);
-            log.debug("[{}] Sending Iso8583Message: MTI={}, STAN={}", connectionName, mti, stan);
+        ChannelMdcUtil.setChannel(connectionName);
+        try {
+            if (msg instanceof Iso8583Message message) {
+                String mti = message.getMti();
+                String stan = message.getFieldAsString(11);
+                ChannelMdcUtil.setTransactionContext(stan, mti);
+                log.debug("[{}] Sending Iso8583Message: MTI={}, STAN={}", connectionName, mti, stan);
 
-            promise.addListener(future -> {
-                if (future.isSuccess()) {
-                    messagesSent.incrementAndGet();
-                    log.trace("[{}] Message sent successfully: STAN={}", connectionName, stan);
-                } else {
-                    log.error("[{}] Failed to send message: STAN={}, error={}",
-                        connectionName, stan, future.cause().getMessage());
-                }
-            });
-            super.write(ctx, msg, promise);
-        } else if (msg instanceof GenericMessage genericMessage) {
-            // Handle GenericMessage - assemble to bytes using ChannelMessageService
-            if (channelMessageService != null && channelId != null) {
-                try {
-                    String mti = genericMessage.getFieldAsString("mti");
-                    byte[] data = channelMessageService.assembleMessage(channelId, mti, genericMessage);
-                    log.debug("[{}] Sending GenericMessage: MTI={}, schema={}, bytes={}",
-                        connectionName, mti, genericMessage.getSchema().getName(), data.length);
-
-                    promise.addListener(future -> {
+                promise.addListener(future -> {
+                    try (var ignored = ChannelMdcUtil.withTransaction(connectionName, stan, mti)) {
                         if (future.isSuccess()) {
                             messagesSent.incrementAndGet();
-                            log.trace("[{}] GenericMessage sent successfully: MTI={}", connectionName, mti);
+                            log.trace("[{}] Message sent successfully: STAN={}", connectionName, stan);
                         } else {
-                            log.error("[{}] Failed to send GenericMessage: MTI={}, error={}",
-                                connectionName, mti, future.cause().getMessage());
+                            log.error("[{}] Failed to send message: STAN={}, error={}",
+                                connectionName, stan, future.cause().getMessage());
                         }
-                    });
-                    ctx.write(ctx.alloc().buffer().writeBytes(data), promise);
-                } catch (Exception e) {
-                    log.error("[{}] Failed to assemble GenericMessage: {}", connectionName, e.getMessage());
-                    promise.setFailure(e);
+                    }
+                });
+                super.write(ctx, msg, promise);
+            } else if (msg instanceof GenericMessage genericMessage) {
+                // Handle GenericMessage - assemble to bytes using ChannelMessageService
+                if (channelMessageService != null && channelId != null) {
+                    try {
+                        String mti = genericMessage.getFieldAsString("mti");
+                        byte[] data = channelMessageService.assembleMessage(channelId, mti, genericMessage);
+                        log.debug("[{}] Sending GenericMessage: MTI={}, schema={}, bytes={}",
+                            connectionName, mti, genericMessage.getSchema().getName(), data.length);
+
+                        promise.addListener(future -> {
+                            try (var ignored = ChannelMdcUtil.withChannel(connectionName)) {
+                                if (future.isSuccess()) {
+                                    messagesSent.incrementAndGet();
+                                    log.trace("[{}] GenericMessage sent successfully: MTI={}", connectionName, mti);
+                                } else {
+                                    log.error("[{}] Failed to send GenericMessage: MTI={}, error={}",
+                                        connectionName, mti, future.cause().getMessage());
+                                }
+                            }
+                        });
+                        ctx.write(ctx.alloc().buffer().writeBytes(data), promise);
+                    } catch (Exception e) {
+                        log.error("[{}] Failed to assemble GenericMessage: {}", connectionName, e.getMessage());
+                        promise.setFailure(e);
+                    }
+                } else {
+                    log.warn("[{}] Cannot send GenericMessage: ChannelMessageService or channelId not configured",
+                        connectionName);
+                    promise.setFailure(new IllegalStateException("ChannelMessageService not configured"));
                 }
             } else {
-                log.warn("[{}] Cannot send GenericMessage: ChannelMessageService or channelId not configured",
-                    connectionName);
-                promise.setFailure(new IllegalStateException("ChannelMessageService not configured"));
+                super.write(ctx, msg, promise);
             }
-        } else {
-            super.write(ctx, msg, promise);
+        } finally {
+            ChannelMdcUtil.clearAll();
         }
     }
 
@@ -225,9 +242,11 @@ public class UnifiedChannelHandler extends ChannelDuplexHandler {
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-        log.error("[{}] Exception caught on Unified channel: {}", connectionName, cause.getMessage(), cause);
-        if (listener != null) {
-            listener.onError(connectionName, cause);
+        try (var ignored = ChannelMdcUtil.withChannel(connectionName)) {
+            log.error("[{}] Exception caught on Unified channel: {}", connectionName, cause.getMessage(), cause);
+            if (listener != null) {
+                listener.onError(connectionName, cause);
+            }
         }
         ctx.close();
     }

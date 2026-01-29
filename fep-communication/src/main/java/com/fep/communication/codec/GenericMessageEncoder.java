@@ -1,5 +1,6 @@
 package com.fep.communication.codec;
 
+import com.fep.communication.logging.ChannelMdcUtil;
 import com.fep.message.generic.message.GenericMessage;
 import com.fep.message.generic.parser.GenericMessageAssembler;
 import com.fep.message.generic.schema.MessageSchema;
@@ -64,6 +65,9 @@ public class GenericMessageEncoder extends MessageToByteEncoder<Object> {
         out.writeBytes(data);
 
         log.debug("Encoded message: {} bytes, MTI={}", data.length, mti);
+        if (log.isDebugEnabled()) {
+            log.debug("Outbound raw data: {}", ChannelMdcUtil.formatHex(data, 256));
+        }
     }
 
     /**
@@ -92,27 +96,35 @@ public class GenericMessageEncoder extends MessageToByteEncoder<Object> {
 
     /**
      * Maps ISO 8583 field number to schema field name.
-     * This is a simplified mapping - in production, this should be configurable.
+     *
+     * <p>This mapping aligns with the "FISC ATM Format" schema defined in atm-schemas.yml.
+     * Field IDs must match exactly with the schema for proper encoding.
+     *
+     * <p>Note: This is a fixed mapping. In production, consider making this configurable
+     * or deriving it from the schema definition.
      */
     private String mapFieldNumberToName(int fieldNum) {
         return switch (fieldNum) {
+            // Primary fields (aligned with FISC ATM Format schema)
             case 2 -> "pan";
             case 3 -> "processingCode";
             case 4 -> "amount";
             case 11 -> "stan";
             case 12 -> "localTime";
             case 13 -> "localDate";
-            case 14 -> "expirationDate";
+            case 14 -> "expiryDate";
             case 22 -> "posEntryMode";
-            case 23 -> "cardSequenceNumber";
-            case 32 -> "acquirerInstitutionId";
+            case 23 -> "cardSequence";
+            case 24 -> "functionCode";
+            case 25 -> "posConditionCode";
+            case 32 -> "acquiringInstitution";
             case 35 -> "track2Data";
-            case 37 -> "retrievalReferenceNumber";
-            case 38 -> "authorizationCode";
+            case 37 -> "rrn";
+            case 38 -> "authCode";
             case 39 -> "responseCode";
             case 41 -> "terminalId";
             case 42 -> "merchantId";
-            case 43 -> "merchantName";
+            case 43 -> "cardAcceptorName";
             case 48 -> "additionalData";
             case 49 -> "currencyCode";
             case 52 -> "pinBlock";
@@ -122,10 +134,9 @@ public class GenericMessageEncoder extends MessageToByteEncoder<Object> {
             case 61 -> "reservedPrivate61";
             case 62 -> "reservedPrivate62";
             case 63 -> "reservedPrivate63";
-            case 100 -> "receivingInstitutionId";
-            case 102 -> "accountIdFrom";
-            case 103 -> "accountIdTo";
-            case 120 -> "destAccount";
+            case 100 -> "targetBankCode";
+            case 102 -> "sourceAccount";
+            case 103 -> "destAccount";
             default -> null;
         };
     }

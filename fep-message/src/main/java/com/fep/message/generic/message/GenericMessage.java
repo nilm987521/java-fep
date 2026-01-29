@@ -30,6 +30,14 @@ public class GenericMessage {
     @Getter
     private byte[] rawData;
 
+    /**
+     * Trace ID for end-to-end message tracking.
+     * Generated at the earliest point of message reception.
+     */
+    @Getter
+    @lombok.Setter
+    private String traceId;
+
     public GenericMessage(MessageSchema schema) {
         this.schema = schema;
         this.fields = new LinkedHashMap<>();
@@ -367,6 +375,7 @@ public class GenericMessage {
         if (this.rawData != null) {
             copy.rawData = Arrays.copyOf(this.rawData, this.rawData.length);
         }
+        copy.traceId = this.traceId;
         return copy;
     }
 

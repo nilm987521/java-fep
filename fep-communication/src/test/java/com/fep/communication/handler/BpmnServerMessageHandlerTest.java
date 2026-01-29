@@ -360,7 +360,10 @@ class BpmnServerMessageHandlerTest {
             // Then
             assertThat(result).isTrue();
             assertThat(context.rawResponseSent).isTrue();
-            assertThat(context.sentRawResponse).isEqualTo(responseData);
+            // 回應會經過格式轉換，加上 4-byte ASCII 長度前綴 "0003"
+            // 因為沒有 Schema，使用 convertLengthPrefixOnly 退化路徑
+            byte[] expectedWithPrefix = new byte[]{0x30, 0x30, 0x30, 0x33, 0x02, 0x10, 0x00};  // "0003" + original data
+            assertThat(context.sentRawResponse).isEqualTo(expectedWithPrefix);
         }
 
         @Test

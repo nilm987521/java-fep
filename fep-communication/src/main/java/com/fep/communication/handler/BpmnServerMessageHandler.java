@@ -6,7 +6,10 @@ import com.fep.common.message.InternalMessage;
 import com.fep.message.generic.message.GenericMessage;
 import com.fep.message.generic.parser.GenericMessageAssembler;
 import com.fep.message.generic.schema.MessageSchema;
+import com.fep.message.iso8583.Iso8583Message;
+import com.fep.message.iso8583.Iso8583MessageFactory;
 import com.fep.message.transform.MessageTransformer;
+import com.fep.communication.logging.ChannelMdcUtil;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 
@@ -68,6 +71,11 @@ public class BpmnServerMessageHandler implements ServerMessageHandler {
     private final GenericMessageAssembler assembler;
 
     /**
+     * ISO 8583 訊息工廠（用於解析 FISC 格式回應）
+     */
+    private final Iso8583MessageFactory messageFactory;
+
+    /**
      * STAN → Response Callback 映射
      */
     private final Map<String, ResponseCallbackInfo> pendingCallbacks = new ConcurrentHashMap<>();
@@ -106,6 +114,7 @@ public class BpmnServerMessageHandler implements ServerMessageHandler {
         this.messageTransformer = messageTransformer;
         this.schemaProvider = schemaProvider;
         this.assembler = new GenericMessageAssembler();
+        this.messageFactory = new Iso8583MessageFactory();
 
         log.info("BpmnServerMessageHandler 初始化完成 (使用 InternalMessage 架構)");
     }
@@ -126,8 +135,18 @@ public class BpmnServerMessageHandler implements ServerMessageHandler {
         String stan = genericMessage.getFieldAsString("stan");
         String processingCode = genericMessage.getFieldAsString("processingCode");
 
-        log.debug("[{}] BPMN Handler 收到訊息: MTI={}, STAN={}, processingCode={}, client={}",
-                channelId, mti, stan, processingCode, clientId);
+        // 取得或生成 traceId
+        String traceId = genericMessage.getTraceId();
+        if (traceId == null || traceId.isEmpty()) {
+            traceId = ChannelMdcUtil.getTraceId();  // 從 MDC 取得
+            if (traceId == null || traceId.isEmpty()) {
+                traceId = ChannelMdcUtil.generateTraceId();  // Fallback: 生成新的
+            }
+        }
+        ChannelMdcUtil.setTraceId(traceId);
+
+        log.debug("[{}] BPMN Handler 收到訊息: MTI={}, STAN={}, processingCode={}, client={}, traceId={}",
+                channelId, mti, stan, processingCode, clientId, traceId);
 
         try {
             // 1. 轉換為內部格式
@@ -135,10 +154,13 @@ public class BpmnServerMessageHandler implements ServerMessageHandler {
             internal.setSourceClientId(clientId);
             internal.setTransactionTime(LocalDateTime.now());
 
+            // 設定 traceId 到 InternalMessage
+            internal.setTraceId(traceId);
+
             // 2. 解析流程 Key
             String processKey = processKeyResolver.resolve(channelId, mti, processingCode);
             internal.setProcessKey(processKey);
-            log.debug("[{}] MTI={} 路由至流程: {}", channelId, mti, processKey);
+            log.debug("[{}] MTI={} 路由至流程: {}, traceId={}", channelId, mti, processKey, traceId);
 
             // 3. 判斷交易類型
             TransactionType transactionType = TransactionType.fromMtiAndProcessingCode(mti, processingCode);
@@ -153,37 +175,260 @@ public class BpmnServerMessageHandler implements ServerMessageHandler {
             publishTransactionEvent(internal, transactionType, processKey, responseCallback);
 
         } catch (Exception e) {
-            log.error("[{}] 處理訊息失敗: MTI={}, STAN={}, error={}",
-                    channelId, mti, stan, e.getMessage(), e);
+            log.error("[{}] 處理訊息失敗: MTI={}, STAN={}, traceId={}, error={}",
+                    channelId, mti, stan, traceId, e.getMessage(), e);
             sendErrorResponse(context, "96");
         }
     }
 
     /**
      * 建立回應 callback
+     *
+     * <p>此 callback 會將 BPMN 流程產生的回應（FISC 格式）轉換為 ATM 格式。
+     * BPMN delegates 使用 Iso8583MessageFactory.assemble() 產生 FISC 格式：
+     * - 2-byte BCD length prefix
+     * - BCD encoded MTI (2 bytes)
+     * - Binary bitmap
+     * - BCD/ASCII encoded fields
+     *
+     * 但 ATM 客戶端期望 GenericMessage 格式：
+     * - 4-byte ASCII length prefix
+     * - ASCII encoded MTI (4 bytes)
+     * - Binary bitmap
+     * - ASCII encoded fields
+     *
+     * 此 callback 會完整轉換訊息格式。
      */
     private Consumer<byte[]> createResponseCallback(ServerMessageContext context,
                                                      InternalMessage requestInternal) {
         String channelId = context.getChannelId();
         String stan = requestInternal.getTraceNumber();
+        String traceId = requestInternal.getTraceId();  // 保留 traceId 用於回應日誌
+
+        // 取得原始請求的 schema（用於組裝回應）
+        MessageSchema responseSchema = null;
+        GenericMessage requestGeneric = context.getGenericMessage();
+        if (requestGeneric != null) {
+            responseSchema = requestGeneric.getSchema();
+        }
+        if (responseSchema == null) {
+            responseSchema = getSchemaFromProvider(channelId);
+        }
+        final MessageSchema finalSchema = responseSchema;
 
         return responseData -> {
-            try {
-                if (responseData != null && responseData.length > 0) {
-                    // 回應資料是已組裝好的 byte[]，直接發送
-                    context.sendRawResponse(responseData);
-                    log.debug("[{}] 已發送回應: STAN={}, {} bytes",
-                            channelId, stan, responseData.length);
-                } else {
-                    log.error("[{}] 回應資料為空: STAN={}", channelId, stan);
+            // 設定 MDC 上下文，確保日誌包含追蹤資訊
+            try (var ignored = ChannelMdcUtil.withChannel(channelId)) {
+                ChannelMdcUtil.setTraceId(traceId);
+                ChannelMdcUtil.setTransactionContext(stan,
+                        requestInternal.getMessageType() != null
+                                ? requestInternal.getMessageType().getMtiCode()
+                                : null);
+
+                try {
+                    if (responseData != null && responseData.length > 0) {
+                        // 將 FISC 格式轉換為 ATM 格式
+                        byte[] atmFormatData = convertFiscToAtmFormat(responseData, channelId, finalSchema);
+
+                        if (atmFormatData != null && atmFormatData.length > 0) {
+                            context.sendRawResponse(atmFormatData);
+                            log.debug("[{}] 已發送回應 (格式轉換): STAN={}, traceId={}, FISC {} bytes → ATM {} bytes",
+                                    channelId, stan, traceId, responseData.length, atmFormatData.length);
+                        } else {
+                            // 如果轉換失敗，嘗試直接發送原始資料
+                            context.sendRawResponse(responseData);
+                            log.warn("[{}] 格式轉換失敗，直接發送原始資料: STAN={}, traceId={}, {} bytes",
+                                    channelId, stan, traceId, responseData.length);
+                        }
+                    } else {
+                        log.error("[{}] 回應資料為空: STAN={}, traceId={}", channelId, stan, traceId);
+                    }
+                } catch (Exception e) {
+                    log.error("[{}] 發送回應失敗: STAN={}, traceId={}, error={}",
+                            channelId, stan, traceId, e.getMessage(), e);
+                } finally {
+                    removeCallback(stan, channelId, context.getClientId());
                 }
-            } catch (Exception e) {
-                log.error("[{}] 發送回應失敗: STAN={}, error={}",
-                        channelId, stan, e.getMessage(), e);
-            } finally {
-                removeCallback(stan, channelId, context.getClientId());
             }
         };
+    }
+
+    /**
+     * 將 FISC 格式轉換為 ATM 格式
+     *
+     * <p>完整轉換流程：
+     * <ol>
+     *   <li>解析 FISC 格式的 byte[] 為 Iso8583Message</li>
+     *   <li>轉換為 GenericMessage（使用 ATM schema）</li>
+     *   <li>使用 GenericMessageAssembler 組裝為 ATM 格式</li>
+     * </ol>
+     *
+     * @param fiscData FISC 格式的訊息
+     * @param channelId 通道 ID（用於日誌）
+     * @param schema ATM schema（用於組裝）
+     * @return ATM 格式的訊息，或 null 如果轉換失敗
+     */
+    private byte[] convertFiscToAtmFormat(byte[] fiscData, String channelId, MessageSchema schema) {
+        if (fiscData == null || fiscData.length < 2) {
+            log.warn("[{}] 無法轉換：資料太短 ({} bytes)", channelId, fiscData != null ? fiscData.length : 0);
+            return null;
+        }
+
+        try {
+            // 1. 解析 FISC 格式為 Iso8583Message
+            Iso8583Message isoMessage = messageFactory.parse(fiscData);
+            if (isoMessage == null) {
+                log.warn("[{}] 無法解析 FISC 格式訊息", channelId);
+                return null;
+            }
+
+            log.debug("[{}] 解析 FISC 訊息: MTI={}, fields={}",
+                    channelId, isoMessage.getMti(), isoMessage.getFieldNumbers());
+
+            // 2. 如果沒有 schema，退回到舊的長度前綴轉換
+            if (schema == null) {
+                log.warn("[{}] 沒有可用的 schema，使用舊的轉換方式", channelId);
+                return convertLengthPrefixOnly(fiscData, channelId);
+            }
+
+            // 3. 轉換為 GenericMessage
+            GenericMessage genericMessage = convertIsoToGenericMessage(isoMessage, schema);
+
+            // 4. 組裝為 ATM 格式
+            byte[] atmData = assembler.assemble(genericMessage);
+
+            log.debug("[{}] 轉換完成: FISC {} bytes → ATM {} bytes, MTI={}",
+                    channelId, fiscData.length, atmData.length, isoMessage.getMti());
+
+            return atmData;
+
+        } catch (Exception e) {
+            log.error("[{}] FISC→ATM 格式轉換失敗: {}", channelId, e.getMessage(), e);
+            // 退回到舊的轉換方式
+            return convertLengthPrefixOnly(fiscData, channelId);
+        }
+    }
+
+    /**
+     * 將 Iso8583Message 轉換為 GenericMessage
+     *
+     * @param isoMessage ISO 8583 訊息
+     * @param schema ATM schema
+     * @return GenericMessage
+     */
+    private GenericMessage convertIsoToGenericMessage(Iso8583Message isoMessage, MessageSchema schema) {
+        GenericMessage generic = new GenericMessage(schema);
+
+        // 設定 MTI
+        generic.setField("mti", isoMessage.getMti());
+
+        // 複製所有欄位
+        for (int fieldNum : isoMessage.getFieldNumbers()) {
+            Object value = isoMessage.getField(fieldNum);
+            if (value != null) {
+                String fieldName = mapFieldNumberToName(fieldNum);
+                if (fieldName != null) {
+                    generic.setField(fieldName, value.toString());
+                }
+            }
+        }
+
+        return generic;
+    }
+
+    /**
+     * ISO 8583 欄位編號到 schema 欄位名稱的映射
+     */
+    private String mapFieldNumberToName(int fieldNum) {
+        return switch (fieldNum) {
+            case 2 -> "pan";
+            case 3 -> "processingCode";
+            case 4 -> "amount";
+            case 11 -> "stan";
+            case 12 -> "localTime";
+            case 13 -> "localDate";
+            case 14 -> "expiryDate";
+            case 22 -> "posEntryMode";
+            case 23 -> "cardSequence";
+            case 24 -> "functionCode";
+            case 25 -> "posConditionCode";
+            case 32 -> "acquiringInstitution";
+            case 35 -> "track2Data";
+            case 37 -> "rrn";
+            case 38 -> "authCode";
+            case 39 -> "responseCode";
+            case 41 -> "terminalId";
+            case 42 -> "merchantId";
+            case 43 -> "cardAcceptorName";
+            case 48 -> "additionalData";
+            case 49 -> "currencyCode";
+            case 52 -> "pinBlock";
+            case 54 -> "additionalAmounts";
+            case 55 -> "emvData";
+            case 70 -> "networkManagementCode";
+            case 102 -> "sourceAccount";
+            case 103 -> "destAccount";
+            default -> null;
+        };
+    }
+
+    /**
+     * 舊的轉換方式：僅轉換長度前綴
+     *
+     * <p>當無法取得 schema 時使用此方法作為 fallback。
+     * 注意：這會導致訊息內容仍為 FISC 格式（BCD），可能無法正確解析。
+     */
+    private byte[] convertLengthPrefixOnly(byte[] fiscData, String channelId) {
+        try {
+            // 解析 FISC BCD 長度（2 bytes）
+            int fiscLength = decodeBcdLength(fiscData[0], fiscData[1]);
+
+            // 驗證長度是否合理
+            int bodyLength = fiscData.length - 2;
+            if (fiscLength != bodyLength) {
+                log.debug("[{}] 資料可能已不含長度前綴 (declared={}, actual={})",
+                        channelId, fiscLength, fiscData.length);
+                bodyLength = fiscData.length;
+                return addAsciiLengthPrefix(fiscData, 0, bodyLength);
+            }
+
+            return addAsciiLengthPrefix(fiscData, 2, bodyLength);
+        } catch (Exception e) {
+            log.error("[{}] 長度前綴轉換失敗: {}", channelId, e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * 解碼 BCD 長度（2 bytes）
+     */
+    private int decodeBcdLength(byte b1, byte b2) {
+        int d1 = (b1 >> 4) & 0x0F;
+        int d2 = b1 & 0x0F;
+        int d3 = (b2 >> 4) & 0x0F;
+        int d4 = b2 & 0x0F;
+        return d1 * 1000 + d2 * 100 + d3 * 10 + d4;
+    }
+
+    /**
+     * 加上 4-byte ASCII 長度前綴
+     *
+     * @param data 原始資料
+     * @param offset 訊息本體起始位置
+     * @param bodyLength 訊息本體長度
+     * @return 含 ASCII 長度前綴的訊息
+     */
+    private byte[] addAsciiLengthPrefix(byte[] data, int offset, int bodyLength) {
+        // 產生 4-byte ASCII 長度（例如 "0105" 表示 105 bytes）
+        String lengthStr = String.format("%04d", bodyLength);
+        byte[] lengthPrefix = lengthStr.getBytes(java.nio.charset.StandardCharsets.US_ASCII);
+
+        // 組合：[4-byte ASCII length][message body]
+        byte[] result = new byte[4 + bodyLength];
+        System.arraycopy(lengthPrefix, 0, result, 0, 4);
+        System.arraycopy(data, offset, result, 4, bodyLength);
+
+        return result;
     }
 
     /**

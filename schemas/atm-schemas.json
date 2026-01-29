@@ -40,10 +40,9 @@
           "name": "Primary Account Number",
           "description": "Card number (Field 2)",
           "type": "NUMERIC",
-          "length": 19,
+          "length": 16,
           "lengthType": "FIXED",
-          "encoding": "BCD",
-          "lengthEncoding": "BCD",
+          "encoding": "ASCII",
           "sensitive": true
         },
         {
@@ -98,8 +97,7 @@
           "description": "Entry mode (Field 22)",
           "type": "NUMERIC",
           "length": 3,
-          "encoding": "ASCII",
-          "defaultValue": "051"
+          "encoding": "ASCII"
         },
         {
           "id": "cardSequence",
@@ -123,8 +121,7 @@
           "description": "Condition code (Field 25)",
           "type": "NUMERIC",
           "length": 2,
-          "encoding": "ASCII",
-          "defaultValue": "00"
+          "encoding": "ASCII"
         },
         {
           "id": "acquiringInstitution",
@@ -932,6 +929,308 @@
           {
             "type": "required",
             "fields": ["mti", "processingCode", "stan", "terminalId"]
+          }
+        ]
+      }
+    },
+    {
+      "$schema": "fep-message-schema-v1",
+      "name": "FISC ISO 8583",
+      "version": "1.0",
+      "vendor": "FISC",
+      "description": "Taiwan FISC ISO 8583 standard format (matches FiscMessageAssembler output)",
+
+      "header": {
+        "includeLength": true,
+        "lengthBytes": 2,
+        "lengthEncoding": "BCD",
+        "lengthIncludesHeader": false
+      },
+
+      "fields": [
+        {
+          "id": "mti",
+          "name": "Message Type Indicator",
+          "description": "ISO 8583 MTI (BCD encoded)",
+          "type": "NUMERIC",
+          "length": 4,
+          "encoding": "BCD",
+          "required": true
+        },
+        {
+          "id": "bitmap",
+          "name": "Primary Bitmap",
+          "description": "Primary bitmap (64 bits)",
+          "type": "BITMAP",
+          "length": 64,
+          "encoding": "BINARY",
+          "controls": [
+            "secondaryBitmap", "pan", "processingCode", "amount", "settlementAmount",
+            "cardholderBillingAmount", "transmissionDateTime", "billingFee", "conversionRateSettlement",
+            "conversionRateCardholderBilling", "stan", "localTime", "localDate", "expiryDate",
+            "settlementDate", "conversionDate", "captureDate", "merchantCategoryCode",
+            "acquiringCountryCode", "panCountryCode", "forwardingCountryCode", "posEntryMode",
+            "cardSequence", "networkInternationalId", "posConditionCode", "posPinCaptureCode",
+            "authIdResponseLength", "transactionFeeAmount", "settlementFeeAmount",
+            "transactionProcessingFeeAmount", "settlementProcessingFeeAmount", "acquiringInstitution",
+            "forwardingInstitution", "panExtended", "track2Data", "track3Data", "rrn", "authCode",
+            "responseCode", "serviceRestrictionCode", "terminalId", "merchantId", "cardAcceptorName",
+            "additionalResponseData", "track1Data", "additionalDataIso", "additionalDataNational",
+            "additionalData", "currencyCode", "currencyCodeSettlement",
+            "currencyCodeCardholderBilling", "pinBlock", "securityControlInfo", "additionalAmounts",
+            "emvData", "reservedIso56", "reservedNational57", "reservedNational58", "reservedNational59",
+            "reservedNational60", "reservedPrivate61", "reservedPrivate62", "reservedPrivate63", "mac"
+          ]
+        },
+        {
+          "id": "pan",
+          "name": "Primary Account Number",
+          "description": "Card number (Field 2)",
+          "type": "NUMERIC",
+          "length": 19,
+          "lengthType": "LLVAR",
+          "encoding": "BCD",
+          "lengthEncoding": "BCD",
+          "sensitive": true
+        },
+        {
+          "id": "processingCode",
+          "name": "Processing Code",
+          "description": "Transaction type (Field 3)",
+          "type": "NUMERIC",
+          "length": 6,
+          "encoding": "BCD"
+        },
+        {
+          "id": "amount",
+          "name": "Transaction Amount",
+          "description": "Amount (Field 4)",
+          "type": "NUMERIC",
+          "length": 12,
+          "encoding": "BCD"
+        },
+        {
+          "id": "transmissionDateTime",
+          "name": "Transmission Date Time",
+          "description": "MMDDhhmmss (Field 7)",
+          "type": "NUMERIC",
+          "length": 10,
+          "encoding": "BCD"
+        },
+        {
+          "id": "stan",
+          "name": "System Trace Audit Number",
+          "description": "STAN (Field 11)",
+          "type": "NUMERIC",
+          "length": 6,
+          "encoding": "BCD"
+        },
+        {
+          "id": "localTime",
+          "name": "Local Transaction Time",
+          "description": "hhmmss (Field 12)",
+          "type": "NUMERIC",
+          "length": 6,
+          "encoding": "BCD"
+        },
+        {
+          "id": "localDate",
+          "name": "Local Transaction Date",
+          "description": "MMDD (Field 13)",
+          "type": "NUMERIC",
+          "length": 4,
+          "encoding": "BCD"
+        },
+        {
+          "id": "expiryDate",
+          "name": "Expiration Date",
+          "description": "YYMM (Field 14)",
+          "type": "NUMERIC",
+          "length": 4,
+          "encoding": "BCD",
+          "sensitive": true
+        },
+        {
+          "id": "posEntryMode",
+          "name": "POS Entry Mode",
+          "description": "Point of Service Entry Mode (Field 22)",
+          "type": "NUMERIC",
+          "length": 3,
+          "encoding": "BCD"
+        },
+        {
+          "id": "cardSequence",
+          "name": "Card Sequence Number",
+          "description": "Field 23",
+          "type": "NUMERIC",
+          "length": 3,
+          "encoding": "BCD"
+        },
+        {
+          "id": "posConditionCode",
+          "name": "POS Condition Code",
+          "description": "Field 25",
+          "type": "NUMERIC",
+          "length": 2,
+          "encoding": "BCD"
+        },
+        {
+          "id": "acquiringInstitution",
+          "name": "Acquiring Institution ID",
+          "description": "Bank code (Field 32)",
+          "type": "NUMERIC",
+          "length": 11,
+          "lengthType": "LLVAR",
+          "encoding": "BCD",
+          "lengthEncoding": "BCD"
+        },
+        {
+          "id": "track2Data",
+          "name": "Track 2 Data",
+          "description": "Field 35",
+          "type": "NUMERIC",
+          "length": 37,
+          "lengthType": "LLVAR",
+          "encoding": "BCD",
+          "lengthEncoding": "BCD",
+          "sensitive": true
+        },
+        {
+          "id": "rrn",
+          "name": "Retrieval Reference Number",
+          "description": "RRN (Field 37)",
+          "type": "ALPHANUMERIC",
+          "length": 12,
+          "encoding": "ASCII"
+        },
+        {
+          "id": "authCode",
+          "name": "Authorization ID Response",
+          "description": "Auth code (Field 38)",
+          "type": "ALPHANUMERIC",
+          "length": 6,
+          "encoding": "ASCII"
+        },
+        {
+          "id": "responseCode",
+          "name": "Response Code",
+          "description": "Response code (Field 39)",
+          "type": "ALPHANUMERIC",
+          "length": 2,
+          "encoding": "ASCII"
+        },
+        {
+          "id": "terminalId",
+          "name": "Terminal ID",
+          "description": "ATM ID (Field 41)",
+          "type": "ALPHANUMERIC",
+          "length": 8,
+          "encoding": "ASCII"
+        },
+        {
+          "id": "merchantId",
+          "name": "Card Acceptor ID",
+          "description": "Merchant ID (Field 42)",
+          "type": "ALPHANUMERIC",
+          "length": 15,
+          "encoding": "ASCII"
+        },
+        {
+          "id": "cardAcceptorName",
+          "name": "Card Acceptor Name/Location",
+          "description": "ATM location (Field 43)",
+          "type": "ALPHANUMERIC",
+          "length": 40,
+          "encoding": "ASCII"
+        },
+        {
+          "id": "additionalData",
+          "name": "Additional Data Private",
+          "description": "Field 48",
+          "type": "ALPHANUMERIC",
+          "length": 999,
+          "lengthType": "LLLVAR",
+          "encoding": "ASCII",
+          "lengthEncoding": "BCD"
+        },
+        {
+          "id": "currencyCode",
+          "name": "Currency Code Transaction",
+          "description": "ISO 4217 currency code (Field 49)",
+          "type": "NUMERIC",
+          "length": 3,
+          "encoding": "BCD"
+        },
+        {
+          "id": "pinBlock",
+          "name": "PIN Data",
+          "description": "Encrypted PIN Block (Field 52)",
+          "type": "BINARY",
+          "length": 16,
+          "encoding": "BINARY",
+          "sensitive": true
+        },
+        {
+          "id": "additionalAmounts",
+          "name": "Additional Amounts",
+          "description": "Balance information (Field 54)",
+          "type": "ALPHANUMERIC",
+          "length": 120,
+          "lengthType": "LLLVAR",
+          "encoding": "ASCII",
+          "lengthEncoding": "BCD"
+        },
+        {
+          "id": "emvData",
+          "name": "EMV Data",
+          "description": "ICC/EMV related data (Field 55)",
+          "type": "BINARY",
+          "length": 999,
+          "lengthType": "LLLVAR",
+          "encoding": "BINARY",
+          "lengthEncoding": "BCD"
+        },
+        {
+          "id": "networkManagementCode",
+          "name": "Network Management Info Code",
+          "description": "Sign-on/Sign-off/Key exchange (Field 70)",
+          "type": "NUMERIC",
+          "length": 3,
+          "encoding": "BCD"
+        },
+        {
+          "id": "sourceAccount",
+          "name": "Account ID 1",
+          "description": "Source account (Field 102)",
+          "type": "ALPHANUMERIC",
+          "length": 28,
+          "lengthType": "LLVAR",
+          "encoding": "ASCII",
+          "lengthEncoding": "BCD"
+        },
+        {
+          "id": "destAccount",
+          "name": "Account ID 2",
+          "description": "Destination account (Field 103)",
+          "type": "ALPHANUMERIC",
+          "length": 28,
+          "lengthType": "LLVAR",
+          "encoding": "ASCII",
+          "lengthEncoding": "BCD"
+        }
+      ],
+
+      "encoding": {
+        "defaultCharset": "ASCII",
+        "bcdPacking": "RIGHT_JUSTIFIED",
+        "endianness": "BIG_ENDIAN"
+      },
+
+      "validation": {
+        "rules": [
+          {
+            "type": "required",
+            "fields": ["mti"]
           }
         ]
       }

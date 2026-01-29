@@ -144,19 +144,41 @@ public class ChannelSchemaRegistry {
      * @throws ChannelConfigException if parsing fails
      */
     public synchronized void loadFromJson(String json) {
+        loadFromContent(json, jsonMapper, "JSON");
+    }
+
+    /**
+     * Loads configuration from a YAML string.
+     *
+     * @param yaml the YAML configuration string
+     * @throws ChannelConfigException if parsing fails
+     */
+    public synchronized void loadFromYaml(String yaml) {
+        loadFromContent(yaml, yamlMapper, "YAML");
+    }
+
+    /**
+     * Loads configuration from content using the specified mapper.
+     *
+     * @param content the configuration content
+     * @param mapper the ObjectMapper to use
+     * @param formatName the format name for logging
+     * @throws ChannelConfigException if parsing fails
+     */
+    private synchronized void loadFromContent(String content, ObjectMapper mapper, String formatName) {
         try {
-            ChannelSchemaConfig newConfig = jsonMapper.readValue(json, ChannelSchemaConfig.class);
+            ChannelSchemaConfig newConfig = mapper.readValue(content, ChannelSchemaConfig.class);
 
             processChannels(newConfig);
             processOverrides(newConfig);
 
             this.config = newConfig;
 
-            log.info("Loaded {} channels from JSON string", channels.size());
+            log.info("Loaded {} channels from {} string", channels.size(), formatName);
             notifySubscribers();
 
         } catch (IOException e) {
-            throw new ChannelConfigException("Failed to parse JSON configuration: " + e.getMessage(), e);
+            throw new ChannelConfigException("Failed to parse " + formatName + " configuration: " + e.getMessage(), e);
         }
     }
 

@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL"
+                  xmlns:bpmndi="http://www.omg.org/spec/BPMN/20100524/DI"
+                  xmlns:dc="http://www.omg.org/spec/DD/20100524/DC"
+                  xmlns:di="http://www.omg.org/spec/DD/20100524/DI"
+                  xmlns:camunda="http://camunda.org/schema/1.0/bpmn"
+                  id="Definitions_ATM_Response"
+                  targetNamespace="http://fep.com/bpmn/atm-response"
+                  exporter="FEP BPMN Editor"
+                  exporterVersion="1.0.0">
+
+  <!--
+    ATM Response BPMN 流程
+
+    高 TPS 架構：由 FiscResponseHandler 觸發，處理 FISC 回應並回傳給 ATM。
+
+    流程：
+    START (由 FiscResponseHandler 啟動)
+      → LogTransaction (記錄交易日誌)
+      → AssembleMessage (組裝 ATM 回應電文)
+      → SendResponseToClient (發送回應給 ATM)
+      → END
+  -->
+  <bpmn:process id="ATM_Response_Process" name="ATM 回應流程" isExecutable="true"
+                camunda:historyTimeToLive="P180D">
+
+    <!-- 開始事件 -->
+    <bpmn:startEvent id="StartEvent_Response" name="收到 FISC 回應">
+      <bpmn:outgoing>Flow_ToLog</bpmn:outgoing>
+    </bpmn:startEvent>
+
+    <!-- 1. 記錄交易日誌 -->
+    <bpmn:serviceTask id="Task_LogTransaction" name="記錄交易日誌"
+                      camunda:delegateExpression="${logTransactionDelegate}">
+      <bpmn:incoming>Flow_ToLog</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToAssemble</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- 2. 組裝 ATM 回應電文 -->
+    <bpmn:serviceTask id="Task_AssembleMessage" name="組裝回應電文"
+                      camunda:delegateExpression="${assembleMessageDelegate}">
+      <bpmn:incoming>Flow_ToAssemble</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToSendResponse</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- 3. 發送回應給 ATM -->
+    <bpmn:serviceTask id="Task_SendResponseToClient" name="發送回應給 ATM"
+                      camunda:delegateExpression="${sendResponseToClientDelegate}">
+      <bpmn:incoming>Flow_ToSendResponse</bpmn:incoming>
+      <bpmn:outgoing>Flow_ToEnd</bpmn:outgoing>
+    </bpmn:serviceTask>
+
+    <!-- 結束事件 -->
+    <bpmn:endEvent id="EndEvent_Complete" name="處理完成">
+      <bpmn:incoming>Flow_ToEnd</bpmn:incoming>
+    </bpmn:endEvent>
+
+    <!-- ===== Sequence Flows ===== -->
+    <bpmn:sequenceFlow id="Flow_ToLog" sourceRef="StartEvent_Response" targetRef="Task_LogTransaction" />
+    <bpmn:sequenceFlow id="Flow_ToAssemble" sourceRef="Task_LogTransaction" targetRef="Task_AssembleMessage" />
+    <bpmn:sequenceFlow id="Flow_ToSendResponse" sourceRef="Task_AssembleMessage" targetRef="Task_SendResponseToClient" />
+    <bpmn:sequenceFlow id="Flow_ToEnd" sourceRef="Task_SendResponseToClient" targetRef="EndEvent_Complete" />
+
+  </bpmn:process>
+
+  <!-- BPMN Diagram (視覺化佈局) -->
+  <bpmndi:BPMNDiagram id="BPMNDiagram_ATM_Response">
+    <bpmndi:BPMNPlane id="BPMNPlane_Process" bpmnElement="ATM_Response_Process">
+
+      <!-- Start Event -->
+      <bpmndi:BPMNShape id="Shape_Start" bpmnElement="StartEvent_Response">
+        <dc:Bounds x="152" y="102" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="130" y="145" width="80" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Task: Log Transaction -->
+      <bpmndi:BPMNShape id="Shape_LogTransaction" bpmnElement="Task_LogTransaction">
+        <dc:Bounds x="240" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- Task: Assemble Message -->
+      <bpmndi:BPMNShape id="Shape_AssembleMessage" bpmnElement="Task_AssembleMessage">
+        <dc:Bounds x="390" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- Task: Send Response To Client -->
+      <bpmndi:BPMNShape id="Shape_SendResponse" bpmnElement="Task_SendResponseToClient">
+        <dc:Bounds x="540" y="80" width="100" height="80" />
+      </bpmndi:BPMNShape>
+
+      <!-- End Event -->
+      <bpmndi:BPMNShape id="Shape_End" bpmnElement="EndEvent_Complete">
+        <dc:Bounds x="692" y="102" width="36" height="36" />
+        <bpmndi:BPMNLabel>
+          <dc:Bounds x="683" y="145" width="55" height="14" />
+        </bpmndi:BPMNLabel>
+      </bpmndi:BPMNShape>
+
+      <!-- Edges -->
+      <bpmndi:BPMNEdge id="Edge_ToLog" bpmnElement="Flow_ToLog">
+        <di:waypoint x="188" y="120" />
+        <di:waypoint x="240" y="120" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_ToAssemble" bpmnElement="Flow_ToAssemble">
+        <di:waypoint x="340" y="120" />
+        <di:waypoint x="390" y="120" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_ToSendResponse" bpmnElement="Flow_ToSendResponse">
+        <di:waypoint x="490" y="120" />
+        <di:waypoint x="540" y="120" />
+      </bpmndi:BPMNEdge>
+
+      <bpmndi:BPMNEdge id="Edge_ToEnd" bpmnElement="Flow_ToEnd">
+        <di:waypoint x="640" y="120" />
+        <di:waypoint x="692" y="120" />
+      </bpmndi:BPMNEdge>
+
+    </bpmndi:BPMNPlane>
+  </bpmndi:BPMNDiagram>
+</bpmn:definitions>

@@ -1,12 +1,8 @@
-# FEP Channel Connection Configuration
-# 統一通道連線配置，結合邏輯通道與實體連線
-
 schema: fep-channel-connection-config-v2
 version: "2.0"
 lastModified: "2026-01-24T10:00:00Z"
 description: Unified channel connection configuration combining logical channels with physical connections
 
-# 連線 Profile 定義
 connectionProfiles:
   FISC_PRIMARY:
     host: localhost
@@ -55,7 +51,6 @@ connectionProfiles:
     properties:
       institutionId: "822"
 
-# 邏輯通道定義
 channels:
   FISC_INTERBANK_V1:
     connectionProfile: FISC_PRIMARY
@@ -111,7 +106,6 @@ channels:
       institutionId: "999"
       testMode: "true"
 
-# 預設值
 defaults:
   fallbackProfile: LOCAL_TEST
   fallbackChannel: LOCAL_TEST_V1

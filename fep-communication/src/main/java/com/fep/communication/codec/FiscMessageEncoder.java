@@ -2,6 +2,7 @@ package com.fep.communication.codec;
 
 import com.fep.message.iso8583.Iso8583Message;
 import com.fep.message.iso8583.parser.FiscMessageAssembler;
+import com.fep.message.iso8583.parser.FiscMessageAssembler.LengthEncoding;
 import com.fep.message.iso8583.parser.MessageAssembler;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.ChannelHandlerContext;
@@ -11,16 +12,40 @@ import lombok.extern.slf4j.Slf4j;
 /**
  * Netty encoder for ISO 8583 messages.
  * Converts Iso8583Message objects to bytes for transmission.
+ *
+ * <p>Supports configurable length prefix encoding to match the decoder:
+ * <ul>
+ *   <li>BCD: 2 bytes BCD encoded (default)</li>
+ *   <li>ASCII: 4 bytes ASCII encoded</li>
+ *   <li>BINARY: 2 bytes binary (big-endian)</li>
+ * </ul>
  */
 @Slf4j
 public class FiscMessageEncoder extends MessageToByteEncoder<Iso8583Message> {
 
     private final MessageAssembler assembler;
 
+    /**
+     * Creates an encoder with default BCD length encoding.
+     */
     public FiscMessageEncoder() {
         this.assembler = new FiscMessageAssembler();
     }
 
+    /**
+     * Creates an encoder with specified length encoding.
+     *
+     * @param lengthEncoding the length prefix encoding type
+     */
+    public FiscMessageEncoder(LengthEncoding lengthEncoding) {
+        this.assembler = new FiscMessageAssembler(lengthEncoding);
+    }
+
+    /**
+     * Creates an encoder with custom assembler.
+     *
+     * @param assembler the message assembler to use
+     */
     public FiscMessageEncoder(MessageAssembler assembler) {
         this.assembler = assembler;
     }

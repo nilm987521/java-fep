@@ -352,11 +352,19 @@ public class GenericMessageParser {
         }
 
         String encoding = fieldSchema.getEncoding();
+        String originalEncoding = encoding;
         if (encoding == null) {
             encoding = schema.getDefaultEncoding();
         }
 
         GenericCodec codec = CodecRegistry.get(encoding);
+
+        // Debug: Log encoding selection
+        if (log.isDebugEnabled()) {
+            log.debug("Field [{}]: schemaEncoding={}, effectiveEncoding={}, codecClass={}, type={}",
+                    fieldSchema.getId(), originalEncoding, encoding,
+                    codec.getClass().getSimpleName(), fieldSchema.getType());
+        }
 
         // Determine data length
         int dataLength;
@@ -384,9 +392,28 @@ public class GenericMessageParser {
             return;
         }
 
+        // Debug: Log raw bytes before decoding
+        if (log.isDebugEnabled()) {
+            byte[] rawPreview = new byte[byteLength];
+            buffer.getBytes(buffer.readerIndex(), rawPreview);
+            log.debug("Field [{}]: dataLength={}, byteLength={}, rawBytes=[{}]",
+                    fieldSchema.getId(), dataLength, byteLength,
+                    java.util.HexFormat.of().formatHex(rawPreview));
+        }
+
         // Decode the field
         Object value = codec.decode(buffer, fieldSchema, dataLength);
         message.setField(fieldSchema.getId(), value);
+
+        // Debug: Log decoded value with type
+        if (log.isDebugEnabled()) {
+            String valueStr = fieldSchema.isSensitive() ? "****" : String.valueOf(value);
+            String valueType = value != null ? value.getClass().getSimpleName() : "null";
+            log.debug("Field [{}]: decoded value='{}' (type={}, length={})",
+                    fieldSchema.getId(), valueStr, valueType,
+                    value instanceof String ? ((String) value).length() :
+                    value instanceof byte[] ? ((byte[]) value).length : "N/A");
+        }
 
         log.trace("Parsed field [{}]: length={}, value={}",
                 fieldSchema.getId(), dataLength,

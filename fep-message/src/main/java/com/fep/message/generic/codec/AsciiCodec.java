@@ -2,12 +2,14 @@ package com.fep.message.generic.codec;
 
 import com.fep.message.generic.schema.FieldSchema;
 import io.netty.buffer.ByteBuf;
+import lombok.extern.slf4j.Slf4j;
 
 import java.nio.charset.StandardCharsets;
 
 /**
  * ASCII encoding codec.
  */
+@Slf4j
 public class AsciiCodec implements GenericCodec {
 
     private static final String NAME = "ASCII";
@@ -34,7 +36,23 @@ public class AsciiCodec implements GenericCodec {
         int byteLength = calculateByteLength(dataLength);
         byte[] data = new byte[byteLength];
         buffer.readBytes(data);
+
+        // Debug: Log raw bytes being decoded
+        if (log.isDebugEnabled()) {
+            String fieldId = field != null ? field.getId() : "unknown";
+            log.debug("AsciiCodec.decode [{}]: dataLength={}, byteLength={}, rawBytes=[{}]",
+                    fieldId, dataLength, byteLength,
+                    java.util.HexFormat.of().formatHex(data));
+        }
+
         String value = new String(data, StandardCharsets.US_ASCII);
+
+        // Debug: Log decoded string
+        if (log.isDebugEnabled()) {
+            String fieldId = field != null ? field.getId() : "unknown";
+            log.debug("AsciiCodec.decode [{}]: decodedString='{}' (length={})",
+                    fieldId, value, value.length());
+        }
 
         // Trim padding only for fixed-length fields with EXPLICIT padding configuration
         // Don't trim based on inferred padding (e.g., NUMERIC type auto-padding)

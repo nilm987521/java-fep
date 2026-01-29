@@ -3,6 +3,7 @@ package com.fep.communication.handler;
 import com.fep.communication.client.ChannelRole;
 import com.fep.communication.client.ConnectionListener;
 import com.fep.communication.client.ConnectionState;
+import com.fep.communication.logging.ChannelMdcUtil;
 import com.fep.communication.manager.PendingRequestManager;
 import com.fep.message.generic.message.GenericMessage;
 import com.fep.message.iso8583.Iso8583Message;
@@ -133,46 +134,54 @@ public class ReceiveChannelHandler extends ChannelDuplexHandler {
 
     @Override
     public void channelActive(ChannelHandlerContext ctx) throws Exception {
-        log.info("[{}] Receive channel active: {}", connectionName, ctx.channel().remoteAddress());
-        updateState(ConnectionState.CONNECTED);
-        if (listener != null) {
-            listener.onConnected(connectionName);
+        try (var ignored = ChannelMdcUtil.withChannel(connectionName)) {
+            log.info("[{}] Receive channel active: {}", connectionName, ctx.channel().remoteAddress());
+            updateState(ConnectionState.CONNECTED);
+            if (listener != null) {
+                listener.onConnected(connectionName);
+            }
         }
         super.channelActive(ctx);
     }
 
     @Override
     public void channelInactive(ChannelHandlerContext ctx) throws Exception {
-        log.info("[{}] Receive channel inactive", connectionName);
-        updateState(ConnectionState.DISCONNECTED);
+        try (var ignored = ChannelMdcUtil.withChannel(connectionName)) {
+            log.info("[{}] Receive channel inactive", connectionName);
+            updateState(ConnectionState.DISCONNECTED);
 
-        // Note: We don't cancel pending requests here because that's managed by
-        // FiscDualChannelClient based on failure strategy
-        if (listener != null) {
-            listener.onDisconnected(connectionName, null);
+            // Note: We don't cancel pending requests here because that's managed by
+            // FiscDualChannelClient based on failure strategy
+            if (listener != null) {
+                listener.onDisconnected(connectionName, null);
+            }
         }
         super.channelInactive(ctx);
     }
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-        if (msg instanceof Iso8583Message message) {
-            handleMessage(message);
-        } else {
-            log.warn("[{}] Unexpected message type on Receive channel: {}",
-                connectionName, msg.getClass());
-            super.channelRead(ctx, msg);
+        try (var ignored = ChannelMdcUtil.withChannel(connectionName)) {
+            if (msg instanceof Iso8583Message message) {
+                handleMessage(message);
+            } else {
+                log.warn("[{}] Unexpected message type on Receive channel: {}",
+                    connectionName, msg.getClass());
+                super.channelRead(ctx, msg);
+            }
         }
     }
 
     @Override
     public void write(ChannelHandlerContext ctx, Object msg, ChannelPromise promise) throws Exception {
-        // Receive channel should not send messages in proper dual-channel mode
-        // But we log it for debugging purposes
-        if (msg instanceof Iso8583Message message) {
-            log.warn("[{}] Unexpected write on Receive channel: MTI={}, STAN={}. " +
-                    "In dual-channel mode, requests should be sent via Send channel.",
-                connectionName, message.getMti(), message.getFieldAsString(11));
+        try (var ignored = ChannelMdcUtil.withChannel(connectionName)) {
+            // Receive channel should not send messages in proper dual-channel mode
+            // But we log it for debugging purposes
+            if (msg instanceof Iso8583Message message) {
+                log.warn("[{}] Unexpected write on Receive channel: MTI={}, STAN={}. " +
+                        "In dual-channel mode, requests should be sent via Send channel.",
+                    connectionName, message.getMti(), message.getFieldAsString(11));
+            }
         }
         super.write(ctx, msg, promise);
     }
@@ -188,9 +197,11 @@ public class ReceiveChannelHandler extends ChannelDuplexHandler {
 
     @Override
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
-        log.error("[{}] Exception caught on Receive channel: {}", connectionName, cause.getMessage(), cause);
-        if (listener != null) {
-            listener.onError(connectionName, cause);
+        try (var ignored = ChannelMdcUtil.withChannel(connectionName)) {
+            log.error("[{}] Exception caught on Receive channel: {}", connectionName, cause.getMessage(), cause);
+            if (listener != null) {
+                listener.onError(connectionName, cause);
+            }
         }
         ctx.close();
     }
@@ -204,6 +215,12 @@ public class ReceiveChannelHandler extends ChannelDuplexHandler {
 
         log.debug("[{}] Received message: MTI={}, STAN={}", connectionName, mti, stan);
         messagesReceived.incrementAndGet();
+
+        // Log raw inbound data at DEBUG level
+        if (log.isDebugEnabled() && message.getRawData() != null) {
+            log.debug("[{}] Inbound raw data: {}", connectionName,
+                    ChannelMdcUtil.formatHex(message.getRawData(), 256));
+        }
 
         // Notify listener
         if (listener != null) {

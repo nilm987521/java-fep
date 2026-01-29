@@ -119,7 +119,10 @@ public class SendResponseToClientDelegate implements JavaDelegate {
     /**
      * 建立預設回應
      *
-     * <p>當沒有組裝好的回應訊息時，基於原始請求建立 Iso8583Message 回應
+     * <p>當沒有組裝好的回應訊息時，基於流程變數建立 Iso8583Message 回應。
+     *
+     * <p>注意：不再嘗試反序列化 rawMessage，因為原始電文可能是 GenericMessage 格式（ASCII），
+     * 而 Iso8583MessageFactory 期望的是 FISC 格式（BCD）。直接使用流程變數中已解析的欄位。
      */
     private byte[] buildDefaultResponse(DelegateExecution execution) {
         try {
@@ -134,16 +137,7 @@ public class SendResponseToClientDelegate implements JavaDelegate {
                 }
             }
 
-            // 嘗試從原始請求建立回應
-            byte[] rawMessage = (byte[]) execution.getVariable("rawMessage");
-            if (rawMessage != null && rawMessage.length > 0) {
-                Iso8583Message request = deserializeMessage(rawMessage);
-                if (request != null) {
-                    return buildResponseFromRequest(request, responseCode, execution);
-                }
-            }
-
-            // 無原始請求，建立基本回應
+            // 直接使用流程變數中的欄位來建立回應
             return buildBasicResponse(execution, responseCode);
         } catch (Exception e) {
             log.error("建立預設回應失敗: {}", e.getMessage(), e);
@@ -152,68 +146,87 @@ public class SendResponseToClientDelegate implements JavaDelegate {
     }
 
     /**
-     * 基於原始請求建立回應
-     */
-    private byte[] buildResponseFromRequest(Iso8583Message request, String responseCode,
-                                             DelegateExecution execution) {
-        Iso8583Message response = new Iso8583Message();
-
-        // 計算回應 MTI
-        String responseMti = calculateResponseMti(request.getMti());
-        response.setMti(responseMti);
-
-        // 複製關鍵欄位
-        copyField(request, response, 2);  // PAN
-        copyField(request, response, 3);  // Processing Code
-        copyField(request, response, 4);  // Amount
-        copyField(request, response, 11); // STAN
-        copyField(request, response, 37); // RRN
-        copyField(request, response, 41); // Terminal ID
-        copyField(request, response, 42); // Merchant ID
-        copyField(request, response, 102); // Source Account
-        copyField(request, response, 103); // Target Account
-
-        // 設定回應碼
-        response.setField(39, responseCode);
-
-        // 設定授權碼 (若有)
-        String authCode = (String) execution.getVariable("authCode");
-        if (authCode != null) {
-            response.setField(38, authCode);
-        }
-
-        // 設定時間
-        LocalDateTime now = LocalDateTime.now();
-        response.setField(12, now.format(TIME_FORMAT));
-        response.setField(13, now.format(DATE_FORMAT));
-
-        return serializeMessage(response);
-    }
-
-    /**
-     * 建立基本回應 (無原始請求時使用)
+     * 建立回應訊息（使用流程變數中的欄位）
      */
     private byte[] buildBasicResponse(DelegateExecution execution, String responseCode) {
         Iso8583Message response = new Iso8583Message();
 
+        // MTI
         String mti = (String) execution.getVariable("mti");
         response.setMti(calculateResponseMti(mti != null ? mti : "0200"));
 
-        String stan = (String) execution.getVariable("stan");
-        if (stan != null) {
-            response.setField(11, stan);
+        // Field 2 - PAN
+        String pan = (String) execution.getVariable("pan");
+        if (pan != null && !pan.isEmpty()) {
+            response.setField(2, pan);
         }
 
+        // Field 3 - Processing Code
         String processingCode = (String) execution.getVariable("processingCode");
         if (processingCode != null) {
             response.setField(3, processingCode);
         }
 
-        response.setField(39, responseCode);
+        // Field 4 - Amount
+        Object amount = execution.getVariable("amount");
+        if (amount != null) {
+            String amountStr = amount.toString();
+            // 確保金額格式為 12 位數字
+            if (amountStr.length() < 12) {
+                amountStr = "0".repeat(12 - amountStr.length()) + amountStr;
+            }
+            response.setField(4, amountStr);
+        }
 
+        // Field 11 - STAN
+        String stan = (String) execution.getVariable("stan");
+        if (stan != null) {
+            response.setField(11, stan);
+        }
+
+        // Field 12, 13 - Time, Date
         LocalDateTime now = LocalDateTime.now();
         response.setField(12, now.format(TIME_FORMAT));
         response.setField(13, now.format(DATE_FORMAT));
+
+        // Field 37 - RRN
+        String rrn = (String) execution.getVariable("rrn");
+        if (rrn != null && !rrn.isEmpty()) {
+            response.setField(37, rrn);
+        }
+
+        // Field 38 - Auth Code (若有)
+        String authCode = (String) execution.getVariable("authCode");
+        if (authCode != null && !authCode.isBlank()) {
+            response.setField(38, authCode);
+        }
+
+        // Field 39 - Response Code
+        response.setField(39, responseCode);
+
+        // Field 41 - Terminal ID
+        String terminalId = (String) execution.getVariable("terminalId");
+        if (terminalId != null && !terminalId.isEmpty()) {
+            response.setField(41, terminalId);
+        }
+
+        // Field 42 - Merchant ID
+        String merchantId = (String) execution.getVariable("merchantId");
+        if (merchantId != null && !merchantId.isEmpty()) {
+            response.setField(42, merchantId);
+        }
+
+        // Field 102 - Source Account
+        String sourceAccount = (String) execution.getVariable("sourceAccount");
+        if (sourceAccount != null && !sourceAccount.isEmpty()) {
+            response.setField(102, sourceAccount);
+        }
+
+        // Field 103 - Target Account
+        String targetAccount = (String) execution.getVariable("targetAccount");
+        if (targetAccount != null && !targetAccount.isEmpty()) {
+            response.setField(103, targetAccount);
+        }
 
         return serializeMessage(response);
     }
@@ -227,33 +240,6 @@ public class SendResponseToClientDelegate implements JavaDelegate {
             return String.format("%04d", mti + 10);
         } catch (NumberFormatException e) {
             return "0210";
-        }
-    }
-
-    /**
-     * 複製欄位
-     */
-    private void copyField(Iso8583Message source, Iso8583Message target, int fieldNum) {
-        Object value = source.getField(fieldNum);
-        if (value != null) {
-            target.setField(fieldNum, value);
-        }
-    }
-
-    /**
-     * 反序列化訊息
-     *
-     * <p>使用 Iso8583MessageFactory 解析 ISO 8583 格式電文
-     */
-    private Iso8583Message deserializeMessage(byte[] data) {
-        if (data == null || data.length == 0) {
-            return null;
-        }
-        try {
-            return messageFactory.parse(data);
-        } catch (Exception e) {
-            log.error("反序列化訊息失敗: {}", e.getMessage());
-            return null;
         }
     }
 

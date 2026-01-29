@@ -95,6 +95,9 @@ public class AtmSimulatorSampler extends AbstractSampler implements TestStateLis
         String fepHost = getFepHost();
         int fepPort = getFepPort();
 
+        // Start timing early to ensure sampleEnd() is always called after sampleStart()
+        result.sampleStart();
+
         try {
             // Load schema
             MessageSchema schema = loadMessageSchema();
@@ -146,10 +149,8 @@ public class AtmSimulatorSampler extends AbstractSampler implements TestStateLis
             holder.pendingRequests.put(messageId, responseFuture);
             holder.lastRequestId = messageId;
 
-            // Start timing
-            result.sampleStart();
-
             // Send message
+            result.latencyEnd();
             ByteBuf buf = Unpooled.wrappedBuffer(messageBytes);
             holder.channel.writeAndFlush(buf).sync();
 

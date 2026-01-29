@@ -40,7 +40,17 @@ public class TransferProcessService {
      * @return 流程實例 ID
      */
     public String startTransferProcess(TransferRequest request) {
-        return startTransferProcess(request, null, null, null);
+        return startTransferProcess(request, null, null, null, null, null);
+    }
+
+    /**
+     * 啟動流程（支援動態路由，向下相容）
+     *
+     * @deprecated 使用 {@link #startTransferProcess(TransferRequest, String, String, String, String, String)} 代替
+     */
+    @Deprecated
+    public String startTransferProcess(TransferRequest request, String channelId, String mti, String processingCode) {
+        return startTransferProcess(request, channelId, null, mti, processingCode, null);
     }
 
     /**
@@ -50,14 +60,28 @@ public class TransferProcessService {
      *
      * @param request 轉帳請求
      * @param channelId 通道 ID (e.g., "ATM_FISC_V1")
+     * @param clientId 客戶端 ID (e.g., "192.168.1.10:12345")
      * @param mti MTI (e.g., "0200", "2500")
      * @param processingCode Processing Code (e.g., "400000")
+     * @param callbackKey 回調鍵 (channelId:clientId:atmStan)
      * @return 流程實例 ID
      */
-    public String startTransferProcess(TransferRequest request, String channelId, String mti, String processingCode) {
+    public String startTransferProcess(TransferRequest request, String channelId, String clientId,
+                                        String mti, String processingCode, String callbackKey) {
         // 解析流程 Key
         String processKey = resolveProcessKey(channelId, mti, processingCode);
-        return startProcessWithKey(request, processKey, channelId, mti, processingCode);
+        return startProcessWithKey(request, processKey, channelId, clientId, mti, processingCode, callbackKey);
+    }
+
+    /**
+     * 啟動流程（直接使用指定的 processKey，向下相容）
+     *
+     * @deprecated 使用 {@link #startProcessWithKey(TransferRequest, String, String, String, String, String, String)} 代替
+     */
+    @Deprecated
+    public String startProcessWithKey(TransferRequest request, String processKey,
+                                       String channelId, String mti, String processingCode) {
+        return startProcessWithKey(request, processKey, channelId, null, mti, processingCode, null);
     }
 
     /**
@@ -69,21 +93,29 @@ public class TransferProcessService {
      * @param request 轉帳請求
      * @param processKey BPMN 流程 Key（由 ProcessRouterService 預先解析）
      * @param channelId 通道 ID
+     * @param clientId 客戶端 ID (e.g., "192.168.1.10:12345")
      * @param mti MTI
      * @param processingCode Processing Code
+     * @param callbackKey 回調鍵 (channelId:clientId:atmStan)
      * @return 流程實例 ID
      */
     public String startProcessWithKey(TransferRequest request, String processKey,
-                                       String channelId, String mti, String processingCode) {
+                                       String channelId, String clientId,
+                                       String mti, String processingCode, String callbackKey) {
         if (log.isDebugEnabled()) {
-            log.debug("啟動流程: processKey={}, channel={}, mti={}, {} -> {}, 金額={}",
-                processKey, channelId, mti,
-                request.getSourceAccount(), request.getTargetAccount(), request.getAmount());
+            log.debug("啟動流程: processKey={}, channel={}, clientId={}, mti={}, {} -> {}, 金額={}, callbackKey={}",
+                processKey, channelId, clientId, mti,
+                request.getSourceAccount(), request.getTargetAccount(), request.getAmount(), callbackKey);
         }
 
         // 準備流程變數
         Map<String, Object> variables = new HashMap<>();
         variables.put("stan", request.getStan());
+        // 保存 ATM 原始 STAN，AssembleMessageDelegate 會產生新的 STAN 給 FISC
+        variables.put("atmStan", request.getStan());
+        // 保存 callbackKey，用於 FISC 回應時查找對應的 ATM 連線
+        variables.put("callbackKey", callbackKey);
+        variables.put("clientId", clientId);
         variables.put("sourceAccount", request.getSourceAccount());
         variables.put("targetAccount", request.getTargetAccount());
         variables.put("amount", request.getAmount());
@@ -99,6 +131,19 @@ public class TransferProcessService {
         if (request.getRawMessage() != null) {
             variables.put("rawMessage", request.getRawMessage());
         }
+        // 新增欄位 - 用於組裝回應訊息
+        if (request.getPan() != null) {
+            variables.put("pan", request.getPan());
+        }
+        if (request.getTerminalId() != null) {
+            variables.put("terminalId", request.getTerminalId());
+        }
+        if (request.getMerchantId() != null) {
+            variables.put("merchantId", request.getMerchantId());
+        }
+        if (request.getRrn() != null) {
+            variables.put("rrn", request.getRrn());
+        }
 
         // 啟動流程
         ProcessInstance instance = runtimeService.startProcessInstanceByKey(
@@ -108,8 +153,8 @@ public class TransferProcessService {
         );
 
         if (log.isDebugEnabled()) {
-            log.debug("流程已啟動: processId={}, processKey={}, businessKey={}",
-                instance.getId(), processKey, request.getBusinessKey());
+            log.debug("流程已啟動: processId={}, processKey={}, businessKey={}, callbackKey={}",
+                instance.getId(), processKey, request.getBusinessKey(), callbackKey);
         }
 
         return instance.getId();
@@ -194,6 +239,11 @@ public class TransferProcessService {
         private boolean designated;       // 是否約定轉帳
         private String channel;           // 通道 (ATM/WEB/MOBILE)
         private byte[] rawMessage;        // 原始電文 (序列化的 Iso8583Message)
+        // 新增欄位 - 用於組裝回應訊息
+        private String pan;               // 卡號 (Field 2)
+        private String terminalId;        // 終端機 ID (Field 41)
+        private String merchantId;        // 商戶 ID (Field 42)
+        private String rrn;               // 交易參考號 (Field 37)
     }
 
     /**

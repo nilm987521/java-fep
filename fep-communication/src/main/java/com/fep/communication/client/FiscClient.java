@@ -1,7 +1,9 @@
 package com.fep.communication.client;
 
 import com.fep.communication.codec.FiscMessageDecoder;
+import com.fep.communication.codec.FiscMessageDecoder.LengthEncoding;
 import com.fep.communication.codec.FiscMessageEncoder;
+import com.fep.message.iso8583.parser.FiscMessageAssembler;
 import com.fep.communication.config.FiscConnectionConfig;
 import com.fep.communication.exception.CommunicationException;
 import com.fep.communication.handler.FiscClientHandler;
@@ -112,9 +114,9 @@ public class FiscClient implements AutoCloseable {
                     pipeline.addLast("idleStateHandler",
                         new IdleStateHandler(idleSeconds * 2, idleSeconds, 0));
 
-                    // Message codec
-                    pipeline.addLast("decoder", new FiscMessageDecoder());
-                    pipeline.addLast("encoder", new FiscMessageEncoder());
+                    // Message codec - use ASCII encoding to match FISC format
+                    pipeline.addLast("decoder", new FiscMessageDecoder(LengthEncoding.ASCII));
+                    pipeline.addLast("encoder", new FiscMessageEncoder(FiscMessageAssembler.LengthEncoding.ASCII));
 
                     // Business logic handler
                     clientHandler = new FiscClientHandler(

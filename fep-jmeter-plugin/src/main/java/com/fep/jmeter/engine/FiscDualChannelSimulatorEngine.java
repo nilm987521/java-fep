@@ -1,5 +1,8 @@
 package com.fep.jmeter.engine;
 
+import com.fep.message.generic.message.GenericMessage;
+import com.fep.message.generic.parser.GenericMessageAssembler;
+import com.fep.message.generic.schema.MessageSchema;
 import com.fep.message.iso8583.Iso8583Message;
 import com.fep.message.iso8583.Iso8583MessageFactory;
 import com.fep.message.iso8583.parser.FiscMessageAssembler;
@@ -156,6 +159,14 @@ public class FiscDualChannelSimulatorEngine implements AutoCloseable {
     @Setter
     private volatile String lengthEncoding = "BCD";
 
+    /** Response message schema for populating default values */
+    @Getter
+    @Setter
+    private volatile MessageSchema responseSchema;
+
+    /** GenericMessage assembler for schema-based encoding */
+    private final GenericMessageAssembler genericMessageAssembler = new GenericMessageAssembler();
+
     /**
      * Creates a simulator engine with random available ports.
      */
@@ -211,6 +222,8 @@ public class FiscDualChannelSimulatorEngine implements AutoCloseable {
             Iso8583Message response = request.createResponse();
             response.setField(39, defaultResponseCode);
             response.setField(70, networkCode);
+            // Ensure required fields for schema validation
+            ensureRequiredFields(request, response);
             return response;
         });
 
@@ -222,6 +235,8 @@ public class FiscDualChannelSimulatorEngine implements AutoCloseable {
 
             Iso8583Message response = request.createResponse();
             response.setField(39, defaultResponseCode);
+            // Ensure required fields for schema validation
+            ensureRequiredFields(request, response);
             return response;
         });
 
@@ -231,8 +246,59 @@ public class FiscDualChannelSimulatorEngine implements AutoCloseable {
 
             Iso8583Message response = request.createResponse();
             response.setField(39, defaultResponseCode);
+            // Ensure required fields for schema validation
+            ensureRequiredFields(request, response);
             return response;
         });
+    }
+
+    /**
+     * Ensures required fields are present in the response for schema validation.
+     *
+     * <p>Schema typically requires: mti, processingCode, stan, terminalId
+     * These fields are copied from request if present, or set to defaults.
+     *
+     * @param request the original request message
+     * @param response the response being built
+     */
+    private void ensureRequiredFields(Iso8583Message request, Iso8583Message response) {
+        // Field 3: Processing Code - required by schema
+        if (!response.hasField(3)) {
+            String processingCode = request.getFieldAsString(3);
+            if (processingCode != null && !processingCode.isEmpty()) {
+                response.setField(3, processingCode);
+            } else {
+                // Default processing code for network management
+                response.setField(3, "000000");
+            }
+        }
+
+        // Field 11: STAN - required by schema
+        if (!response.hasField(11)) {
+            String stan = request.getFieldAsString(11);
+            if (stan != null && !stan.isEmpty()) {
+                response.setField(11, stan);
+            }
+        }
+
+        // Field 41: Terminal ID - required by schema
+        if (!response.hasField(41)) {
+            String terminalId = request.getFieldAsString(41);
+            if (terminalId != null && !terminalId.isEmpty()) {
+                response.setField(41, terminalId);
+            } else {
+                // Default terminal ID for responses
+                response.setField(41, "FISC0001");
+            }
+        }
+
+        // Field 42: Merchant ID - copy if present
+        if (!response.hasField(42)) {
+            String merchantId = request.getFieldAsString(42);
+            if (merchantId != null && !merchantId.isEmpty()) {
+                response.setField(42, merchantId);
+            }
+        }
     }
 
     /**
@@ -724,18 +790,99 @@ public class FiscDualChannelSimulatorEngine implements AutoCloseable {
 
     /**
      * ISO 8583 Message Encoder with configurable length encoding.
+     * Supports schema-based encoding with default value population.
      */
     private class EngineEncoder extends MessageToByteEncoder<Iso8583Message> {
 
         @Override
         protected void encode(ChannelHandlerContext ctx, Iso8583Message msg, ByteBuf out) {
-            byte[] data = messageAssembler.assemble(msg);
+            byte[] data;
 
-            // Write length prefix based on configured encoding
-            writeLength(out, data.length, lengthFieldBytes, lengthEncoding);
+            // Use schema-based encoding if responseSchema is configured
+            boolean schemaIncludesLength = false;
+            if (responseSchema != null) {
+                GenericMessage genericMsg = convertToGenericMessage(msg, responseSchema);
+                // Populate default values from schema - this is the key feature!
+                genericMsg.populateDefaults();
+                data = genericMessageAssembler.assemble(genericMsg);
+                log.debug("[Engine] Encoded response with schema defaults: MTI={}, fields={}",
+                    msg.getMti(), genericMsg.getAllFields().size());
+                // Check if schema already includes length prefix
+                schemaIncludesLength = responseSchema.getHeader() != null
+                    && responseSchema.getHeader().isIncludeLength();
+            } else {
+                // Fall back to ISO 8583 format without schema
+                data = messageAssembler.assemble(msg);
+            }
+
+            // Write length prefix based on configured encoding (skip if schema already includes it)
+            if (!schemaIncludesLength) {
+                writeLength(out, data.length, lengthFieldBytes, lengthEncoding);
+            }
 
             // Write message body
             out.writeBytes(data);
+        }
+
+        /**
+         * Converts Iso8583Message to GenericMessage using the specified schema.
+         */
+        private GenericMessage convertToGenericMessage(Iso8583Message iso8583, MessageSchema schema) {
+            GenericMessage generic = new GenericMessage(schema);
+
+            // Set MTI
+            generic.setField("mti", iso8583.getMti());
+
+            // Copy all fields using standard ISO 8583 to schema field mapping
+            for (int fieldNum : iso8583.getFieldNumbers()) {
+                Object value = iso8583.getField(fieldNum);
+                if (value != null) {
+                    String fieldName = mapFieldNumberToName(fieldNum);
+                    if (fieldName != null) {
+                        generic.setField(fieldName, value.toString());
+                    }
+                }
+            }
+
+            return generic;
+        }
+
+        /**
+         * Maps ISO 8583 field number to schema field name.
+         * Aligned with FISC format schema definitions.
+         */
+        private String mapFieldNumberToName(int fieldNum) {
+            return switch (fieldNum) {
+                case 2 -> "pan";
+                case 3 -> "processingCode";
+                case 4 -> "amount";
+                case 11 -> "stan";
+                case 12 -> "localTime";
+                case 13 -> "localDate";
+                case 14 -> "expiryDate";
+                case 22 -> "posEntryMode";
+                case 23 -> "cardSequence";
+                case 24 -> "functionCode";
+                case 25 -> "posConditionCode";
+                case 32 -> "acquiringInstitution";
+                case 35 -> "track2Data";
+                case 37 -> "rrn";
+                case 38 -> "authCode";
+                case 39 -> "responseCode";
+                case 41 -> "terminalId";
+                case 42 -> "merchantId";
+                case 43 -> "cardAcceptorName";
+                case 48 -> "additionalData";
+                case 49 -> "currencyCode";
+                case 52 -> "pinBlock";
+                case 54 -> "additionalAmounts";
+                case 55 -> "emvData";
+                case 70 -> "networkManagementCode";
+                case 100 -> "targetBankCode";
+                case 102 -> "sourceAccount";
+                case 103 -> "destAccount";
+                default -> null;
+            };
         }
 
         private void writeLength(ByteBuf out, int length, int bytes, String encoding) {
@@ -809,7 +956,12 @@ public class FiscDualChannelSimulatorEngine implements AutoCloseable {
             lastRequestMti = mti;
             lastRequestStan = stan;
 
-            log.debug("[Engine] Received on Receive channel: MTI={}, STAN={}, BankId={}", mti, stan, bankId);
+            // Log at INFO level to help diagnose STAN issues under high load
+            if (stan == null || stan.isEmpty()) {
+                log.warn("[Engine] Received message with NULL/EMPTY STAN: MTI={}, BankId={}", mti, bankId);
+            } else {
+                log.info("[Engine] Received on Receive channel: MTI={}, STAN={}, BankId={}", mti, stan, bankId);
+            }
 
             // Register Bank ID mapping for routing
             if (enableBankIdRouting && bankId != null && !bankId.isEmpty()) {
@@ -854,6 +1006,16 @@ public class FiscDualChannelSimulatorEngine implements AutoCloseable {
                     log.warn("[Engine] No handler for MTI={}", mti);
                     response = request.createResponse();
                     response.setField(39, "12");
+                }
+            }
+
+            // CRITICAL: Ensure STAN is always set from request (fixes high-load STAN mismatch)
+            if (stan != null && !stan.isEmpty()) {
+                String responseStan = response.getFieldAsString(11);
+                if (responseStan == null || !responseStan.equals(stan)) {
+                    log.warn("[Engine] STAN mismatch detected: request={}, response={}, forcing request STAN",
+                        stan, responseStan);
+                    response.setField(11, stan);
                 }
             }
 
